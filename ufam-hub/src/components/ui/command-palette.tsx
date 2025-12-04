@@ -1,5 +1,4 @@
 "use client";
-
 import * as React from "react";
 import {
   CommandDialog,
@@ -10,7 +9,19 @@ import {
   CommandList,
 } from "./command";
 import { useRouter } from "next/navigation";
-
+import {
+  BookOpen,
+  GraduationCap,
+  Calendar,
+  MessageSquare,
+  Plus,
+  FileText,
+  Search,
+  BarChart3,
+  Trophy,
+  Brain,
+} from "lucide-react";
+import { useNotasSearch } from "@/hooks/useNotasSearch";
 export function useCommandPalette() {
   const [open, setOpen] = React.useState(false);
   React.useEffect(() => {
@@ -25,7 +36,6 @@ export function useCommandPalette() {
   }, []);
   return { open, setOpen };
 }
-
 export function CommandPalette({
   open,
   setOpen,
@@ -34,35 +44,137 @@ export function CommandPalette({
   setOpen: (v: boolean) => void;
 }) {
   const router = useRouter();
-  const go = (href: string) => {
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const { search, results, loading: notasLoading } = useNotasSearch();
+  React.useEffect(() => {
+    if (searchQuery.trim().length > 2) {
+      search(searchQuery);
+    }
+  }, [searchQuery, search]);
+  const go = (href: string, action?: string) => {
     setOpen(false);
-    router.push(href);
+    if (action) {
+      router.push(`${href}?action=${action}`);
+    } else {
+      router.push(href);
+    }
   };
-
+  const navigationItems = [
+    { label: "Dashboard", href: "/dashboard", icon: null },
+    { label: "Disciplinas", href: "/disciplinas", icon: BookOpen },
+    { label: "Avaliações", href: "/avaliacoes", icon: GraduationCap },
+    { label: "Gamificação", href: "/gamificacao", icon: Trophy },
+    { label: "Revisão", href: "/revisao", icon: Brain },
+    { label: "Calendário", href: "/calendar", icon: Calendar },
+    { label: "Chat IA", href: "/chat", icon: MessageSquare },
+  ];
+  const actionItems = [
+    {
+      label: "Nova avaliação",
+      href: "/avaliacoes",
+      action: "new",
+      icon: GraduationCap,
+    },
+    {
+      label: "Nova disciplina",
+      href: "/disciplinas",
+      action: "new",
+      icon: BookOpen,
+    },
+    {
+      label: "Novo evento",
+      href: "/calendar",
+      action: "new",
+      icon: Plus,
+    },
+  ];
+  const filteredNavigation = navigationItems.filter((item) =>
+    item.label.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredActions = actionItems.filter((item) =>
+    item.label.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Buscar ações e páginas..." />
+      <CommandInput
+        placeholder="Buscar páginas, disciplinas, avaliações..."
+        value={searchQuery}
+        onValueChange={setSearchQuery}
+      />
       <CommandList>
-        <CommandEmpty>Nada encontrado.</CommandEmpty>
-        <CommandGroup heading="Navegação">
-          <CommandItem onSelect={() => go("/dashboard")}>Dashboard</CommandItem>
-          <CommandItem onSelect={() => go("/disciplinas")}>
-            Disciplinas
-          </CommandItem>
-          <CommandItem onSelect={() => go("/avaliacoes")}>
-            Avaliações
-          </CommandItem>
-          <CommandItem onSelect={() => go("/grade")}>Grade</CommandItem>
-          <CommandItem onSelect={() => go("/chat")}>Chat IA</CommandItem>
-        </CommandGroup>
-        <CommandGroup heading="Ações">
-          <CommandItem onSelect={() => go("/avaliacoes/nova")}>
-            Nova avaliação
-          </CommandItem>
-          <CommandItem onSelect={() => go("/disciplinas/nova")}>
-            Nova disciplina
-          </CommandItem>
-        </CommandGroup>
+        <CommandEmpty>
+          {searchQuery
+            ? `Nenhum resultado para "${searchQuery}"`
+            : "Digite para buscar..."}
+        </CommandEmpty>
+        {filteredNavigation.length > 0 && (
+          <CommandGroup heading="Navegação">
+            {filteredNavigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <CommandItem
+                  key={item.href}
+                  onSelect={() => go(item.href)}
+                  className="flex items-center gap-2"
+                >
+                  {Icon && <Icon className="h-4 w-4" />}
+                  {item.label}
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        )}
+        {filteredActions.length > 0 && (
+          <CommandGroup heading="Ações Rápidas">
+            {filteredActions.map((item) => {
+              const Icon = item.icon;
+              return (
+                <CommandItem
+                  key={`${item.href}-${item.action}`}
+                  onSelect={() => go(item.href, item.action)}
+                  className="flex items-center gap-2"
+                >
+                  {Icon && <Icon className="h-4 w-4" />}
+                  {item.label}
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        )}
+        {searchQuery.trim().length > 2 && (
+          <CommandGroup heading="Anotações">
+            {notasLoading ? (
+              <CommandItem disabled>
+                <Search className="h-4 w-4 mr-2 animate-pulse" />
+                Buscando...
+              </CommandItem>
+            ) : results.length > 0 ? (
+              results.map((nota) => (
+                <CommandItem
+                  key={nota.id}
+                  onSelect={() => {
+                    setOpen(false);
+                    router.push(`/disciplinas/${nota.disciplinaId}`);
+                  }}
+                  className="flex flex-col items-start gap-1 py-3"
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <FileText className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">{nota.disciplinaNome}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground ml-6 line-clamp-2">
+                    {nota.snippet.replace(/\*\*/g, "")}
+                  </div>
+                </CommandItem>
+              ))
+            ) : (
+              <CommandItem disabled>
+                <FileText className="h-4 w-4 mr-2" />
+                Nenhuma anotação encontrada
+              </CommandItem>
+            )}
+          </CommandGroup>
+        )}
       </CommandList>
     </CommandDialog>
   );
