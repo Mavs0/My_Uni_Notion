@@ -1,77 +1,49 @@
 "use client";
+import { useMemo, useState, useEffect } from "react";
+import {
+  BookOpen,
+  Calendar,
+  Clock,
+  GraduationCap,
+  Grid3x3,
+  MapPin,
+  MessageSquare,
+  Plus,
+  Sparkles,
+  Loader2,
+  TrendingUp,
+  CheckCircle2,
+  Target,
+  BarChart3,
+  Link as LinkIcon,
+  LayoutDashboard,
+} from "lucide-react";
+import Link from "next/link";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  GoogleCalendarIntegration,
+  SyncDisciplinasWithCalendar,
+} from "@/components/GoogleCalendarIntegration";
+import { useDisciplinas, type Disciplina } from "@/hooks/useDisciplinas";
+import { useAvaliacoes, type Avaliacao } from "@/hooks/useAvaliacoes";
 
-import { useMemo, useState } from "react";
+type TTipo = "obrigatoria" | "eletiva" | "optativa";
 
-/**
- * MOCKS — depois você troca por dados do Supabase:
- * - disciplinas: para contadores
- * - horarios: para "Hoje na grade"
- * - avaliacoes: para "Próximas avaliações"
- * - horas: para progresso (complementar/optativa/eletiva)
- */
-type Disciplina = { id: string; nome: string; professor?: string };
-type Horario = {
-  id: string;
-  disciplinaId: string;
-  diaSemana: number;
-  inicio: string;
-  fim: string;
-}; // "HH:MM"
-type Avaliacao = {
-  id: string;
-  disciplinaId: string;
-  tipo: "prova" | "trabalho" | "seminario";
-  dataISO: string;
-  descricao?: string;
-};
-type HoraAcademica = {
-  tipo: "complementar" | "optativa" | "eletiva";
-  horasCumpridas: number;
-  horasNecessarias: number;
-};
-
-const DISCIPLINAS: Disciplina[] = [
-  { id: "d1", nome: "Cálculo I", professor: "Prof. A" },
-  { id: "d2", nome: "Programação I", professor: "Profa. B" },
-  { id: "d3", nome: "Álgebra Linear" },
-];
-
-const HORARIOS: Horario[] = [
-  { id: "h1", disciplinaId: "d1", diaSemana: 1, inicio: "08:00", fim: "10:00" }, // 1 = segunda
-  { id: "h2", disciplinaId: "d2", diaSemana: 1, inicio: "10:00", fim: "12:00" },
-  { id: "h3", disciplinaId: "d3", diaSemana: 3, inicio: "14:00", fim: "16:00" },
-];
-
-const AVALIACOES: Avaliacao[] = [
-  {
-    id: "a1",
-    disciplinaId: "d2",
-    tipo: "prova",
-    dataISO: addDaysISO(2),
-    descricao: "Cap. 1–3",
-  },
-  {
-    id: "a2",
-    disciplinaId: "d1",
-    tipo: "trabalho",
-    dataISO: addDaysISO(5),
-    descricao: "Listas 1 e 2",
-  },
-  { id: "a3", disciplinaId: "d3", tipo: "seminario", dataISO: addDaysISO(9) },
-];
-
-const HORAS: HoraAcademica[] = [
-  { tipo: "complementar", horasCumpridas: 45, horasNecessarias: 120 },
-  { tipo: "optativa", horasCumpridas: 32, horasNecessarias: 60 },
-  { tipo: "eletiva", horasCumpridas: 20, horasNecessarias: 60 },
-];
-
-/** Utils */
-function addDaysISO(dias: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  return d.toISOString();
-}
+const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
 function fmtDate(dt: string | Date) {
   const d = typeof dt === "string" ? new Date(dt) : dt;
   return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -85,11 +57,25 @@ function daysUntil(dtISO: string) {
   return diff;
 }
 function weekdayIndex(date = new Date()) {
-  // Domingo=0 ... Sábado=6 (alinha com nosso dado)
   return date.getDay();
 }
+function badgeTipo(tipo: TTipo) {
+  const map: Record<TTipo, string> = {
+    obrigatoria: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+    eletiva: "bg-red-500/15 text-red-400 border-red-500/30",
+    optativa: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  };
+  return `rounded px-2 py-0.5 text-xs border capitalize ${map[tipo]}`;
+}
+function tipoBadgeAvaliacao(tipo: "prova" | "trabalho" | "seminario") {
+  const map: Record<"prova" | "trabalho" | "seminario", string> = {
+    prova: "bg-red-500/15 text-red-400 border-red-500/30",
+    trabalho: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    seminario: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  };
+  return `rounded px-2 py-0.5 text-xs border capitalize ${map[tipo]}`;
+}
 
-/** Componentes simples */
 function Card({
   title,
   children,
@@ -100,18 +86,15 @@ function Card({
   right?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border bg-white/5 p-4 shadow-sm dark:bg-zinc-900/40">
-      <header className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          {title}
-        </h2>
+    <section className="rounded-lg border bg-card p-5 shadow-sm">
+      <header className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {right}
       </header>
       <div>{children}</div>
     </section>
   );
 }
-
 function Stat({
   label,
   value,
@@ -129,7 +112,6 @@ function Stat({
     </div>
   );
 }
-
 function Progress({ value }: { value: number }) {
   const v = Math.max(0, Math.min(100, Math.round(value)));
   return (
@@ -139,222 +121,881 @@ function Progress({ value }: { value: number }) {
   );
 }
 
+function GradeSemanalCompacta({ disciplinas }: { disciplinas: Disciplina[] }) {
+  const aulas = useMemo(() => {
+    const aulasList: Array<{
+      id: string;
+      nome: string;
+      tipo: TTipo;
+      dia: number;
+      inicio: string;
+      fim: string;
+      local?: string;
+      disciplinaId: string;
+    }> = [];
+    disciplinas.forEach((disciplina) => {
+      if (disciplina.horarios && disciplina.horarios.length > 0) {
+        disciplina.horarios.forEach((horario) => {
+          aulasList.push({
+            id: `${disciplina.id}-${horario.id}`,
+            nome: disciplina.nome,
+            tipo: disciplina.tipo,
+            dia: horario.dia,
+            inicio: horario.inicio,
+            fim: horario.fim,
+            local: disciplina.local,
+            disciplinaId: disciplina.id,
+          });
+        });
+      }
+    });
+    return aulasList;
+  }, [disciplinas]);
+  const timeslots = useMemo(() => {
+    const slots = new Set<string>();
+    aulas.forEach((aula) => {
+      slots.add(`${aula.inicio}-${aula.fim}`);
+    });
+    return Array.from(slots)
+      .map((key) => {
+        const [inicio, fim] = key.split("-");
+        const [hInicio] = inicio.split(":").map(Number);
+        return {
+          label: `${hInicio}h`,
+          inicio,
+          fim,
+          sortKey: hInicio * 60 + parseInt(inicio.split(":")[1] || "0"),
+        };
+      })
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .slice(0, 8);
+  }, [aulas]);
+  function typeClass(tipo: TTipo) {
+    switch (tipo) {
+      case "obrigatoria":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      case "eletiva":
+        return "bg-red-500/20 text-red-400 border-red-500/30";
+      case "optativa":
+        return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+    }
+  }
+  function inSlot(
+    a: { inicio: string; fim: string },
+    slot: { inicio: string; fim: string }
+  ) {
+    return a.inicio === slot.inicio && a.fim === slot.fim;
+  }
+  if (aulas.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <Grid3x3 className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+        <p className="text-sm text-muted-foreground">
+          Nenhuma disciplina com horários cadastrada
+        </p>
+        <Link
+          href="/disciplinas"
+          className="text-xs text-primary hover:underline mt-2 inline-block"
+        >
+          Adicionar disciplinas →
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <div className="min-w-[600px]">
+        {}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {DIAS.slice(1, 7).map((dia) => (
+            <div
+              key={dia}
+              className="text-center text-xs font-medium text-muted-foreground py-2"
+            >
+              {dia}
+            </div>
+          ))}
+        </div>
+        {}
+        <div className="space-y-1">
+          {timeslots.map((slot) => (
+            <div key={slot.label} className="grid grid-cols-7 gap-1">
+              {DIAS.slice(1, 7).map((_, idx) => {
+                const dia = idx + 1;
+                const aulasDoDia = aulas.filter(
+                  (a) => a.dia === dia && inSlot(a, slot)
+                );
+                return (
+                  <div
+                    key={`${slot.label}-${dia}`}
+                    className="min-h-[60px] border rounded p-1.5 bg-muted/20"
+                  >
+                    {aulasDoDia.length > 0 ? (
+                      <div className="space-y-1">
+                        {aulasDoDia.map((a) => (
+                          <Link
+                            key={a.id}
+                            href={`/disciplinas/${a.disciplinaId}`}
+                            className={`block rounded border p-1.5 text-[10px] leading-tight hover:opacity-80 transition-opacity ${typeClass(
+                              a.tipo
+                            )}`}
+                            title={`${a.nome} - ${a.inicio}–${a.fim}${
+                              a.local ? ` • ${a.local}` : ""
+                            }`}
+                          >
+                            <div className="font-semibold truncate">
+                              {a.nome}
+                            </div>
+                            <div className="opacity-80 text-[9px]">
+                              {a.inicio}–{a.fim}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-full" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        {}
+        <div className="flex items-center gap-2 mt-4 pt-4 border-t text-xs flex-wrap">
+          <span className="text-muted-foreground">Legenda:</span>
+          <span className="rounded border border-yellow-500/30 bg-yellow-500/20 px-2 py-0.5 text-yellow-400">
+            Obrigatória
+          </span>
+          <span className="rounded border border-red-500/30 bg-red-500/20 px-2 py-0.5 text-red-400">
+            Eletiva
+          </span>
+          <span className="rounded border border-emerald-500/30 bg-emerald-500/20 px-2 py-0.5 text-emerald-400">
+            Optativa
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventosSemana({
+  avaliacoes,
+  hojeNaGrade,
+  disciplinasMap,
+  disciplinas,
+}: {
+  avaliacoes: Avaliacao[];
+  hojeNaGrade: Array<{
+    disciplinaId: string;
+    disciplina: string;
+    local?: string;
+    inicio: string;
+    fim: string;
+  }>;
+  disciplinasMap: Map<string, Disciplina>;
+  disciplinas: Disciplina[];
+}) {
+  const hoje = new Date();
+  const fimSemana = new Date(hoje);
+  fimSemana.setDate(hoje.getDate() + 7);
+  const avaliacoesSemana = avaliacoes
+    .filter((a) => {
+      const data = new Date(a.dataISO);
+      return data >= hoje && data <= fimSemana;
+    })
+    .sort(
+      (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+    )
+    .slice(0, 5);
+  const proximasAulas = useMemo(() => {
+    const aulas: Array<{
+      disciplinaId: string;
+      disciplina: string;
+      local?: string;
+      dia: number;
+      diaNome: string;
+      inicio: string;
+      fim: string;
+      dataISO: string;
+    }> = [];
+    disciplinas.forEach((disc) => {
+      disc.horarios?.forEach((h) => {
+        const hoje = new Date();
+        const diaAtual = hoje.getDay();
+        let diasParaProximo = (h.dia - diaAtual + 7) % 7;
+        if (diasParaProximo === 0 && h.dia === diaAtual) {
+          const agora = new Date();
+          const [hora, minuto] = h.inicio.split(":").map(Number);
+          const horarioInicio = new Date(agora);
+          horarioInicio.setHours(hora, minuto, 0, 0);
+          if (agora < horarioInicio) {
+            diasParaProximo = 0;
+          } else {
+            diasParaProximo = 7;
+          }
+        }
+        const proximaData = new Date(hoje);
+        proximaData.setDate(hoje.getDate() + diasParaProximo);
+        proximaData.setHours(0, 0, 0, 0);
+        if (proximaData <= fimSemana) {
+          aulas.push({
+            disciplinaId: disc.id,
+            disciplina: disc.nome,
+            local: disc.local,
+            dia: h.dia,
+            diaNome: DIAS[h.dia],
+            inicio: h.inicio,
+            fim: h.fim,
+            dataISO: proximaData.toISOString(),
+          });
+        }
+      });
+    });
+    return aulas
+      .sort(
+        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+      )
+      .slice(0, 5);
+  }, [disciplinas]);
+  const todosEventos = [
+    ...avaliacoesSemana.map((a) => ({
+      tipo: "avaliacao" as const,
+      id: a.id,
+      titulo: disciplinasMap.get(a.disciplinaId)?.nome ?? "Disciplina",
+      subtitulo: a.tipo,
+      dataISO: a.dataISO,
+      local: undefined,
+      cor:
+        a.tipo === "prova" ? "red" : a.tipo === "trabalho" ? "blue" : "emerald",
+    })),
+    ...proximasAulas.map((a) => ({
+      tipo: "aula" as const,
+      id: `aula-${a.disciplinaId}-${a.dia}`,
+      titulo: a.disciplina,
+      subtitulo: `${a.diaNome} ${a.inicio}–${a.fim}`,
+      dataISO: a.dataISO,
+      local: a.local,
+      cor: "zinc" as const,
+    })),
+  ].sort(
+    (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+  );
+  if (todosEventos.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <Calendar className="h-8 w-8 text-zinc-500 mx-auto mb-2" />
+        <p className="text-sm text-zinc-500">Nenhum evento esta semana</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2 max-h-96 overflow-y-auto">
+      {todosEventos.slice(0, 6).map((evento) => {
+        const data = new Date(evento.dataISO);
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const dataEvento = new Date(data);
+        dataEvento.setHours(0, 0, 0, 0);
+        const isHoje = dataEvento.getTime() === hoje.getTime();
+        const dias = Math.ceil(
+          (data.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const corMap: Record<string, string> = {
+          red: "border-red-500/30 bg-red-500/10",
+          blue: "border-blue-500/30 bg-blue-500/10",
+          emerald: "border-emerald-500/30 bg-emerald-500/10",
+          zinc: "border-zinc-500/30 bg-zinc-500/10",
+        };
+        return (
+          <div
+            key={evento.id}
+            className={`rounded-lg border p-3 ${
+              corMap[evento.cor] || corMap.zinc
+            } transition-all hover:shadow-sm`}
+          >
+            <div className="flex items-start gap-2">
+              <div className="mt-0.5">
+                {evento.tipo === "avaliacao" ? (
+                  <GraduationCap className="h-4 w-4 text-zinc-400" />
+                ) : (
+                  <BookOpen className="h-4 w-4 text-zinc-400" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="text-sm font-medium truncate">
+                    {evento.titulo}
+                  </div>
+                  {isHoje && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Hoje
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-zinc-500 flex items-center gap-2 flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {fmtDate(evento.dataISO)}
+                  </span>
+                  {evento.local && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {evento.local}
+                    </span>
+                  )}
+                  {!isHoje && dias > 0 && (
+                    <span className="text-zinc-400">
+                      {dias === 1 ? "Amanhã" : `Em ${dias} dias`}
+                    </span>
+                  )}
+                </div>
+                {evento.tipo === "avaliacao" && (
+                  <div className="mt-1">
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded border ${tipoBadgeAvaliacao(
+                        evento.subtitulo as "prova" | "trabalho" | "seminario"
+                      )}`}
+                    >
+                      {evento.subtitulo}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {todosEventos.length > 6 && (
+        <div className="text-center pt-2">
+          <a href="/calendar" className="text-xs text-blue-400 hover:underline">
+            Ver todos os eventos →
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+interface EstatisticasData {
+  horasPorDisciplina: Array<{
+    disciplinaId: string;
+    disciplinaNome: string;
+    horasEstudadas: number;
+    horasSemana: number;
+    diasAtivos: number;
+  }>;
+  evolucaoMedias: Array<{
+    disciplinaId: string;
+    disciplinaNome: string;
+    medias: Array<{ mes: string; media: number }>;
+  }>;
+  produtividade: {
+    tarefasConcluidas: number;
+    tarefasTotal: number;
+    taxaConclusao: number;
+  };
+  horasPorSemana: Array<{ semana: string; horas: number }>;
+  distribuicaoCarga: Array<{
+    nome: string;
+    horasSemana: number;
+    tipo: string;
+  }>;
+  comparativoDesempenho: Array<{
+    disciplinaId: string;
+    disciplinaNome: string;
+    media: number | null;
+    totalAvaliacoes: number;
+  }>;
+  heatmap: Array<{ date: string; value: number }>;
+  periodo: number;
+}
+const COLORS = [
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#f59e0b",
+  "#10b981",
+  "#ef4444",
+  "#06b6d4",
+];
 export default function DashboardPage() {
   const [search, setSearch] = useState("");
-
+  const [periodoEstatisticas, setPeriodoEstatisticas] = useState(30);
+  const [estatisticas, setEstatisticas] = useState<EstatisticasData | null>(
+    null
+  );
+  const [loadingEstatisticas, setLoadingEstatisticas] = useState(false);
+  const [showEstatisticas, setShowEstatisticas] = useState(false);
+  const {
+    disciplinas,
+    loading: loadingDisc,
+    error: errorDisc,
+  } = useDisciplinas();
+  const { avaliacoes, loading: loadingAv, error: errorAv } = useAvaliacoes();
+  useEffect(() => {
+    const loadEstatisticas = async () => {
+      try {
+        setLoadingEstatisticas(true);
+        const response = await fetch(
+          `/api/estatisticas?periodo=${periodoEstatisticas}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setEstatisticas(data);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar estatísticas:", err);
+      } finally {
+        setLoadingEstatisticas(false);
+      }
+    };
+    loadEstatisticas();
+  }, [periodoEstatisticas]);
   const hoje = weekdayIndex();
   const disciplinasMap = useMemo(
-    () => new Map(DISCIPLINAS.map((d) => [d.id, d])),
-    []
+    () => new Map(disciplinas.map((d) => [d.id, d])),
+    [disciplinas]
   );
-
   const hojeNaGrade = useMemo(() => {
-    return HORARIOS.filter((h) => h.diaSemana === hoje)
-      .sort((a, b) => a.inicio.localeCompare(b.inicio))
-      .map((h) => ({
-        ...h,
-        disciplina: disciplinasMap.get(h.disciplinaId)?.nome ?? "Disciplina",
-      }));
-  }, [hoje, disciplinasMap]);
-
+    const hojeHorarios: Array<{
+      disciplinaId: string;
+      disciplina: string;
+      local?: string;
+      inicio: string;
+      fim: string;
+    }> = [];
+    disciplinas.forEach((disc) => {
+      disc.horarios?.forEach((h) => {
+        if (h.dia === hoje) {
+          hojeHorarios.push({
+            disciplinaId: disc.id,
+            disciplina: disc.nome,
+            local: disc.local,
+            inicio: h.inicio,
+            fim: h.fim,
+          });
+        }
+      });
+    });
+    return hojeHorarios.sort((a, b) => a.inicio.localeCompare(b.inicio));
+  }, [hoje, disciplinas]);
   const proximasAvaliacoes = useMemo(() => {
-    const base = AVALIACOES.filter(
-      (a) => new Date(a.dataISO) > new Date()
-    ).sort(
-      (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
-    );
+    const base = avaliacoes
+      .filter((a) => new Date(a.dataISO) > new Date())
+      .sort(
+        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+      );
     if (!search) return base;
     return base.filter((a) => {
       const disc =
         disciplinasMap.get(a.disciplinaId)?.nome?.toLowerCase() || "";
       return disc.includes(search.toLowerCase());
     });
-  }, [search, disciplinasMap]);
-
-  const totalDisciplinas = DISCIPLINAS.length;
+  }, [search, disciplinasMap, avaliacoes]);
+  const totalDisciplinas = disciplinas.length;
   const totalAvaliacoesSemana = proximasAvaliacoes.filter(
     (a) => daysUntil(a.dataISO) <= 7
   ).length;
-
-  const progressoHoras = HORAS.map((h) => ({
-    ...h,
-    pct: (h.horasCumpridas / Math.max(1, h.horasNecessarias)) * 100,
-  }));
-
+  const progressoHoras = useMemo(() => {
+    const tipos: Array<{
+      tipo: "obrigatoria" | "eletiva" | "optativa";
+      horasCumpridas: number;
+      horasNecessarias: number;
+    }> = [
+      { tipo: "obrigatoria", horasCumpridas: 0, horasNecessarias: 0 },
+      { tipo: "eletiva", horasCumpridas: 0, horasNecessarias: 0 },
+      { tipo: "optativa", horasCumpridas: 0, horasNecessarias: 0 },
+    ];
+    disciplinas.forEach((disc) => {
+      const tipoIndex = tipos.findIndex((t) => t.tipo === disc.tipo);
+      if (tipoIndex >= 0) {
+        tipos[tipoIndex].horasNecessarias += disc.horasSemana;
+      }
+    });
+    return tipos.map((h) => ({
+      ...h,
+      pct: (h.horasCumpridas / Math.max(1, h.horasNecessarias)) * 100,
+    }));
+  }, [disciplinas]);
+  if (loadingDisc || loadingAv) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <LayoutDashboard className="size-12 animate-pulse mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Carregando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+  if (errorDisc || errorAv) {
+    return (
+      <main className="mx-auto max-w-6xl space-y-6 p-6">
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-red-500">
+          {errorDisc || errorAv || "Erro ao carregar dados"}
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="text-zinc-500">Visão geral do semestre</p>
-        </div>
-        <div className="flex gap-2">
-          <a
-            href="/disciplinas"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
-          >
-            Disciplinas
-          </a>
-          <a
-            href="/avaliacoes"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
-          >
-            Avaliações
-          </a>
-          <a
-            href="/chat"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
-          >
-            Chat IA
-          </a>
-        </div>
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
+        <p className="text-muted-foreground">Visão geral do seu semestre</p>
       </header>
-
-      {/* Linha 1: KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Stat label="Disciplinas ativas" value={totalDisciplinas} />
-        <Stat
-          label="Avaliações nos próximos 7 dias"
-          value={totalAvaliacoesSemana}
-        />
-        <Stat
-          label="Hoje na grade"
-          value={hojeNaGrade.length}
-          helper={new Date().toLocaleDateString("pt-BR", { weekday: "long" })}
-        />
+      {}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-2xl font-bold">{totalDisciplinas}</div>
+          <div className="text-xs text-muted-foreground mt-1">Disciplinas</div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-2xl font-bold">{totalAvaliacoesSemana}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Avaliações (7d)
+          </div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-2xl font-bold">{hojeNaGrade.length}</div>
+          <div className="text-xs text-muted-foreground mt-1">Aulas hoje</div>
+        </div>
+        {estatisticas && (
+          <div className="rounded-lg border bg-card p-4">
+            <div className="text-2xl font-bold">
+              {estatisticas.horasPorDisciplina
+                .reduce((acc, item) => acc + item.horasEstudadas, 0)
+                .toFixed(0)}
+              h
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Estudadas</div>
+          </div>
+        )}
       </div>
-
-      {/* Linha 2: Hoje na grade + Próximas avaliações */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card title="Hoje na grade">
+      {}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {}
+        <Card title="Aulas de Hoje">
           {hojeNaGrade.length === 0 ? (
-            <p className="text-sm text-zinc-500">Sem aulas hoje.</p>
+            <div className="text-center py-8">
+              <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+              <p className="text-sm text-muted-foreground">Sem aulas hoje</p>
+            </div>
           ) : (
-            <ul className="space-y-2">
-              {hojeNaGrade.map((h) => (
-                <li
-                  key={h.id}
-                  className="flex items-center justify-between rounded border p-2"
-                >
-                  <div>
-                    <div className="font-medium">{h.disciplina}</div>
-                    <div className="text-xs text-zinc-500">Sala • Bloco X</div>
+            <div className="space-y-2">
+              {hojeNaGrade.map((h, idx) => {
+                const disc = disciplinasMap.get(h.disciplinaId);
+                return (
+                  <div
+                    key={`${h.disciplinaId}-${h.inicio}-${idx}`}
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{h.disciplina}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {h.local || "Sem local"}
+                      </div>
+                    </div>
+                    <div className="ml-3 text-right">
+                      <div className="text-sm font-semibold tabular-nums">
+                        {h.inicio}–{h.fim}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm tabular-nums">
-                    {h.inicio} — {h.fim}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           )}
         </Card>
-
-        <Card
-          title="Próximas avaliações"
-          right={
-            <input
-              placeholder="Filtrar por disciplina..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="rounded border bg-transparent px-2 py-1 text-sm"
-            />
-          }
-        >
+        {}
+        <Card title="Próximas Avaliações">
           {proximasAvaliacoes.length === 0 ? (
-            <p className="text-sm text-zinc-500">Nada por enquanto.</p>
+            <div className="text-center py-8">
+              <GraduationCap className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+              <p className="text-sm text-muted-foreground">
+                Nenhuma avaliação próxima
+              </p>
+            </div>
           ) : (
-            <ul className="space-y-2">
-              {proximasAvaliacoes.slice(0, 6).map((a) => {
+            <div className="space-y-2">
+              {proximasAvaliacoes.slice(0, 5).map((a) => {
                 const dname =
                   disciplinasMap.get(a.disciplinaId)?.nome ?? "Disciplina";
                 const dias = daysUntil(a.dataISO);
                 return (
-                  <li
+                  <div
                     key={a.id}
-                    className="flex items-center justify-between rounded border p-2"
+                    className="flex items-start justify-between gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
                   >
-                    <div>
-                      <div className="text-sm">
-                        <span className="capitalize font-medium">{a.tipo}</span>{" "}
-                        — {dname}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={tipoBadgeAvaliacao(a.tipo)}>
+                          {a.tipo}
+                        </span>
+                        <span className="text-sm font-medium truncate">
+                          {dname}
+                        </span>
                       </div>
-                      {a.descricao && (
-                        <div className="text-xs text-zinc-500">
-                          {a.descricao}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm tabular-nums">
-                        {fmtDate(a.dataISO)}
-                      </div>
-                      <div className="text-xs text-zinc-500">
-                        {dias > 0 ? `Faltam ${dias} dias` : "Hoje"}
+                      <div className="text-xs text-muted-foreground">
+                        {dias > 0
+                          ? `Em ${dias} ${dias === 1 ? "dia" : "dias"}`
+                          : dias === 0
+                          ? "Hoje"
+                          : "Passou"}
                       </div>
                     </div>
-                  </li>
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(a.dataISO).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "short",
+                      })}
+                    </div>
+                  </div>
                 );
               })}
-            </ul>
-          )}
-          <div className="mt-3 text-right">
-            <a href="/avaliacoes" className="text-sm underline">
-              Ver todas →
-            </a>
-          </div>
-        </Card>
-
-        {/* Progresso horas */}
-        <Card title="Progresso de horas">
-          <div className="space-y-3">
-            {progressoHoras.map((h) => (
-              <div key={h.tipo}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="capitalize">{h.tipo}</span>
-                  <span className="tabular-nums">
-                    {h.horasCumpridas}/{h.horasNecessarias}h (
-                    {Math.round(h.pct)}%)
-                  </span>
+              {proximasAvaliacoes.length > 5 && (
+                <div className="pt-2 text-center">
+                  <a
+                    href="/avaliacoes"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Ver todas ({proximasAvaliacoes.length}) →
+                  </a>
                 </div>
-                <Progress value={h.pct} />
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </Card>
       </div>
-
-      {/* Linha 3: Atalhos rápidos */}
-      <Card title="Atalhos rápidos">
-        <div className="flex flex-wrap gap-2">
-          <a
-            href="/disciplinas/nova"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
-          >
-            + Nova disciplina
-          </a>
-          <a
-            href="/avaliacoes/nova"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
-          >
-            + Nova avaliação
-          </a>
-          <a
-            href="/notas/nova"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
-          >
-            + Nova nota
-          </a>
-          <a
+      {}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <GoogleCalendarIntegration />
+        </div>
+        <div className="space-y-4">
+          <SyncDisciplinasWithCalendar />
+          <Card title="Esta Semana">
+            <EventosSemana
+              avaliacoes={proximasAvaliacoes}
+              hojeNaGrade={hojeNaGrade}
+              disciplinasMap={disciplinasMap}
+              disciplinas={disciplinas}
+            />
+          </Card>
+        </div>
+      </div>
+      {}
+      <Card
+        title="Grade Semanal"
+        right={
+          <Link
             href="/grade"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
           >
-            Abrir grade
+            Ver completa
+            <LinkIcon className="h-3 w-3" />
+          </Link>
+        }
+      >
+        <GradeSemanalCompacta disciplinas={disciplinas} />
+      </Card>
+      {}
+      {estatisticas && (
+        <Card title="Estatísticas de Estudo">
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Visualize seu progresso e desempenho
+            </p>
+            <button
+              onClick={() => setShowEstatisticas(!showEstatisticas)}
+              className="text-sm text-primary hover:underline"
+            >
+              {showEstatisticas ? "Ocultar" : "Mostrar"} estatísticas
+            </button>
+          </div>
+          {showEstatisticas && (
+            <div className="space-y-6 pt-4 border-t">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPeriodoEstatisticas(7)}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    periodoEstatisticas === 7
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  }`}
+                >
+                  7 dias
+                </button>
+                <button
+                  onClick={() => setPeriodoEstatisticas(30)}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    periodoEstatisticas === 30
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  }`}
+                >
+                  30 dias
+                </button>
+                <button
+                  onClick={() => setPeriodoEstatisticas(90)}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    periodoEstatisticas === 90
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  }`}
+                >
+                  90 dias
+                </button>
+              </div>
+              {}
+              <div className="grid grid-cols-3 gap-3">
+                {(() => {
+                  const mediasComNota =
+                    estatisticas.comparativoDesempenho.filter(
+                      (item) => item.media !== null
+                    );
+                  const mediaGeral =
+                    mediasComNota.length > 0
+                      ? mediasComNota.reduce(
+                          (acc, item) => acc + (item.media || 0),
+                          0
+                        ) / mediasComNota.length
+                      : null;
+                  return (
+                    <>
+                      <div className="rounded-lg border p-3 text-center">
+                        <div className="text-xl font-bold">
+                          {mediaGeral !== null ? mediaGeral.toFixed(1) : "—"}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Média Geral
+                        </div>
+                      </div>
+                      <div className="rounded-lg border p-3 text-center">
+                        <div className="text-xl font-bold">
+                          {estatisticas.produtividade.tarefasConcluidas}/
+                          {estatisticas.produtividade.tarefasTotal}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Tarefas
+                        </div>
+                      </div>
+                      <div className="rounded-lg border p-3 text-center">
+                        <div className="text-xl font-bold">
+                          {
+                            estatisticas.horasPorDisciplina.filter(
+                              (d) => d.horasEstudadas > 0
+                            ).length
+                          }
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Ativas
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+              {}
+              {estatisticas.horasPorDisciplina.length > 0 && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium mb-3">
+                      Horas por Disciplina
+                    </h3>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart
+                        data={estatisticas.horasPorDisciplina.map((item) => ({
+                          nome: item.disciplinaNome,
+                          horas: item.horasEstudadas,
+                        }))}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis
+                          dataKey="nome"
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          fontSize={11}
+                        />
+                        <YAxis fontSize={11} />
+                        <Tooltip />
+                        <Bar
+                          dataKey="horas"
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {estatisticas.comparativoDesempenho.filter(
+                    (item) => item.media !== null
+                  ).length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium mb-3">Desempenho</h3>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart
+                          data={estatisticas.comparativoDesempenho
+                            .filter((item) => item.media !== null)
+                            .map((item) => ({
+                              nome: item.disciplinaNome,
+                              media: item.media || 0,
+                            }))
+                            .sort((a, b) => b.media - a.media)}
+                          layout="vertical"
+                        >
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          <XAxis type="number" domain={[0, 10]} fontSize={11} />
+                          <YAxis
+                            dataKey="nome"
+                            type="category"
+                            width={80}
+                            fontSize={11}
+                          />
+                          <Tooltip />
+                          <Bar
+                            dataKey="media"
+                            fill="#10b981"
+                            radius={[0, 4, 4, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+      {}
+      <Card title="Ações Rápidas">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <a
+            href="/disciplinas"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
+          >
+            <BookOpen className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Disciplinas</span>
+          </a>
+          <a
+            href="/avaliacoes"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
+          >
+            <GraduationCap className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Avaliações</span>
+          </a>
+          <a
+            href="/calendar"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
+          >
+            <Calendar className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Calendário</span>
           </a>
           <a
             href="/chat"
-            className="rounded-md border px-3 py-2 text-sm hover:bg-white/5"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
           >
-            Abrir Chat IA
+            <MessageSquare className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Chat IA</span>
           </a>
         </div>
       </Card>
