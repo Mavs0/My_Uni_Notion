@@ -66,16 +66,23 @@ export async function PUT(request: NextRequest) {
     if (tema_preferencia !== undefined) {
       updateData.tema_preferencia = tema_preferencia;
     }
+    console.log("📝 Atualizando perfil do usuário:", user.id);
+    console.log("📋 Dados a atualizar:", updateData);
     const { data, error } = await supabase.auth.updateUser({
       data: updateData,
     });
     if (error) {
-      console.error("Erro ao atualizar perfil:", error);
+      console.error("❌ Erro ao atualizar perfil:", error);
       return NextResponse.json(
-        { error: "Erro ao atualizar perfil" },
+        {
+          error: "Erro ao atualizar perfil",
+          details: error.message,
+        },
         { status: 500 }
       );
     }
+    console.log("✅ Perfil atualizado com sucesso");
+    console.log("📊 Dados atualizados:", data.user.user_metadata);
     return NextResponse.json({
       success: true,
       profile: {

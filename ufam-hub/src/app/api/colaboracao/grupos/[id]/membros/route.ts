@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import {
+  createSupabaseServer,
+  createSupabaseAdmin,
+} from "@/lib/supabase/server";
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -96,30 +99,92 @@ export async function GET(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    const { data: membro } = await supabase
-      .from("grupo_membros")
-      .select("id")
-      .eq("grupo_id", grupo_id)
-      .eq("user_id", user.id)
-      .eq("status", "ativo")
-      .single();
-    if (!membro) {
-      return NextResponse.json(
-        { error: "Você não é membro deste grupo" },
-        { status: 403 }
-      );
+    let membro, membros, error;
+
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const adminClient = createSupabaseAdmin();
+      const membroResult = await adminClient
+        .from("grupo_membros")
+        .select("id")
+        .eq("grupo_id", grupo_id)
+        .eq("user_id", user.id)
+        .eq("status", "ativo")
+        .single();
+      membro = membroResult.data;
+
+      if (!membro) {
+        return NextResponse.json(
+          { error: "Você não é membro deste grupo" },
+          { status: 403 }
+        );
+      }
+
+      const membrosResult = await adminClient
+        .from("grupo_membros")
+        .select("*")
+        .eq("grupo_id", grupo_id)
+        .eq("status", "ativo")
+        .order("entrou_em", { ascending: true });
+      membros = membrosResult.data;
+      error = membrosResult.error;
+
+      if (membros && membros.length > 0) {
+        const userIds = [...new Set(membros.map((m: any) => m.user_id))];
+        const usuariosMap = new Map();
+
+        try {
+          const adminClient = createSupabaseAdmin();
+          for (const userId of userIds) {
+            try {
+              const { data: userData, error: userError } =
+                await adminClient.auth.admin.getUserById(userId);
+              if (!userError && userData?.user) {
+                usuariosMap.set(userId, {
+                  id: userData.user.id,
+                  raw_user_meta_data: userData.user.user_metadata || {},
+                });
+              }
+            } catch (err) {
+              console.warn("Erro ao buscar usuário:", userId, err);
+            }
+          }
+        } catch (err) {
+          console.warn("Erro ao usar admin client para buscar usuários:", err);
+        }
+
+        for (const m of membros) {
+          (m as any).usuario = usuariosMap.get((m as any).user_id) || {
+            id: (m as any).user_id,
+            raw_user_meta_data: {},
+          };
+        }
+      }
+    } else {
+      const membroResult = await supabase
+        .from("grupo_membros")
+        .select("id")
+        .eq("grupo_id", grupo_id)
+        .eq("user_id", user.id)
+        .eq("status", "ativo")
+        .single();
+      membro = membroResult.data;
+
+      if (!membro) {
+        return NextResponse.json(
+          { error: "Você não é membro deste grupo" },
+          { status: 403 }
+        );
+      }
+
+      const membrosResult = await supabase
+        .from("grupo_membros")
+        .select("*")
+        .eq("grupo_id", grupo_id)
+        .eq("status", "ativo")
+        .order("entrou_em", { ascending: true });
+      membros = membrosResult.data;
+      error = membrosResult.error;
     }
-    const { data: membros, error } = await supabase
-      .from("grupo_membros")
-      .select(
-        `
-        *,
-        usuario:auth.users!grupo_membros_user_id_fkey(id, raw_user_meta_data)
-      `
-      )
-      .eq("grupo_id", grupo_id)
-      .eq("status", "ativo")
-      .order("entrou_em", { ascending: true });
     if (error) {
       console.error("Erro ao buscar membros:", error);
       return NextResponse.json(

@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       visibilidade,
       permite_comentarios,
       permite_download,
+      email_permitido,
     } = body;
     if (!nota_id || !titulo) {
       return NextResponse.json(
@@ -44,19 +45,35 @@ export async function POST(request: NextRequest) {
       .toString("base64")
       .replace(/[^a-zA-Z0-9]/g, "")
       .substring(0, 20)}`;
+
+    let codigo_acesso = null;
+    if (visibilidade === "privado") {
+      codigo_acesso = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    const insertData: any = {
+      nota_id,
+      disciplina_id: disciplina_id || null,
+      user_id: user.id,
+      titulo,
+      descricao: descricao || null,
+      visibilidade: visibilidade || "publico",
+      link_compartilhamento,
+      permite_comentarios: permite_comentarios !== false,
+      permite_download: permite_download !== false,
+    };
+
+    if (email_permitido && visibilidade === "geral") {
+      insertData.email_permitido = email_permitido.toLowerCase().trim();
+    }
+
+    if (codigo_acesso) {
+      insertData.codigo_acesso = codigo_acesso;
+    }
+
     const { data: compartilhada, error: shareError } = await supabase
       .from("notas_compartilhadas")
-      .insert({
-        nota_id,
-        disciplina_id: disciplina_id || null,
-        user_id: user.id,
-        titulo,
-        descricao: descricao || null,
-        visibilidade: visibilidade || "publico",
-        link_compartilhamento,
-        permite_comentarios: permite_comentarios !== false,
-        permite_download: permite_download !== false,
-      })
+      .insert(insertData)
       .select()
       .single();
     if (shareError) {
@@ -72,6 +89,7 @@ export async function POST(request: NextRequest) {
       link: `${
         process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
       }/compartilhado/${link_compartilhamento}`,
+      codigo_acesso: codigo_acesso,
     });
   } catch (error: any) {
     console.error("Erro na API de compartilhamento:", error);
@@ -91,6 +109,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
     const supabase = await createSupabaseServer();
     if (link) {
+      const codigo = searchParams.get("codigo");
       const { data: compartilhada, error: compartilhadaError } = await supabase
         .from("notas_compartilhadas")
         .select("*")
@@ -101,6 +120,41 @@ export async function GET(request: NextRequest) {
           { error: "Anotação não encontrada" },
           { status: 404 }
         );
+      }
+
+      if (compartilhada.visibilidade === "privado") {
+        if (!codigo || codigo !== compartilhada.codigo_acesso) {
+          return NextResponse.json(
+            {
+              error: "Código de acesso necessário",
+              requer_codigo: true,
+              visibilidade: "privado",
+            },
+            { status: 403 }
+          );
+        }
+      }
+
+      if (
+        compartilhada.visibilidade === "geral" &&
+        compartilhada.email_permitido
+      ) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (
+          !user ||
+          user.email?.toLowerCase() !== compartilhada.email_permitido
+        ) {
+          return NextResponse.json(
+            {
+              error: "Acesso restrito a email específico",
+              requer_email: true,
+              email_permitido: compartilhada.email_permitido,
+            },
+            { status: 403 }
+          );
+        }
       }
       const { data: nota, error: notaError } = await supabase
         .from("notas")
