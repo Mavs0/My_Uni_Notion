@@ -113,6 +113,114 @@
 }
 
 @layer base {
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .focus\:not-sr-only:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .high-contrast {
+    --foreground: oklch(0 0 0);
+    --background: oklch(1 0 0);
+    --card-foreground: oklch(0 0 0);
+    --card: oklch(1 0 0);
+    --primary: oklch(0 0 0);
+    --primary-foreground: oklch(1 0 0);
+    --border: oklch(0 0 0);
+    --muted-foreground: oklch(0.2 0 0);
+  }
+
+  .dark.high-contrast {
+    --foreground: oklch(1 0 0);
+    --background: oklch(0 0 0);
+    --card-foreground: oklch(1 0 0);
+    --card: oklch(0.1 0 0);
+    --primary: oklch(1 0 0);
+    --primary-foreground: oklch(0 0 0);
+    --border: oklch(1 0 0);
+    --muted-foreground: oklch(0.8 0 0);
+  }
+
+  [data-font-size="large"] {
+    font-size: 1.125rem;
+  }
+
+  [data-font-size="large"] p,
+  [data-font-size="large"] span,
+  [data-font-size="large"] div {
+    font-size: 1.125rem;
+  }
+
+  [data-font-size="large"] h1 {
+    font-size: 2.5rem;
+  }
+
+  [data-font-size="large"] h2 {
+    font-size: 2rem;
+  }
+
+  [data-font-size="large"] h3 {
+    font-size: 1.75rem;
+  }
+
+  [data-font-size="xlarge"] {
+    font-size: 1.25rem;
+  }
+
+  [data-font-size="xlarge"] p,
+  [data-font-size="xlarge"] span,
+  [data-font-size="xlarge"] div {
+    font-size: 1.25rem;
+  }
+
+  [data-font-size="xlarge"] h1 {
+    font-size: 3rem;
+  }
+
+  [data-font-size="xlarge"] h2 {
+    font-size: 2.5rem;
+  }
+
+  [data-font-size="xlarge"] h3 {
+    font-size: 2rem;
+  }
+
+  .reduced-motion *,
+  .reduced-motion *::before,
+  .reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
   * {
     @apply border-border outline-ring/50;
   }

@@ -17,6 +17,11 @@ import {
   BarChart3,
   Link as LinkIcon,
   LayoutDashboard,
+  Bell,
+  FileText,
+  Users,
+  Library,
+  Trophy,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -161,6 +166,7 @@ function GradeSemanalCompacta({ disciplinas }: { disciplinas: Disciplina[] }) {
         const [inicio, fim] = key.split("-");
         const [hInicio] = inicio.split(":").map(Number);
         return {
+          id: key,
           label: `${hInicio}h`,
           inicio,
           fim,
@@ -219,7 +225,7 @@ function GradeSemanalCompacta({ disciplinas }: { disciplinas: Disciplina[] }) {
         {}
         <div className="space-y-1">
           {timeslots.map((slot) => (
-            <div key={slot.label} className="grid grid-cols-7 gap-1">
+            <div key={slot.id} className="grid grid-cols-7 gap-1">
               {DIAS.slice(1, 7).map((_, idx) => {
                 const dia = idx + 1;
                 const aulasDoDia = aulas.filter(
@@ -526,6 +532,10 @@ export default function DashboardPage() {
   );
   const [loadingEstatisticas, setLoadingEstatisticas] = useState(false);
   const [showEstatisticas, setShowEstatisticas] = useState(false);
+  const [metas, setMetas] = useState<any[]>([]);
+  const [loadingMetas, setLoadingMetas] = useState(false);
+  const [notificacoes, setNotificacoes] = useState<any[]>([]);
+  const [loadingNotificacoes, setLoadingNotificacoes] = useState(false);
   const {
     disciplinas,
     loading: loadingDisc,
@@ -550,7 +560,39 @@ export default function DashboardPage() {
       }
     };
     loadEstatisticas();
+    loadMetas();
+    loadNotificacoes();
   }, [periodoEstatisticas]);
+
+  const loadNotificacoes = async () => {
+    try {
+      setLoadingNotificacoes(true);
+      const response = await fetch("/api/notificacoes/recentes?limit=5");
+      if (response.ok) {
+        const { notificacoes: notifData } = await response.json();
+        setNotificacoes(notifData || []);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar notificações:", err);
+    } finally {
+      setLoadingNotificacoes(false);
+    }
+  };
+
+  const loadMetas = async () => {
+    try {
+      setLoadingMetas(true);
+      const response = await fetch("/api/metas");
+      if (response.ok) {
+        const { metas: metasData } = await response.json();
+        setMetas(metasData || []);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar metas:", err);
+    } finally {
+      setLoadingMetas(false);
+    }
+  };
   const hoje = weekdayIndex();
   const disciplinasMap = useMemo(
     () => new Map(disciplinas.map((d) => [d.id, d])),
@@ -671,114 +713,138 @@ export default function DashboardPage() {
         )}
       </div>
       {}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {}
-        <Card title="Aulas de Hoje">
-          {hojeNaGrade.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-              <p className="text-sm text-muted-foreground">Sem aulas hoje</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {hojeNaGrade.map((h, idx) => {
-                const disc = disciplinasMap.get(h.disciplinaId);
-                return (
-                  <div
-                    key={`${h.disciplinaId}-${h.inicio}-${idx}`}
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{h.disciplina}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {h.local || "Sem local"}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card title="Notificações Recentes">
+            {loadingNotificacoes ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+              </div>
+            ) : notificacoes.length === 0 ? (
+              <div className="text-center py-8">
+                <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma notificação recente
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {notificacoes.map((notif) => {
+                  const dias = Math.ceil(
+                    (new Date(notif.data).getTime() - new Date().getTime()) /
+                      (1000 * 60 * 60 * 24)
+                  );
+                  const disciplinaNome =
+                    notif.disciplina_id &&
+                    disciplinasMap.get(notif.disciplina_id)?.nome;
+                  return (
+                    <div
+                      key={notif.id}
+                      className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
+                        notif.urgente
+                          ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/20"
+                          : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <div
+                        className={`mt-0.5 ${
+                          notif.tipo === "avaliacao"
+                            ? "text-blue-500"
+                            : "text-emerald-500"
+                        }`}
+                      >
+                        {notif.tipo === "avaliacao" ? (
+                          <GraduationCap className="h-4 w-4" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {notif.titulo}
+                        </div>
+                        {disciplinaNome && (
+                          <div className="text-xs text-muted-foreground">
+                            {disciplinaNome}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {dias === 0
+                            ? "Hoje"
+                            : dias === 1
+                            ? "Amanhã"
+                            : dias < 0
+                            ? `Há ${Math.abs(dias)} dias`
+                            : `Em ${dias} dias`}
+                        </div>
                       </div>
                     </div>
-                    <div className="ml-3 text-right">
-                      <div className="text-sm font-semibold tabular-nums">
-                        {h.inicio}–{h.fim}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-        {}
-        <Card title="Próximas Avaliações">
-          {proximasAvaliacoes.length === 0 ? (
-            <div className="text-center py-8">
-              <GraduationCap className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-              <p className="text-sm text-muted-foreground">
-                Nenhuma avaliação próxima
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {proximasAvaliacoes.slice(0, 5).map((a) => {
-                const dname =
-                  disciplinasMap.get(a.disciplinaId)?.nome ?? "Disciplina";
-                const dias = daysUntil(a.dataISO);
-                return (
-                  <div
-                    key={a.id}
-                    className="flex items-start justify-between gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={tipoBadgeAvaliacao(a.tipo)}>
-                          {a.tipo}
-                        </span>
-                        <span className="text-sm font-medium truncate">
-                          {dname}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {dias > 0
-                          ? `Em ${dias} ${dias === 1 ? "dia" : "dias"}`
-                          : dias === 0
-                          ? "Hoje"
-                          : "Passou"}
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(a.dataISO).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "short",
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-              {proximasAvaliacoes.length > 5 && (
+                  );
+                })}
                 <div className="pt-2 text-center">
-                  <a
+                  <Link
                     href="/avaliacoes"
                     className="text-xs text-primary hover:underline"
                   >
-                    Ver todas ({proximasAvaliacoes.length}) →
-                  </a>
+                    Ver todas →
+                  </Link>
                 </div>
-              )}
-            </div>
-          )}
-        </Card>
-      </div>
-      {}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <GoogleCalendarIntegration />
+              </div>
+            )}
+          </Card>
         </div>
-        <div className="space-y-4">
-          <SyncDisciplinasWithCalendar />
-          <Card title="Esta Semana">
-            <EventosSemana
-              avaliacoes={proximasAvaliacoes}
-              hojeNaGrade={hojeNaGrade}
-              disciplinasMap={disciplinasMap}
-              disciplinas={disciplinas}
-            />
+        <div>
+          <Card title="Próximas Avaliações">
+            {proximasAvaliacoes.length === 0 ? (
+              <div className="text-center py-8">
+                <GraduationCap className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma avaliação próxima
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {proximasAvaliacoes.slice(0, 3).map((a) => {
+                  const dname =
+                    disciplinasMap.get(a.disciplinaId)?.nome ?? "Disciplina";
+                  const dias = daysUntil(a.dataISO);
+                  return (
+                    <div
+                      key={a.id}
+                      className="flex items-start justify-between gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={tipoBadgeAvaliacao(a.tipo)}>
+                            {a.tipo}
+                          </span>
+                          <span className="text-sm font-medium truncate">
+                            {dname}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {dias > 0
+                            ? `Em ${dias} ${dias === 1 ? "dia" : "dias"}`
+                            : dias === 0
+                            ? "Hoje"
+                            : "Passou"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {proximasAvaliacoes.length > 3 && (
+                  <div className="pt-2 text-center">
+                    <a
+                      href="/avaliacoes"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Ver todas ({proximasAvaliacoes.length}) →
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -797,6 +863,70 @@ export default function DashboardPage() {
       >
         <GradeSemanalCompacta disciplinas={disciplinas} />
       </Card>
+      {}
+      <Card title="Ações Rápidas">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          <a
+            href="/disciplinas"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
+          >
+            <BookOpen className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Disciplinas</span>
+          </a>
+          <a
+            href="/avaliacoes"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
+          >
+            <GraduationCap className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Avaliações</span>
+          </a>
+          <a
+            href="/calendar"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
+          >
+            <Calendar className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Calendário</span>
+          </a>
+          <a
+            href="/chat"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
+          >
+            <MessageSquare className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Chat IA</span>
+          </a>
+          <a
+            href="/revisao"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
+          >
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Revisão</span>
+          </a>
+          <a
+            href="/gamificacao"
+            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
+          >
+            <Target className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Gamificação</span>
+          </a>
+        </div>
+      </Card>
+      {}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <GoogleCalendarIntegration />
+        </div>
+        <div className="space-y-4">
+          <SyncDisciplinasWithCalendar />
+          <Card title="Esta Semana">
+            <EventosSemana
+              avaliacoes={proximasAvaliacoes}
+              hojeNaGrade={hojeNaGrade}
+              disciplinasMap={disciplinasMap}
+              disciplinas={disciplinas}
+            />
+          </Card>
+        </div>
+      </div>
       {}
       {estatisticas && (
         <Card title="Estatísticas de Estudo">
@@ -967,38 +1097,218 @@ export default function DashboardPage() {
         </Card>
       )}
       {}
-      <Card title="Ações Rápidas">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <a
-            href="/disciplinas"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
-          >
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Disciplinas</span>
-          </a>
-          <a
-            href="/avaliacoes"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
-          >
-            <GraduationCap className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Avaliações</span>
-          </a>
-          <a
-            href="/calendar"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
-          >
-            <Calendar className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Calendário</span>
-          </a>
-          <a
-            href="/chat"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50"
-          >
-            <MessageSquare className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Chat IA</span>
-          </a>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card title="Progresso por Disciplina">
+            {estatisticas && estatisticas.horasPorDisciplina.length > 0 ? (
+              <div className="space-y-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart
+                    data={estatisticas.horasPorDisciplina
+                      .map((item) => ({
+                        nome: item.disciplinaNome,
+                        horas: item.horasEstudadas,
+                        meta: item.horasSemana * 4,
+                        progresso:
+                          item.horasSemana > 0
+                            ? (item.horasEstudadas / (item.horasSemana * 4)) *
+                              100
+                            : 0,
+                      }))
+                      .sort((a, b) => b.horas - a.horas)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis
+                      dataKey="nome"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      fontSize={11}
+                    />
+                    <YAxis fontSize={11} />
+                    <Tooltip
+                      formatter={(value: any, name: string) => {
+                        if (name === "horas") return [`${value}h`, "Estudadas"];
+                        if (name === "meta")
+                          return [`${value}h`, "Meta Mensal"];
+                        return [value, name];
+                      }}
+                    />
+                    <Legend />
+                    <Bar
+                      dataKey="horas"
+                      fill="#3b82f6"
+                      name="Horas Estudadas"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="meta"
+                      fill="#94a3b8"
+                      name="Meta Mensal"
+                      radius={[4, 4, 0, 0]}
+                      opacity={0.5}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-3">
+                  {estatisticas.horasPorDisciplina.slice(0, 4).map((item) => {
+                    const progresso =
+                      item.horasSemana > 0
+                        ? (item.horasEstudadas / (item.horasSemana * 4)) * 100
+                        : 0;
+                    return (
+                      <div
+                        key={item.disciplinaId}
+                        className="rounded-lg border p-3 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium truncate">
+                            {item.disciplinaNome}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {progresso.toFixed(0)}%
+                          </span>
+                        </div>
+                        <Progress value={Math.min(100, progresso)} />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{item.horasEstudadas.toFixed(1)}h</span>
+                          <span>
+                            Meta: {(item.horasSemana * 4).toFixed(0)}h
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhum dado de progresso disponível
+                </p>
+              </div>
+            )}
+          </Card>
         </div>
-      </Card>
+        <div className="space-y-4">
+          {metas.length > 0 && (
+            <Card title="Metas de Estudo">
+              <div className="space-y-3">
+                {metas.slice(0, 3).map((meta) => {
+                  const progresso =
+                    meta.valor_alvo > 0
+                      ? (meta.valor_atual / meta.valor_alvo) * 100
+                      : 0;
+                  return (
+                    <div key={meta.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium truncate">
+                          {meta.descricao || meta.tipo.replace("_", " ")}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {progresso.toFixed(0)}%
+                        </span>
+                      </div>
+                      <Progress value={Math.min(100, progresso)} />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {meta.valor_atual.toFixed(1)} / {meta.valor_alvo}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <Link
+                  href="/metas"
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  Ver todas as metas
+                  <LinkIcon className="h-3 w-3" />
+                </Link>
+              </div>
+            </Card>
+          )}
+          <Card title="Notificações Recentes">
+            {loadingNotificacoes ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+              </div>
+            ) : notificacoes.length === 0 ? (
+              <div className="text-center py-8">
+                <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma notificação recente
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {notificacoes.map((notif) => {
+                  const dias = Math.ceil(
+                    (new Date(notif.data).getTime() - new Date().getTime()) /
+                      (1000 * 60 * 60 * 24)
+                  );
+                  const disciplinaNome =
+                    notif.disciplina_id &&
+                    disciplinasMap.get(notif.disciplina_id)?.nome;
+                  return (
+                    <div
+                      key={notif.id}
+                      className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
+                        notif.urgente
+                          ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/20"
+                          : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <div
+                        className={`mt-0.5 ${
+                          notif.tipo === "avaliacao"
+                            ? "text-blue-500"
+                            : "text-emerald-500"
+                        }`}
+                      >
+                        {notif.tipo === "avaliacao" ? (
+                          <GraduationCap className="h-4 w-4" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {notif.titulo}
+                        </div>
+                        {disciplinaNome && (
+                          <div className="text-xs text-muted-foreground">
+                            {disciplinaNome}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {dias === 0
+                            ? "Hoje"
+                            : dias === 1
+                            ? "Amanhã"
+                            : dias < 0
+                            ? `Há ${Math.abs(dias)} dias`
+                            : `Em ${dias} dias`}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="pt-2 text-center">
+                  <Link
+                    href="/avaliacoes"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Ver todas →
+                  </Link>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+      {}
     </main>
   );
 }

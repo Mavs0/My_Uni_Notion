@@ -7,6 +7,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { Search, User, LogOut, Settings, LogIn, Menu } from "lucide-react";
 import * as React from "react";
 import { useCommandPalette, CommandPalette } from "./command-palette";
+import { AccessibilitySettings } from "@/components/AccessibilitySettings";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,6 +134,7 @@ export default function TopBar() {
             </form>
             <div className="flex items-center gap-2 shrink-0">
               {}
+              <AccessibilitySettings />
               <ThemeToggle />
               {}
               {isAuthenticated ? (

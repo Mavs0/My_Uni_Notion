@@ -40,6 +40,12 @@ export default function LoginPage() {
     curso?: string;
     periodo?: string;
   }>({});
+  // Estados para MFA
+  const [showMfaInput, setShowMfaInput] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null);
+  const [mfaVerifying, setMfaVerifying] = useState(false);
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = createSupabaseBrowser();
@@ -113,9 +119,53 @@ export default function LoginPage() {
           setLoading(false);
           return;
         }
+
+        // Verificar se há MFA ativado
         if (data.session) {
+          // Login bem-sucedido sem MFA
           router.push("/dashboard");
           router.refresh();
+        } else {
+          // Sem sessão - pode ser MFA
+          // Tentar listar fatores MFA (funciona mesmo sem sessão completa quando MFA está ativado)
+          try {
+            const { data: factorsData, error: factorsError } =
+              await supabase.auth.mfa.listFactors();
+
+            if (
+              !factorsError &&
+              factorsData?.totp &&
+              factorsData.totp.length > 0
+            ) {
+              // MFA está ativado, precisa verificar código
+              const factor = factorsData.totp[0];
+
+              // Criar challenge MFA
+              const { data: challengeData, error: challengeError } =
+                await supabase.auth.mfa.challenge({
+                  factorId: factor.id,
+                });
+
+              if (challengeError || !challengeData) {
+                console.error("Erro ao criar challenge MFA:", challengeError);
+                setError("Erro ao iniciar verificação 2FA. Tente novamente.");
+                setLoading(false);
+                return;
+              }
+
+              setMfaFactorId(factor.id);
+              setMfaChallengeId(challengeData.id);
+              setShowMfaInput(true);
+              setLoading(false);
+              return;
+            }
+          } catch (mfaError) {
+            console.error("Erro ao verificar MFA:", mfaError);
+          }
+
+          // Se chegou aqui, não há MFA ou houve erro
+          setError("Erro ao fazer login. Verifique suas credenciais.");
+          setLoading(false);
         }
       } else {
         const { data, error: signUpError } = await supabase.auth.signUp({
@@ -186,6 +236,50 @@ export default function LoginPage() {
       setError(err.message || "Ocorreu um erro inesperado");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode.trim() || !mfaFactorId || !mfaChallengeId) {
+      setError("Digite o código de verificação");
+      return;
+    }
+
+    setMfaVerifying(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/auth/mfa/login-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          factorId: mfaFactorId,
+          challengeId: mfaChallengeId,
+          code: mfaCode.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const { session } = await response.json();
+        if (session) {
+          // Atualizar a sessão no cliente
+          const supabase = createSupabaseBrowser();
+          await supabase.auth.setSession(session);
+          router.push("/dashboard");
+          router.refresh();
+        } else {
+          setError("Erro ao completar login. Tente novamente.");
+        }
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Código inválido");
+      }
+    } catch (error) {
+      console.error("Erro ao verificar código 2FA:", error);
+      setError("Erro ao verificar código. Tente novamente.");
+    } finally {
+      setMfaVerifying(false);
     }
   };
   return (
@@ -447,22 +541,91 @@ export default function LoginPage() {
                 )}
               </div>
               {}
+              {showMfaInput && (
+                <div className="space-y-3 p-4 rounded-md bg-muted/50 border border-border">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="mfaCode"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Código de Verificação 2FA{" "}
+                      <span className="text-destructive">*</span>
+                    </label>
+                    <div className="relative">
+                      <Input
+                        id="mfaCode"
+                        type="text"
+                        placeholder="000000"
+                        value={mfaCode}
+                        onChange={(e) => {
+                          setMfaCode(
+                            e.target.value.replace(/\D/g, "").slice(0, 6)
+                          );
+                          setError(null);
+                        }}
+                        maxLength={6}
+                        required
+                        className="pl-10 text-center text-lg tracking-widest"
+                        autoFocus
+                      />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Digite o código de 6 dígitos do seu aplicativo
+                      autenticador
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMfaInput(false);
+                      setMfaCode("");
+                      setMfaFactorId(null);
+                      setMfaChallengeId(null);
+                      setError(null);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                  >
+                    Voltar ao login
+                  </button>
+                </div>
+              )}
+              {}
               <div className="pt-2">
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loading}
-                  size="lg"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {isLogin ? "Entrando..." : "Criando conta..."}
-                    </>
-                  ) : (
-                    <>{isLogin ? "Entrar" : "Criar conta"}</>
-                  )}
-                </Button>
+                {showMfaInput ? (
+                  <Button
+                    type="button"
+                    onClick={handleMfaVerify}
+                    className="w-full"
+                    disabled={mfaVerifying || !mfaCode.trim()}
+                    size="lg"
+                  >
+                    {mfaVerifying ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verificando...
+                      </>
+                    ) : (
+                      "Verificar e Entrar"
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={loading}
+                    size="lg"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {isLogin ? "Entrando..." : "Criando conta..."}
+                      </>
+                    ) : (
+                      <>{isLogin ? "Entrar" : "Criar conta"}</>
+                    )}
+                  </Button>
+                )}
               </div>
               {}
               <div className="text-center text-sm pt-1">

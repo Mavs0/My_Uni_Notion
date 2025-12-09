@@ -5,6 +5,7 @@ import TopBar from "../components/ui/topbar";
 import { Sidebar } from "../components/ui/sidebar";
 import { VirtualAssistant } from "../components/VirtualAssistant";
 import { MobileMenuProvider } from "../components/ui/mobile-menu-context";
+import { SkipLink } from "../components/SkipLink";
 
 export default function LayoutContent({
   children,
@@ -24,10 +25,18 @@ export default function LayoutContent({
   }
   return (
     <MobileMenuProvider>
+      <SkipLink />
       <TopBar />
       <div className="flex">
         <Sidebar />
-        <main className="flex-1 p-4 max-w-6xl mx-auto w-full">{children}</main>
+        <main
+          id="main-content"
+          className="flex-1 p-4 max-w-6xl mx-auto w-full"
+          role="main"
+          aria-label="Conteúdo principal"
+        >
+          {children}
+        </main>
       </div>
       <VirtualAssistant />
     </MobileMenuProvider>

@@ -110,16 +110,22 @@ const navSections: NavSection[] = [
 export function Sidebar() {
   const { mobileMenuOpen, setMobileMenuOpen } = useMobileMenu();
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = React.useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sidebar-collapsed");
-      return saved === "true";
-    }
-    return false;
-  });
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
   React.useEffect(() => {
-    localStorage.setItem("sidebar-collapsed", String(collapsed));
-  }, [collapsed]);
+    setMounted(true);
+    const saved = localStorage.getItem("sidebar-collapsed");
+    if (saved === "true") {
+      setCollapsed(true);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("sidebar-collapsed", String(collapsed));
+    }
+  }, [collapsed, mounted]);
   const NavContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <nav className="flex-1 overflow-y-auto p-4 space-y-6">
       {navSections.map((section) => (
@@ -178,6 +184,8 @@ export function Sidebar() {
           collapsed ? "w-16" : "w-64",
           "hidden md:flex"
         )}
+        role="navigation"
+        aria-label="Navegação principal"
       >
         {}
         <div className="flex items-center justify-end p-4 border-b">
@@ -187,6 +195,8 @@ export function Sidebar() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setCollapsed(!collapsed)}
+                aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+                aria-expanded={!collapsed}
               >
                 {collapsed ? (
                   <ChevronRight className="h-4 w-4" />

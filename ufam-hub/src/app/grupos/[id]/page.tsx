@@ -27,6 +27,8 @@ import {
   CheckCircle,
   XCircle,
   UserPlus,
+  Library,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -397,6 +399,44 @@ export default function GrupoDetailPage() {
                 </CardContent>
               </Card>
             )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Library className="h-5 w-5" />
+                  Materiais do Grupo
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    window.location.href = `/biblioteca?grupo_id=${grupoId}`;
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Materiais compartilhados neste grupo aparecerão aqui.
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    window.location.href = `/biblioteca?grupo_id=${grupoId}`;
+                  }}
+                >
+                  <Library className="h-4 w-4 mr-2" />
+                  Ver todos os materiais do grupo
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

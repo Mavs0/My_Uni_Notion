@@ -17,6 +17,11 @@ import {
   Link as LinkIcon,
   X,
   Image as ImageIcon,
+  Shield,
+  ShieldCheck,
+  ShieldOff,
+  QrCode,
+  Key,
 } from "lucide-react";
 import {
   Card,
@@ -64,6 +69,14 @@ export default function PerfilPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
+  const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
+  const [mfaSecret, setMfaSecret] = useState<string | null>(null);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaVerificationCode, setMfaVerificationCode] = useState("");
+  const [mfaVerifying, setMfaVerifying] = useState(false);
   const [profile, setProfile] = useState<ProfileData>({
     id: "",
     email: "",
@@ -88,7 +101,124 @@ export default function PerfilPage() {
   });
   useEffect(() => {
     loadProfile();
+    loadMfaStatus();
   }, []);
+
+  const loadMfaStatus = async () => {
+    try {
+      const response = await fetch("/api/auth/mfa/status");
+      if (response.ok) {
+        const data = await response.json();
+        setMfaEnabled(data.enabled);
+        if (data.factor) {
+          setMfaFactorId(data.factor.id);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao carregar status do 2FA:", error);
+    }
+  };
+
+  const handleEnableMfa = async () => {
+    try {
+      setMfaLoading(true);
+      const response = await fetch("/api/auth/mfa/enroll", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMfaQrCode(data.qr_code);
+        setMfaSecret(data.secret);
+        setMfaFactorId(data.id);
+        setShowMfaSetup(true);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Erro ao ativar 2FA");
+      }
+    } catch (error) {
+      console.error("Erro ao ativar 2FA:", error);
+      setError("Erro ao ativar autenticação de dois fatores");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleVerifyMfa = async () => {
+    if (!mfaFactorId || !mfaVerificationCode.trim()) {
+      setError("Digite o código de verificação");
+      return;
+    }
+
+    try {
+      setMfaVerifying(true);
+      const response = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          factorId: mfaFactorId,
+          code: mfaVerificationCode.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        setMfaEnabled(true);
+        setShowMfaSetup(false);
+        setMfaQrCode(null);
+        setMfaSecret(null);
+        setMfaVerificationCode("");
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Código inválido");
+      }
+    } catch (error) {
+      console.error("Erro ao verificar código 2FA:", error);
+      setError("Erro ao verificar código");
+    } finally {
+      setMfaVerifying(false);
+    }
+  };
+
+  const handleDisableMfa = async () => {
+    if (!mfaFactorId) {
+      setError("ID do fator não encontrado");
+      return;
+    }
+
+    if (
+      !confirm(
+        "Tem certeza que deseja desativar a autenticação de dois fatores? Sua conta ficará menos segura."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setMfaLoading(true);
+      const response = await fetch("/api/auth/mfa/unenroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ factorId: mfaFactorId }),
+      });
+
+      if (response.ok) {
+        setMfaEnabled(false);
+        setMfaFactorId(null);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Erro ao desativar 2FA");
+      }
+    } catch (error) {
+      console.error("Erro ao desativar 2FA:", error);
+      setError("Erro ao desativar autenticação de dois fatores");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
   const loadProfile = async () => {
     try {
       setLoading(true);
@@ -442,6 +572,183 @@ export default function PerfilPage() {
                     year: "numeric",
                   })}
                 </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Segurança da Conta
+              </CardTitle>
+              <CardDescription>
+                Autenticação de dois fatores (2FA) para maior segurança
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+            <div className="flex items-center gap-3">
+              {mfaEnabled ? (
+                <ShieldCheck className="h-5 w-5 text-green-500" />
+              ) : (
+                <ShieldOff className="h-5 w-5 text-muted-foreground" />
+              )}
+              <div>
+                <p className="font-medium">Autenticação de Dois Fatores</p>
+                <p className="text-sm text-muted-foreground">
+                  {mfaEnabled
+                    ? "2FA está ativado. Sua conta está mais segura."
+                    : "Adicione uma camada extra de segurança à sua conta."}
+                </p>
+              </div>
+            </div>
+            {mfaEnabled ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDisableMfa}
+                disabled={mfaLoading}
+              >
+                {mfaLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Desativando...
+                  </>
+                ) : (
+                  <>
+                    <ShieldOff className="h-4 w-4 mr-2" />
+                    Desativar 2FA
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleEnableMfa}
+                disabled={mfaLoading}
+              >
+                {mfaLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Carregando...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    Ativar 2FA
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {showMfaSetup && mfaQrCode && (
+            <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
+              <div>
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <QrCode className="h-4 w-4" />
+                  Configure seu aplicativo autenticador
+                </h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Escaneie o QR code com um aplicativo autenticador como Google
+                  Authenticator, Authy ou Microsoft Authenticator.
+                </p>
+                <div className="flex justify-center p-4 bg-white rounded-lg border">
+                  <img
+                    src={mfaQrCode}
+                    alt="QR Code para 2FA"
+                    className="w-48 h-48"
+                  />
+                </div>
+                {mfaSecret && (
+                  <div className="mt-4 p-3 rounded-lg bg-muted border">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Ou digite manualmente:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-sm font-mono bg-background px-3 py-2 rounded border">
+                        {mfaSecret}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(mfaSecret);
+                          setSuccess(true);
+                          setTimeout(() => setSuccess(false), 2000);
+                        }}
+                      >
+                        Copiar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Digite o código de verificação
+                </label>
+                <Input
+                  type="text"
+                  placeholder="000000"
+                  value={mfaVerificationCode}
+                  onChange={(e) => {
+                    setMfaVerificationCode(
+                      e.target.value.replace(/\D/g, "").slice(0, 6)
+                    );
+                    setError(null);
+                  }}
+                  maxLength={6}
+                  className="text-center text-lg font-mono tracking-widest"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Digite o código de 6 dígitos do seu aplicativo autenticador
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowMfaSetup(false);
+                    setMfaQrCode(null);
+                    setMfaSecret(null);
+                    setMfaVerificationCode("");
+                    setMfaFactorId(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleVerifyMfa}
+                  disabled={mfaVerifying || mfaVerificationCode.length !== 6}
+                >
+                  {mfaVerifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Verificando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Verificar e Ativar
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           )}

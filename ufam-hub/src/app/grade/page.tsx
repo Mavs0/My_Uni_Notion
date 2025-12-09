@@ -78,6 +78,7 @@ export default function GradePage() {
         const inicioLabel = minutesToLabel(inicioMin);
         const fimLabel = minutesToLabel(fimMin);
         return {
+          id: key,
           label: `${inicioLabel}-${fimLabel}`,
           inicio,
           fim,
@@ -163,19 +164,15 @@ export default function GradePage() {
             {}
             <div className="grid grid-cols-8 bg-zinc-900/50 text-sm font-medium">
               <div className="px-3 py-3"></div>
-              {DIAS.slice(1, 7).map(
-                (
-                  d
-                ) => (
-                  <div key={d} className="px-3 py-3 text-center">
-                    {d}
-                  </div>
-                )
-              )}
+              {DIAS.slice(1, 7).map((d) => (
+                <div key={d} className="px-3 py-3 text-center">
+                  {d}
+                </div>
+              ))}
             </div>
             {}
             {timeslots.map((slot) => (
-              <div key={slot.label} className="grid grid-cols-8 border-t">
+              <div key={slot.id} className="grid grid-cols-8 border-t">
                 {}
                 <div className="bg-zinc-900/30 px-3 py-6 text-sm font-medium">
                   {slot.label}
