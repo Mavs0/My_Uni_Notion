@@ -322,7 +322,7 @@ export default function BibliotecaPage() {
         setArquivoMetodo("upload");
         setSubtipoAnotacao("");
         setSubtipoFlashcard("");
-        await loadMateriais();
+        resetMateriais();
       } else {
         toast.error(data.error || "Erro ao adicionar material");
       }
@@ -335,7 +335,7 @@ export default function BibliotecaPage() {
   };
 
   const handleSearch = () => {
-    loadMateriais();
+    resetMateriais();
   };
 
   const handleDownload = async (material: Material) => {
@@ -351,8 +351,6 @@ export default function BibliotecaPage() {
       }
     }
   };
-
-  const filteredMateriais = materiais;
   return (
     <main className="mx-auto max-w-6xl p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -776,32 +774,33 @@ export default function BibliotecaPage() {
             <p className="text-muted-foreground">Carregando materiais...</p>
           </div>
         </div>
-      ) : filteredMateriais.length === 0 ? (
+      ) : materiaisInfinite.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Library className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">
-              {materiais.length === 0
-                ? "Nenhum material ainda"
-                : "Nenhum material encontrado"}
+              Nenhum material encontrado
             </h3>
             <p className="text-muted-foreground">
-              {materiais.length === 0
-                ? "A biblioteca está vazia. Compartilhe materiais para começar!"
-                : "Tente buscar com outros termos ou ajustar os filtros"}
+              Tente buscar com outros termos ou ajustar os filtros
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredMateriais.map((material) => (
-            <Card
-              key={material.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => {
-                window.location.href = `/biblioteca/${material.id}`;
-              }}
-            >
+          {materiaisInfinite.map((material, index) => {
+            const isLast = index === materiaisInfinite.length - 1;
+            return (
+              <div
+                key={material.id}
+                ref={isLast ? lastElementRef : null}
+              >
+                <Card
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    window.location.href = `/biblioteca/${material.id}`;
+                  }}
+                >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -910,7 +909,15 @@ export default function BibliotecaPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+              </div>
+            );
+          })}
+          {loadingInfinite && hasMore && (
+            <div className="col-span-full flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Carregando mais...</span>
+            </div>
+          )}
         </div>
       )}
     </main>

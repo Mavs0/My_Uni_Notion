@@ -20,7 +20,23 @@ import {
   Edit2,
   Calendar,
   Flag,
+  ArrowLeft,
+  Clock,
+  MapPin,
+  BookOpen,
+  ClipboardList,
+  Folder,
+  GraduationCap,
+  Target,
+  Sparkles,
+  MoreVertical,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -119,15 +135,18 @@ function Section({
   title,
   children,
   right,
+  icon,
 }: {
   title: string;
   children: React.ReactNode;
   right?: React.ReactNode;
+  icon?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border bg-white/5 p-4 shadow-sm dark:bg-zinc-900/40">
-      <header className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+    <section className="rounded-xl border bg-card p-5 shadow-sm hover:shadow-md transition-shadow">
+      <header className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+          {icon}
           {title}
         </h2>
         {right}
@@ -264,30 +283,32 @@ export default function DisciplinaDetailPage() {
   }, [blocosAssistidos, id]);
   if (loadingDisc) {
     return (
-      <main className="mx-auto max-w-4xl p-6">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-          <span className="ml-3 text-zinc-400">Carregando disciplina...</span>
+      <main className="mx-auto max-w-6xl p-6">
+        <div className="flex flex-col items-center justify-center py-16">
+          <GraduationCap className="h-12 w-12 animate-pulse text-primary mb-4" />
+          <p className="text-muted-foreground">Carregando disciplina...</p>
         </div>
       </main>
     );
   }
   if (errorDisc) {
     return (
-      <main className="mx-auto max-w-4xl p-6">
-        <button
+      <main className="mx-auto max-w-6xl p-6">
+        <Button
+          variant="ghost"
           onClick={() => router.push("/disciplinas")}
-          className="mb-4 rounded border px-3 py-1 text-sm hover:bg-white/5"
+          className="mb-4"
         >
-          ← Voltar
-        </button>
-        <div className="flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <AlertCircle className="h-5 w-5 text-red-500" />
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar
+        </Button>
+        <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+          <AlertCircle className="h-5 w-5 text-destructive" />
           <div>
-            <div className="font-medium text-red-500">
+            <div className="font-medium text-destructive">
               Erro ao carregar disciplina
             </div>
-            <div className="text-sm text-zinc-400">{errorDisc}</div>
+            <div className="text-sm text-muted-foreground">{errorDisc}</div>
           </div>
         </div>
       </main>
@@ -295,16 +316,19 @@ export default function DisciplinaDetailPage() {
   }
   if (!disciplina) {
     return (
-      <main className="mx-auto max-w-4xl p-6">
-        <button
+      <main className="mx-auto max-w-6xl p-6">
+        <Button
+          variant="ghost"
           onClick={() => router.push("/disciplinas")}
-          className="mb-4 rounded border px-3 py-1 text-sm hover:bg-white/5"
+          className="mb-4"
         >
-          ← Voltar
-        </button>
-        <div className="rounded-lg border p-6 text-center">
-          <p className="text-sm text-zinc-500">Disciplina não encontrada.</p>
-          <p className="mt-2 text-xs text-zinc-400">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar
+        </Button>
+        <div className="rounded-xl border p-8 text-center">
+          <GraduationCap className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-sm text-muted-foreground font-medium">Disciplina não encontrada.</p>
+          <p className="mt-2 text-xs text-muted-foreground">
             A disciplina pode ter sido removida ou você não tem permissão para
             acessá-la.
           </p>
@@ -321,107 +345,182 @@ export default function DisciplinaDetailPage() {
   );
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
-      {}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button
-            onClick={() => router.push("/disciplinas")}
-            className="mb-2 rounded border px-3 py-1 text-sm hover:bg-white/5"
-          >
-            ← Voltar
-          </button>
-          <h1 className="text-2xl font-semibold">{disciplina.nome}</h1>
-          <p className="text-sm text-zinc-500">
-            <span className={badgeTipo(disciplina.tipo)}>
-              {disciplina.tipo}
-            </span>
-            <span className="ml-2">{disciplina.horasSemana}h/sem</span>
-            {disciplina.local && (
-              <span className="ml-2">• {disciplina.local}</span>
-            )}
-          </p>
-          {disciplina.horarios?.length ? (
-            <div className="mt-1 text-sm text-zinc-500">
-              {disciplina.horarios.map((h, i) => (
-                <span key={i} className="mr-3">
-                  {DIAS[h.dia]} {h.inicio}–{h.fim}
-                </span>
-              ))}
+      {/* Header melhorado */}
+      <header className="space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/disciplinas")}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar para disciplinas
+        </Button>
+        
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+          {/* Info da disciplina */}
+          <div className="flex-1">
+            <div className="flex items-start gap-4">
+              <div className="hidden sm:flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                <GraduationCap className="h-7 w-7" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <h1 className="text-2xl font-bold">{disciplina.nome}</h1>
+                  <span className={badgeTipo(disciplina.tipo)}>
+                    {disciplina.tipo}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-4 w-4" />
+                    {disciplina.horasSemana}h/semana
+                  </span>
+                  {disciplina.local && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4" />
+                      {disciplina.local}
+                    </span>
+                  )}
+                </div>
+                {disciplina.horarios?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {disciplina.horarios.map((h, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1 rounded-lg border bg-muted/50 px-2.5 py-1 text-xs"
+                      >
+                        <span className="font-medium">{DIAS[h.dia]}</span>
+                        <span className="text-muted-foreground">
+                          {h.inicio}–{h.fim}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
-          ) : null}
-        </div>
-        {}
-        <Section title="Progresso semanal">
-          <div className="min-w-[260px]">
-            <div className="mb-1 flex justify-between text-sm">
-              <span>Horas assistidas</span>
-              <span className="tabular-nums">
-                {horasAssistidas}/{disciplina.horasSemana}h ({pctSemana}%)
+          </div>
+
+          {/* Card de progresso semanal */}
+          <div className="lg:w-[320px] rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Progresso Semanal</h3>
+            </div>
+            <div className="mb-2 flex justify-between text-sm">
+              <span className="text-muted-foreground">Horas assistidas</span>
+              <span className="tabular-nums font-medium">
+                {horasAssistidas}/{disciplina.horasSemana}h
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded bg-zinc-800">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full bg-emerald-500"
+                className={cn(
+                  "h-full transition-all duration-500",
+                  pctSemana >= 100
+                    ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                    : pctSemana >= 50
+                    ? "bg-gradient-to-r from-primary to-primary/70"
+                    : "bg-gradient-to-r from-amber-500 to-amber-400"
+                )}
                 style={{ width: `${pctSemana}%` }}
               />
             </div>
+            <div className="mt-1 text-right">
+              <span
+                className={cn(
+                  "text-xs font-medium",
+                  pctSemana >= 100
+                    ? "text-emerald-500"
+                    : pctSemana >= 50
+                    ? "text-primary"
+                    : "text-amber-500"
+                )}
+              >
+                {pctSemana}% concluído
+              </span>
+            </div>
             <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => setBlocosAssistidos((v) => Math.max(0, v - 1))}
-                className="rounded border px-2 py-1 text-sm hover:bg-white/5"
-              >
-                − 1 bloco
-              </button>
-              <button
-                onClick={() => setBlocosAssistidos((v) => v + 1)}
-                className="rounded border px-2 py-1 text-sm hover:bg-white/5"
-              >
-                + 1 bloco
-              </button>
-              <button
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBlocosAssistidos((v) => Math.max(0, v - 1))}
+                      className="flex-1"
+                    >
+                      − 1 bloco
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Remover {horasPorBloco}h</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setBlocosAssistidos((v) => v + 1)}
+                      className="flex-1"
+                    >
+                      + 1 bloco
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Adicionar {horasPorBloco}h</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            {blocosAssistidos > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setBlocosAssistidos(0)}
-                className="ml-auto rounded border px-2 py-1 text-sm hover:bg-white/5"
+                className="w-full mt-2 text-xs text-muted-foreground"
               >
-                Zerar
-              </button>
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">
-              Cada bloco = {horasPorBloco}h.
-            </div>
+                Zerar progresso
+              </Button>
+            )}
           </div>
-        </Section>
-      </div>
-      {}
+        </div>
+      </header>
+      {/* Seção de Anotações */}
       <Section
         title="Anotações"
+        icon={<BookOpen className="h-4 w-4" />}
         right={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {salvando && (
-              <div className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
-                <span className="text-xs text-zinc-500">Salvando...</span>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-muted">
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Salvando...</span>
               </div>
             )}
             {!salvando && notaId && anotacoes && (
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                 <span className="text-xs text-emerald-500 font-medium">
                   Salvo
                 </span>
               </div>
             )}
             {!salvando && !notaId && anotacoes && (
-              <span className="text-xs text-yellow-500">Não salvo</span>
+              <span className="text-xs text-amber-500 px-2 py-1 rounded-full bg-amber-500/10">
+                Não salvo
+              </span>
             )}
-            <span className="text-xs text-zinc-500 hidden sm:inline">
-              Markdown simples (salvo automaticamente)
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Salvo automaticamente
             </span>
           </div>
         }
       >
         {carregandoAnotacoes ? (
-          <div className="flex h-48 items-center justify-center text-sm text-zinc-500">
-            Carregando anotações...
+          <div className="flex h-48 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+            <span className="text-sm text-muted-foreground">Carregando anotações...</span>
           </div>
         ) : (
           <>
@@ -429,115 +528,151 @@ export default function DisciplinaDetailPage() {
               value={anotacoes}
               onChange={(e) => setAnotacoes(e.target.value)}
               placeholder="Escreva aqui suas anotações, fórmulas, referências..."
-              className="h-48 w-full rounded border bg-transparent p-3"
+              className="h-48 w-full rounded-lg border bg-background p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             />
             {anotacoes && (
-              <div className="mt-3 rounded border bg-white/5 p-3">
-                <div className="mb-1 text-xs font-medium text-zinc-500">
+              <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+                <div className="mb-2 text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
                   Pré-visualização
                 </div>
-                <pre className="whitespace-pre-wrap text-sm">{anotacoes}</pre>
+                <pre className="whitespace-pre-wrap text-sm text-foreground">{anotacoes}</pre>
               </div>
             )}
           </>
         )}
       </Section>
-      {}
+      {/* Seção de Materiais */}
       <Section
         title="Materiais"
+        icon={<Folder className="h-4 w-4" />}
         right={
           <AddMaterial onAdd={(m) => setMateriais((prev) => [m, ...prev])} />
         }
       >
         {materiais.length === 0 ? (
-          <p className="text-sm text-zinc-500">Sem materiais ainda.</p>
+          <div className="text-center py-8">
+            <Folder className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-sm text-muted-foreground">Sem materiais ainda.</p>
+            <p className="text-xs text-muted-foreground mt-1">Adicione links ou arquivos para esta disciplina</p>
+          </div>
         ) : (
           <ul className="space-y-2">
             {materiais.map((m) => (
               <li
                 key={m.id}
-                className="flex items-center justify-between rounded border p-2"
+                className="group flex items-center justify-between rounded-lg border bg-background p-3 hover:border-primary/30 transition-colors"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{m.titulo}</div>
-                  <div className="mt-1 flex items-center gap-2">
-                    {m.tipo === "url" ? (
-                      <a
-                        href={m.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="truncate text-xs text-blue-400 underline"
-                      >
-                        {m.url}
-                      </a>
-                    ) : m.tipo === "pdf" ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-zinc-500">
-                          📄 {m.nomeArquivo || "arquivo.pdf"}
-                        </span>
-                        {m.arquivo && (
-                          <a
-                            href={m.arquivo}
-                            download={m.nomeArquivo || "arquivo.pdf"}
-                            className="text-xs text-blue-400 underline"
-                          >
-                            Baixar
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-zinc-500">
-                          🎨 {m.nomeArquivo || "arquivo.svg"}
-                        </span>
-                        {m.arquivo && (
-                          <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1 flex items-center gap-3">
+                  <div className={cn(
+                    "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
+                    m.tipo === "url" ? "bg-blue-500/10 text-blue-500" :
+                    m.tipo === "pdf" ? "bg-red-500/10 text-red-500" :
+                    "bg-purple-500/10 text-purple-500"
+                  )}>
+                    {m.tipo === "url" ? <LinkIcon className="h-4 w-4" /> :
+                     m.tipo === "pdf" ? <FileText className="h-4 w-4" /> :
+                     <ImageIcon className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{m.titulo}</div>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      {m.tipo === "url" ? (
+                        <a
+                          href={m.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate text-xs text-primary hover:underline"
+                        >
+                          {m.url}
+                        </a>
+                      ) : m.tipo === "pdf" ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {m.nomeArquivo || "arquivo.pdf"}
+                          </span>
+                          {m.arquivo && (
                             <a
                               href={m.arquivo}
-                              download={m.nomeArquivo || "arquivo.svg"}
-                              className="text-xs text-blue-400 underline"
+                              download={m.nomeArquivo || "arquivo.pdf"}
+                              className="text-xs text-primary hover:underline"
                             >
                               Baixar
                             </a>
-                            <details className="text-xs">
-                              <summary className="cursor-pointer text-blue-400">
-                                Ver preview
-                              </summary>
-                              <div className="mt-2 rounded border bg-white/5 p-2">
-                                <img
-                                  src={m.arquivo}
-                                  alt={m.titulo}
-                                  className="max-h-48 w-auto"
-                                />
-                              </div>
-                            </details>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {m.nomeArquivo || "arquivo.svg"}
+                          </span>
+                          {m.arquivo && (
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={m.arquivo}
+                                download={m.nomeArquivo || "arquivo.svg"}
+                                className="text-xs text-primary hover:underline"
+                              >
+                                Baixar
+                              </a>
+                              <details className="text-xs">
+                                <summary className="cursor-pointer text-primary hover:underline">
+                                  Ver preview
+                                </summary>
+                                <div className="mt-2 rounded-lg border bg-muted/30 p-2">
+                                  <img
+                                    src={m.arquivo}
+                                    alt={m.titulo}
+                                    className="max-h-48 w-auto"
+                                  />
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    setMateriais((prev) => prev.filter((x) => x.id !== m.id))
-                  }
-                  className="ml-2 rounded border px-2 py-1 text-xs hover:bg-white/5"
-                >
-                  Remover
-                </button>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setMateriais((prev) => prev.filter((x) => x.id !== m.id))
+                        }
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Remover material</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </li>
             ))}
           </ul>
         )}
       </Section>
-      {}
-      <Section title="Tarefas" right={<AddTarefa disciplinaId={id} />}>
+      {/* Seção de Tarefas */}
+      <Section 
+        title="Tarefas" 
+        icon={<ClipboardList className="h-4 w-4" />}
+        right={<AddTarefa disciplinaId={id} />}
+      >
         {loadingTarefas ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+            <span className="text-sm text-muted-foreground">Carregando tarefas...</span>
           </div>
         ) : tarefas.length === 0 ? (
-          <p className="text-sm text-zinc-500">Nenhuma tarefa cadastrada.</p>
+          <div className="text-center py-8">
+            <ClipboardList className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-sm text-muted-foreground">Nenhuma tarefa cadastrada.</p>
+            <p className="text-xs text-muted-foreground mt-1">Crie tarefas para organizar seus estudos</p>
+          </div>
         ) : (
           <ul className="space-y-2">
             {tarefas
@@ -590,9 +725,10 @@ export default function DisciplinaDetailPage() {
           </ul>
         )}
       </Section>
-      {}
+      {/* Seção de Avaliações */}
       <Section
         title="Avaliações"
+        icon={<Calendar className="h-4 w-4" />}
         right={
           <NovaAvaliacaoButton
             disciplinaId={disciplina.id}
@@ -615,66 +751,109 @@ export default function DisciplinaDetailPage() {
       >
         {loadingAval ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-            <span className="ml-2 text-sm text-zinc-400">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+            <span className="text-sm text-muted-foreground">
               Carregando avaliações...
             </span>
           </div>
         ) : avaliacoes.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            Sem avaliações cadastradas para esta disciplina.
-          </p>
+          <div className="text-center py-8">
+            <Calendar className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-sm text-muted-foreground">
+              Sem avaliações cadastradas para esta disciplina.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Adicione provas, trabalhos e seminários</p>
+          </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {avaliacoes
               .sort(
                 (a, b) =>
                   new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
               )
-              .map((a) => (
-                <li key={a.id} className="rounded border p-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-sm">
-                        <span className={tipoBadgeMap[a.tipo]}>{a.tipo}</span>
-                        <span className="ml-2 text-zinc-300">
-                          {fmtDate(a.dataISO)}
-                        </span>
-                      </div>
-                      {a.descricao && (
-                        <div className="text-sm text-zinc-500">
-                          {a.descricao}
+              .map((a) => {
+                const dias = daysUntil(a.dataISO);
+                const isPast = dias < 0;
+                const isUrgent = dias >= 0 && dias <= 3;
+                
+                return (
+                  <li 
+                    key={a.id} 
+                    className={cn(
+                      "group rounded-xl border p-4 transition-all hover:shadow-sm",
+                      isPast ? "opacity-60 bg-muted/30" : 
+                      isUrgent ? "border-amber-500/30 bg-amber-500/5" : 
+                      "bg-background"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className={cn(
+                          "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+                          a.tipo === "prova" ? "bg-red-500/10 text-red-500" :
+                          a.tipo === "trabalho" ? "bg-blue-500/10 text-blue-500" :
+                          "bg-emerald-500/10 text-emerald-500"
+                        )}>
+                          <Calendar className="h-5 w-5" />
                         </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const result = await deleteAvaliacao(a.id);
-                        if (!result.success) {
-                          toast.error(
-                            result.error || "Erro ao remover avaliação"
-                          );
-                        } else {
-                          toast.success("Avaliação removida com sucesso!");
-                        }
-                      }}
-                      className="rounded border px-2 py-1 text-xs hover:bg-white/5"
-                    >
-                      Remover
-                    </button>
-                  </div>
-                  {a.resumo_assuntos && (
-                    <div className="mt-3 rounded border bg-white/5 p-3 text-sm">
-                      <div className="mb-1 text-xs font-medium text-zinc-500">
-                        Resumo dos assuntos {a.gerado_por_ia ? "(IA)" : ""}
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={tipoBadgeMap[a.tipo]}>{a.tipo}</span>
+                            {isUrgent && !isPast && (
+                              <span className="text-xs text-amber-500 font-medium">
+                                {dias === 0 ? "Hoje!" : dias === 1 ? "Amanhã!" : `Em ${dias} dias`}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {fmtDate(a.dataISO)}
+                          </div>
+                          {a.descricao && (
+                            <div className="mt-1 text-sm text-foreground">
+                              {a.descricao}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="whitespace-pre-wrap">
-                        {a.resumo_assuntos}
-                      </div>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={async () => {
+                                const result = await deleteAvaliacao(a.id);
+                                if (!result.success) {
+                                  toast.error(
+                                    result.error || "Erro ao remover avaliação"
+                                  );
+                                } else {
+                                  toast.success("Avaliação removida com sucesso!");
+                                }
+                              }}
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-all"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Remover avaliação</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
-                  )}
-                </li>
-              ))}
+                    {a.resumo_assuntos && (
+                      <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                        <div className="mb-2 text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          {a.gerado_por_ia && <Sparkles className="h-3 w-3" />}
+                          Resumo dos assuntos {a.gerado_por_ia ? "(gerado por IA)" : ""}
+                        </div>
+                        <div className="whitespace-pre-wrap text-foreground">
+                          {a.resumo_assuntos}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
           </ul>
         )}
       </Section>
@@ -1052,6 +1231,7 @@ function NovaAvaliacaoButton({
   const [descricao, setDescricao] = useState("");
   const [resumo, setResumo] = useState("");
   const [loadingResumo, setLoadingResumo] = useState(false);
+  
   async function gerarResumoIA() {
     setLoadingResumo(true);
     await new Promise((r) => setTimeout(r, 600));
@@ -1068,6 +1248,7 @@ function NovaAvaliacaoButton({
     setResumo(txt);
     setLoadingResumo(false);
   }
+  
   function salvar() {
     const iso = new Date(dataLocal).toISOString();
     onCreate({
@@ -1083,89 +1264,113 @@ function NovaAvaliacaoButton({
     setResumo("");
     setOpen(false);
   }
+  
+  function resetForm() {
+    setTipo("prova");
+    setDataLocal(toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000)));
+    setDescricao("");
+    setResumo("");
+  }
+  
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="rounded border px-3 py-1 text-sm hover:bg-white/5"
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          resetForm();
+          setOpen(true);
+        }}
       >
-        + Nova avaliação
-      </button>
-      {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-xl border bg-background shadow-lg">
-            <header className="flex items-center justify-between border-b p-4">
-              <h3 className="text-lg font-semibold">Nova avaliação</h3>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded border px-2 py-1 text-sm hover:bg-white/5"
-              >
-                Fechar
-              </button>
-            </header>
-            <div className="grid gap-3 p-4">
-              <label className="grid gap-1 text-sm">
-                <span>Tipo</span>
+        <Plus className="h-4 w-4 mr-1" />
+        Nova Avaliação
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Nova Avaliação
+            </DialogTitle>
+            <DialogDescription>
+              Adicione uma nova prova, trabalho ou seminário para esta disciplina
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tipo *</label>
                 <select
                   value={tipo}
                   onChange={(e) => setTipo(e.target.value as AvaliacaoTipo)}
-                  className="rounded border bg-transparent px-2 py-1"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 >
                   <option value="prova">Prova</option>
                   <option value="trabalho">Trabalho</option>
                   <option value="seminario">Seminário</option>
                 </select>
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span>Data e hora</span>
-                <input
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Data e hora *</label>
+                <Input
                   type="datetime-local"
                   value={dataLocal}
                   onChange={(e) => setDataLocal(e.target.value)}
-                  className="rounded border bg-transparent px-2 py-1"
                 />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span>Descrição</span>
-                <textarea
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  className="min-h-[80px] rounded border bg-transparent p-2"
-                />
-              </label>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Descrição (opcional)</label>
+              <textarea
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Ex: Capítulos 1-5, todo o conteúdo de arrays..."
+                className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
+              />
+            </div>
+            
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Resumo (opcional)</span>
-                <button
+                <label className="text-sm font-medium">Resumo de estudo (opcional)</label>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={gerarResumoIA}
-                  className="rounded border px-2 py-1 text-xs hover:bg-white/5"
                   disabled={loadingResumo}
                 >
-                  {loadingResumo ? "Gerando…" : "Gerar resumo IA"}
-                </button>
+                  {loadingResumo ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Gerar com IA
+                    </>
+                  )}
+                </Button>
               </div>
               <textarea
                 value={resumo}
                 onChange={(e) => setResumo(e.target.value)}
-                className="min-h-[120px] rounded border bg-transparent p-2 text-sm"
+                placeholder="Tópicos e assuntos para estudar..."
+                className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
               />
-              <div className="mt-2 flex justify-end gap-2">
-                <button
-                  onClick={() => setOpen(false)}
-                  className="rounded border px-3 py-1 text-sm hover:bg-white/5"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={salvar}
-                  className="rounded border px-3 py-1 text-sm hover:bg-white/5"
-                >
-                  Salvar
-                </button>
-              </div>
             </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvar}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Criar Avaliação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1308,6 +1513,7 @@ function TarefaItem({
     diasRestantes !== null && diasRestantes < 0 && !tarefa.concluida;
   const isUrgente =
     diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 2;
+  
   async function salvarEdicao() {
     await onEdit({
       titulo: titulo.trim(),
@@ -1317,15 +1523,15 @@ function TarefaItem({
     });
     setEditing(false);
   }
+  
   if (editing) {
     return (
-      <li className="rounded-lg border border-blue-500/50 bg-blue-500/5 p-3">
+      <li className="rounded-xl border border-primary/50 bg-primary/5 p-4">
         <div className="space-y-3">
           <Input
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
             placeholder="Título da tarefa"
-            className="text-sm"
           />
           <textarea
             value={descricao}
@@ -1333,12 +1539,11 @@ function TarefaItem({
             placeholder="Descrição (opcional)"
             className="w-full min-h-[60px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
           />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <Input
               type="datetime-local"
               value={dataVencimento}
               onChange={(e) => setDataVencimento(e.target.value)}
-              className="text-sm"
             />
             <select
               value={prioridade}
@@ -1354,6 +1559,7 @@ function TarefaItem({
           </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={salvarEdicao}>
+              <CheckCircle2 className="h-4 w-4 mr-1" />
               Salvar
             </Button>
             <Button
@@ -1378,59 +1584,82 @@ function TarefaItem({
       </li>
     );
   }
+  
   return (
     <li
       className={cn(
-        "rounded-lg border p-3 transition-all",
-        tarefa.concluida && "opacity-60 bg-zinc-900/30",
-        isVencida && !tarefa.concluida && "border-red-500/50 bg-red-500/5",
-        isUrgente && !tarefa.concluida && "border-orange-500/30 bg-orange-500/5"
+        "group rounded-xl border p-4 transition-all hover:shadow-sm",
+        tarefa.concluida && "opacity-60 bg-muted/30",
+        isVencida && !tarefa.concluida && "border-destructive/50 bg-destructive/5",
+        isUrgente && !tarefa.concluida && "border-amber-500/30 bg-amber-500/5"
       )}
     >
       <div className="flex items-start gap-3">
-        <button
-          onClick={onToggle}
-          className="mt-0.5 shrink-0 text-zinc-400 hover:text-emerald-400 transition-colors"
-          title={
-            tarefa.concluida ? "Marcar como pendente" : "Marcar como concluída"
-          }
-        >
-          {tarefa.concluida ? (
-            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-          ) : (
-            <Circle className="h-5 w-5" />
-          )}
-        </button>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggle}
+                className="mt-0.5 shrink-0 text-muted-foreground hover:text-emerald-500 transition-colors"
+              >
+                {tarefa.concluida ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                ) : (
+                  <Circle className="h-5 w-5" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {tarefa.concluida ? "Marcar como pendente" : "Marcar como concluída"}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">
               <h4
                 className={cn(
                   "font-medium text-sm",
-                  tarefa.concluida && "line-through text-zinc-500"
+                  tarefa.concluida && "line-through text-muted-foreground"
                 )}
               >
                 {tarefa.titulo}
               </h4>
               {tarefa.descricao && (
-                <p className="mt-1 text-xs text-zinc-400">{tarefa.descricao}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{tarefa.descricao}</p>
               )}
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => setEditing(true)}
-                className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-                title="Editar tarefa"
-              >
-                <Edit2 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={onDelete}
-                className="p-1.5 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"
-                title="Excluir tarefa"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditing(true)}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Editar tarefa</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onDelete}
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Excluir tarefa</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -1438,25 +1667,25 @@ function TarefaItem({
             {tarefa.dataVencimento && (
               <div
                 className={cn(
-                  "flex items-center gap-1 text-xs",
+                  "flex items-center gap-1 text-xs rounded-full px-2 py-0.5",
                   isVencida && !tarefa.concluida
-                    ? "text-red-400"
+                    ? "text-destructive bg-destructive/10"
                     : isUrgente && !tarefa.concluida
-                    ? "text-orange-400"
-                    : "text-zinc-400"
+                    ? "text-amber-600 dark:text-amber-400 bg-amber-500/10"
+                    : "text-muted-foreground bg-muted"
                 )}
               >
                 <Calendar className="h-3 w-3" />
                 <span>{fmtDate(tarefa.dataVencimento)}</span>
                 {diasRestantes !== null && !tarefa.concluida && (
-                  <span className="ml-1">
+                  <span className="font-medium">
                     {diasRestantes < 0
-                      ? `(Vencida há ${Math.abs(diasRestantes)} dias)`
+                      ? `• Vencida`
                       : diasRestantes === 0
-                      ? "(Hoje)"
+                      ? "• Hoje"
                       : diasRestantes === 1
-                      ? "(Amanhã)"
-                      : `(Em ${diasRestantes} dias)`}
+                      ? "• Amanhã"
+                      : `• ${diasRestantes}d`}
                   </span>
                 )}
               </div>

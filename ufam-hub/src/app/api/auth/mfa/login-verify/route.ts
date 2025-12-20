@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Após verificar o código, obter a sessão atualizada
     const {
       data: { session },
     } = await supabase.auth.getSession();

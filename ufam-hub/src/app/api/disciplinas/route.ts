@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         horas_semana: number;
         professor?: string | null;
         local?: string | null;
+        ativo?: boolean;
         created_at?: string;
         updated_at?: string;
         horarios?: Array<{
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         horasSemana: disc.horas_semana,
         professor: disc.professor || undefined,
         local: disc.local || undefined,
+        ativo: disc.ativo !== false, // Default para true se não existir
         horarios: (disc.horarios || []).map((h) => ({
           id: h.id,
           dia: h.dia_semana,

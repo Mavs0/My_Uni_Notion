@@ -9,6 +9,7 @@ export interface Disciplina {
   horasSemana: number;
   professor?: string;
   local?: string;
+  ativo?: boolean;
   horarios?: Array<{
     id: string;
     dia: number;
@@ -158,6 +159,29 @@ export function useDisciplinas() {
     },
     [fetchDisciplinas]
   );
+
+  const toggleAtivo = useCallback(
+    async (id: string, ativo: boolean) => {
+      try {
+        const response = await fetch(`/api/disciplinas/${id}/toggle-ativo`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ativo }),
+        });
+        if (!response.ok) {
+          const { error } = await response.json();
+          throw new Error(error || "Erro ao alterar status da disciplina");
+        }
+        await fetchDisciplinas();
+        return { success: true };
+      } catch (err: any) {
+        console.error("Erro ao alterar status da disciplina:", err);
+        return { success: false, error: err.message };
+      }
+    },
+    [fetchDisciplinas]
+  );
+
   return {
     disciplinas,
     loading,
@@ -166,5 +190,6 @@ export function useDisciplinas() {
     createDisciplina,
     updateDisciplina,
     deleteDisciplina,
+    toggleAtivo,
   };
 }

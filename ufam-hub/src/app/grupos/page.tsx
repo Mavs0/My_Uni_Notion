@@ -23,7 +23,8 @@ import {
   Lock,
   Copy,
   Check,
-  Power,
+  Archive,
+  ArchiveRestore,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -36,7 +37,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 interface Grupo {
   id: string;
   nome: string;
@@ -69,6 +77,11 @@ export default function GruposPage() {
   const [entrando, setEntrando] = useState(false);
   const [codigoCopiado, setCodigoCopiado] = useState<string | null>(null);
   const [mostrarInativos, setMostrarInativos] = useState(false);
+  const [grupoToArchive, setGrupoToArchive] = useState<{
+    id: string;
+    nome: string;
+    isAtivo: boolean;
+  } | null>(null);
   const [formData, setFormData] = useState({
     nome: "",
     descricao: "",
@@ -83,15 +96,9 @@ export default function GruposPage() {
   const loadGrupos = async () => {
     try {
       setLoading(true);
-      console.log("🔄 Carregando grupos...");
       const response = await fetch("/api/colaboracao/grupos?meus_grupos=true");
       if (response.ok) {
         const { grupos: gruposData } = await response.json();
-        console.log(
-          "📋 Grupos recebidos:",
-          gruposData?.length || 0,
-          gruposData
-        );
         setGrupos(gruposData || []);
       } else {
         const errorData = await response.json();
@@ -227,20 +234,43 @@ export default function GruposPage() {
     setTimeout(() => setCodigoCopiado(null), 2000);
   };
 
-  const handleToggleAtivo = async (grupoId: string, atualAtivo: boolean) => {
+  const handleToggleAtivo = (
+    grupoId: string,
+    grupoNome: string,
+    atualAtivo: boolean
+  ) => {
+    // Se for arquivar (está ativo), mostra o dialog de confirmação
+    if (atualAtivo) {
+      setGrupoToArchive({ id: grupoId, nome: grupoNome, isAtivo: atualAtivo });
+    } else {
+      // Se for ativar (está arquivado), ativa diretamente
+      confirmArchiveToggle(grupoId, atualAtivo);
+    }
+  };
+
+  const confirmArchiveToggle = async (id?: string, isAtivo?: boolean) => {
+    const targetId = id || grupoToArchive?.id;
+    const targetIsAtivo =
+      isAtivo !== undefined ? isAtivo : grupoToArchive?.isAtivo;
+
+    if (!targetId) return;
+
     try {
       const response = await fetch(
-        `/api/colaboracao/grupos/${grupoId}/toggle-ativo`,
+        `/api/colaboracao/grupos/${targetId}/toggle-ativo`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ativo: !atualAtivo }),
+          body: JSON.stringify({ ativo: !targetIsAtivo }),
         }
       );
       if (response.ok) {
         toast.success(
-          `Grupo ${!atualAtivo ? "ativado" : "desativado"} com sucesso!`
+          !targetIsAtivo
+            ? "Grupo ativado com sucesso!"
+            : "Grupo arquivado com sucesso!"
         );
+        setGrupoToArchive(null);
         await loadGrupos();
       } else {
         const data = await response.json();
@@ -510,12 +540,12 @@ export default function GruposPage() {
             {mostrarInativos ? (
               <>
                 <EyeOff className="h-4 w-4 mr-2" />
-                Ocultar Inativos
+                Ocultar Arquivados
               </>
             ) : (
               <>
                 <Eye className="h-4 w-4 mr-2" />
-                Mostrar Inativos
+                Mostrar Arquivados
               </>
             )}
           </Button>
@@ -565,8 +595,8 @@ export default function GruposPage() {
                     <div className="flex items-center gap-2">
                       <CardTitle className="text-lg">{grupo.nome}</CardTitle>
                       {grupo.ativo === false && (
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                          Inativo
+                        <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+                          Arquivado
                         </span>
                       )}
                     </div>
@@ -576,24 +606,43 @@ export default function GruposPage() {
                       </CardDescription>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      handleToggleAtivo(grupo.id, grupo.ativo !== false)
-                    }
-                    title={
-                      grupo.ativo !== false ? "Desativar grupo" : "Ativar grupo"
-                    }
-                  >
-                    <Power
-                      className={`h-4 w-4 ${
-                        grupo.ativo === false
-                          ? "text-muted-foreground"
-                          : "text-green-500"
-                      }`}
-                    />
-                  </Button>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 ${
+                            grupo.ativo === false
+                              ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                              : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                          }`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleAtivo(
+                              grupo.id,
+                              grupo.nome,
+                              grupo.ativo !== false
+                            );
+                          }}
+                        >
+                          {grupo.ativo === false ? (
+                            <ArchiveRestore className="h-4 w-4" />
+                          ) : (
+                            <Archive className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {grupo.ativo !== false
+                            ? "Arquivar grupo"
+                            : "Ativar grupo"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </CardHeader>
               <CardContent>
@@ -614,18 +663,27 @@ export default function GruposPage() {
                           <span className="font-mono text-xs font-semibold">
                             {grupo.codigo_acesso}
                           </span>
-                          <button
-                            onClick={() =>
-                              handleCopyCodigo(grupo.codigo_acesso!)
-                            }
-                            className="p-1 hover:bg-muted rounded"
-                          >
-                            {codigoCopiado === grupo.codigo_acesso ? (
-                              <Check className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </button>
+                          <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() =>
+                                    handleCopyCodigo(grupo.codigo_acesso!)
+                                  }
+                                  className="p-1 hover:bg-muted rounded"
+                                >
+                                  {codigoCopiado === grupo.codigo_acesso ? (
+                                    <Check className="h-3 w-3 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copiar código</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       )}
                   </div>
@@ -647,17 +705,26 @@ export default function GruposPage() {
                         Abrir
                       </Link>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
-                        navigator.clipboard.writeText(link);
-                        toast.success("Link de convite copiado!");
-                      }}
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </Button>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
+                              navigator.clipboard.writeText(link);
+                              toast.success("Link de convite copiado!");
+                            }}
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Copiar link de convite</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               </CardContent>
@@ -665,6 +732,53 @@ export default function GruposPage() {
           ))}
         </div>
       )}
+
+      {/* Dialog de confirmação para arquivar */}
+      <Dialog
+        open={!!grupoToArchive}
+        onOpenChange={(open) => !open && setGrupoToArchive(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-amber-500" />
+              Arquivar Grupo
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja arquivar o grupo{" "}
+              <span className="font-semibold text-foreground">
+                {grupoToArchive?.nome}
+              </span>
+              ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border bg-amber-500/10 border-amber-500/30 p-4 text-sm">
+              <p className="text-amber-600 dark:text-amber-400">
+                <strong>O que acontece ao arquivar:</strong>
+              </p>
+              <ul className="mt-2 space-y-1 text-muted-foreground list-disc list-inside">
+                <li>O grupo não aparecerá na lista principal</li>
+                <li>Você poderá reativá-lo a qualquer momento</li>
+                <li>As mensagens e dados do grupo serão mantidos</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGrupoToArchive(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => confirmArchiveToggle()}
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Arquivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

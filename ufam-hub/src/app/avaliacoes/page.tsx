@@ -668,253 +668,277 @@ export default function AvaliacoesPage() {
           </CardContent>
         </Card>
       )}
-      {}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={t.avaliacoes.buscar}
-                  className="pl-9"
-                />
-                {q && (
-                  <button
-                    onClick={() => setQ("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === "lista" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("lista")}
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  Lista
-                </Button>
-                <Button
-                  variant={viewMode === "calendario" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("calendario")}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Calendário
-                </Button>
-              </div>
-            </div>
-            {}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-fit">
-                <Filter className="h-4 w-4" />
-                <span className="font-medium">Filtros:</span>
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <Select value={fDisc} onValueChange={setFDisc}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t.avaliacoes.todasDisciplinas} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todas">
-                      {t.avaliacoes.todasDisciplinas}
-                    </SelectItem>
-                    {disciplinas.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-[140px]">
-                <Select
-                  value={fTipo}
-                  onValueChange={(value) => setFTipo(value as any)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t.avaliacoes.todosTipos} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tudo">
-                      {t.avaliacoes.todosTipos}
-                    </SelectItem>
-                    <SelectItem value="prova">
-                      {t.avaliacoes.tipo.prova}
-                    </SelectItem>
-                    <SelectItem value="trabalho">
-                      {t.avaliacoes.tipo.trabalho}
-                    </SelectItem>
-                    <SelectItem value="seminario">
-                      {t.avaliacoes.tipo.seminario}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-[140px]">
-                <Select
-                  value={fStatus}
-                  onValueChange={(value) => setFStatus(value as any)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos os status</SelectItem>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="concluida">Concluída</SelectItem>
-                    <SelectItem value="vencida">Vencida</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                variant={showBuscaAvancada ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowBuscaAvancada(!showBuscaAvancada)}
+      {/* Barra de busca e filtros inline */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Busca */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t.avaliacoes.buscar}
+              className="pl-9 h-10"
+            />
+            {q && (
+              <button
+                onClick={() => setQ("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Settings className="h-4 w-4 mr-2" />
-                Avançado
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filtros inline */}
+          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+            <Select value={fDisc} onValueChange={setFDisc}>
+              <SelectTrigger className="h-10 min-w-[160px]">
+                <SelectValue placeholder={t.avaliacoes.todasDisciplinas} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">
+                  {t.avaliacoes.todasDisciplinas}
+                </SelectItem>
+                {disciplinas.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={fTipo}
+              onValueChange={(value) => setFTipo(value as any)}
+            >
+              <SelectTrigger className="h-10 min-w-[120px]">
+                <SelectValue placeholder={t.avaliacoes.todosTipos} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tudo">{t.avaliacoes.todosTipos}</SelectItem>
+                <SelectItem value="prova">{t.avaliacoes.tipo.prova}</SelectItem>
+                <SelectItem value="trabalho">
+                  {t.avaliacoes.tipo.trabalho}
+                </SelectItem>
+                <SelectItem value="seminario">
+                  {t.avaliacoes.tipo.seminario}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={fStatus}
+              onValueChange={(value) => setFStatus(value as any)}
+            >
+              <SelectTrigger className="h-10 min-w-[130px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="concluida">Concluída</SelectItem>
+                <SelectItem value="vencida">Vencida</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Separador visual */}
+            <div className="hidden sm:block w-px bg-border" />
+
+            {/* Toggle de visualização */}
+            <div className="flex rounded-md border bg-background p-1 gap-1">
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setViewMode("lista")}
+                      className={cn(
+                        "p-2 rounded transition-colors",
+                        viewMode === "lista"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Lista</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setViewMode("calendario")}
+                      className={cn(
+                        "p-2 rounded transition-colors",
+                        viewMode === "calendario"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Calendário</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            {/* Botão busca avançada */}
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setShowBuscaAvancada(!showBuscaAvancada)}
+                    className={cn(
+                      "h-10 px-3 rounded-md border flex items-center gap-2 text-sm transition-colors",
+                      showBuscaAvancada
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background hover:bg-muted text-muted-foreground"
+                    )}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Filtros avançados</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+
+        {/* Busca avançada - painel colapsável */}
+        {showBuscaAvancada && (
+          <div className="rounded-lg border bg-card p-4 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Filter className="h-4 w-4 text-primary" />
+                Filtros Avançados
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setBuscaAvancada({
+                    notaMin: "",
+                    notaMax: "",
+                    dataInicio: "",
+                    dataFim: "",
+                    comNota: "todos",
+                  });
+                }}
+                className="h-8 text-xs"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Limpar
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-      {}
-      {showBuscaAvancada && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Busca Avançada
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Nota Mínima
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                    value={buscaAvancada.notaMin}
-                    onChange={(e) =>
-                      setBuscaAvancada({
-                        ...buscaAvancada,
-                        notaMin: e.target.value,
-                      })
-                    }
-                    placeholder="0.0"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Nota Máxima
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                    value={buscaAvancada.notaMax}
-                    onChange={(e) =>
-                      setBuscaAvancada({
-                        ...buscaAvancada,
-                        notaMax: e.target.value,
-                      })
-                    }
-                    placeholder="10.0"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Status de Nota
-                  </label>
-                  <Select
-                    value={buscaAvancada.comNota}
-                    onValueChange={(value) =>
-                      setBuscaAvancada({
-                        ...buscaAvancada,
-                        comNota: value,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="sim">Com nota</SelectItem>
-                      <SelectItem value="nao">Sem nota</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              {}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Data Início
-                  </label>
-                  <Input
-                    type="date"
-                    value={buscaAvancada.dataInicio}
-                    onChange={(e) =>
-                      setBuscaAvancada({
-                        ...buscaAvancada,
-                        dataInicio: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Data Fim
-                  </label>
-                  <Input
-                    type="date"
-                    value={buscaAvancada.dataFim}
-                    onChange={(e) =>
-                      setBuscaAvancada({
-                        ...buscaAvancada,
-                        dataFim: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-              {}
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => {
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">
+                  Nota mín.
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={buscaAvancada.notaMin}
+                  onChange={(e) =>
                     setBuscaAvancada({
-                      notaMin: "",
-                      notaMax: "",
-                      dataInicio: "",
-                      dataFim: "",
-                      comNota: "todos",
-                    });
-                  }}
+                      ...buscaAvancada,
+                      notaMin: e.target.value,
+                    })
+                  }
+                  placeholder="0"
+                  className="h-9"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">
+                  Nota máx.
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={buscaAvancada.notaMax}
+                  onChange={(e) =>
+                    setBuscaAvancada({
+                      ...buscaAvancada,
+                      notaMax: e.target.value,
+                    })
+                  }
+                  placeholder="10"
+                  className="h-9"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">
+                  Tem nota?
+                </label>
+                <Select
+                  value={buscaAvancada.comNota}
+                  onValueChange={(value) =>
+                    setBuscaAvancada({
+                      ...buscaAvancada,
+                      comNota: value,
+                    })
+                  }
                 >
-                  <X className="h-4 w-4 mr-2" />
-                  Limpar Filtros Avançados
-                </Button>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="sim">Com nota</SelectItem>
+                    <SelectItem value="nao">Sem nota</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">
+                  De
+                </label>
+                <Input
+                  type="date"
+                  value={buscaAvancada.dataInicio}
+                  onChange={(e) =>
+                    setBuscaAvancada({
+                      ...buscaAvancada,
+                      dataInicio: e.target.value,
+                    })
+                  }
+                  className="h-9"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">
+                  Até
+                </label>
+                <Input
+                  type="date"
+                  value={buscaAvancada.dataFim}
+                  onChange={(e) =>
+                    setBuscaAvancada({
+                      ...buscaAvancada,
+                      dataFim: e.target.value,
+                    })
+                  }
+                  className="h-9"
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
       {}
       {viewMode === "calendario" ? (
         <CalendarioView
@@ -964,159 +988,167 @@ export default function AvaliacoesPage() {
                 const dias = daysUntil(a.dataISO);
                 const isUrgente = dias >= 0 && dias <= 3;
                 const isHoje = dias === 0;
+                const isPast = dias < 0;
+                const hasNota = a.nota !== undefined && a.nota !== null;
                 return (
-                  <Card
+                  <div
                     key={a.id}
                     className={cn(
-                      "group transition-all duration-200 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5",
+                      "group rounded-xl border bg-card p-5 shadow-sm transition-all duration-300",
+                      "hover:shadow-lg hover:-translate-y-0.5",
                       isHoje &&
-                        "border-destructive/50 bg-gradient-to-br from-destructive/5 to-destructive/10 shadow-destructive/10",
+                        !hasNota &&
+                        "border-destructive/50 bg-gradient-to-br from-destructive/5 to-transparent",
                       isUrgente &&
                         !isHoje &&
-                        "border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-orange-500/10"
+                        !hasNota &&
+                        "border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-transparent",
+                      hasNota &&
+                        "border-emerald-500/20 hover:border-emerald-500/40",
+                      isPast && !hasNota && "opacity-70 border-dashed"
                     )}
                   >
-                    <CardContent className="pt-6">
-                      <div className="space-y-4">
-                        {}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 space-y-2 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <TipoBadge tipo={a.tipo} t={t.avaliacoes} />
-                              <UrgenciaBadge dias={dias} />
-                            </div>
-                            <h3 className="font-semibold text-xl text-foreground truncate group-hover:text-primary transition-colors">
-                              {nomeDisc}
-                            </h3>
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 space-y-2 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <TipoBadge tipo={a.tipo} t={t.avaliacoes} />
+                            <UrgenciaBadge dias={dias} />
                           </div>
-                          <TooltipProvider>
-                            <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => duplicarAvaliacao(a)}
-                                    className="h-8 w-8 hover:bg-primary/10"
-                                  >
-                                    <Copy className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Duplicar avaliação</p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setEditing(a)}
-                                    className="h-8 w-8 hover:bg-primary/10"
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar avaliação</p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeItem(a.id)}
-                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Excluir avaliação</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                          </TooltipProvider>
+                          <h3 className="font-semibold text-lg text-foreground truncate group-hover:text-primary transition-colors">
+                            {nomeDisc}
+                          </h3>
                         </div>
-                        {}
-                        {a.descricao && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                            {a.descricao}
-                          </p>
-                        )}
-                        {}
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center">
-                            <Clock className="h-4 w-4" />
+                        <TooltipProvider delayDuration={300}>
+                          <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => duplicarAvaliacao(a)}
+                                  className="h-8 w-8 hover:bg-primary/10"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Duplicar</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setEditing(a)}
+                                  className="h-8 w-8 hover:bg-primary/10"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Editar</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeItem(a.id)}
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Excluir</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
-                          <span className="font-medium">
-                            {fmtDate(a.dataISO)}
-                          </span>
-                        </div>
-                        {}
-                        {a.nota !== undefined && a.nota !== null && (
-                          <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
-                            <div className="flex-1">
-                              <div className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                                Nota
-                              </div>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-bold text-foreground">
-                                  {a.nota.toFixed(1)}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                  / 10
-                                </span>
-                                {a.peso && a.peso !== 1 && (
-                                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                                    peso: {a.peso}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div
-                              className={cn(
-                                "px-4 py-2 rounded-lg text-xs font-semibold border shadow-sm",
-                                a.nota >= 7
-                                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-emerald-500/10"
-                                  : a.nota >= 5
-                                  ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30 shadow-yellow-500/10"
-                                  : "bg-destructive/20 text-destructive border-destructive/30 shadow-destructive/10"
-                              )}
-                            >
-                              {a.nota >= 7
-                                ? "Aprovado"
-                                : a.nota >= 5
-                                ? "Recuperação"
-                                : "Reprovado"}
-                            </div>
-                          </div>
-                        )}
-                        {}
-                        {a.resumo_assuntos && (
-                          <div className="rounded-xl border bg-gradient-to-br from-muted/40 to-muted/20 p-4 space-y-2 border-primary/20">
-                            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                              {a.gerado_por_ia && (
-                                <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center">
-                                  <Sparkles className="h-3 w-3 text-primary" />
-                                </div>
-                              )}
-                              <span>Resumo dos assuntos</span>
-                              {a.gerado_por_ia && (
-                                <span className="text-primary text-[10px] bg-primary/10 px-1.5 py-0.5 rounded">
-                                  IA
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm text-foreground whitespace-pre-wrap line-clamp-3 leading-relaxed">
-                              {a.resumo_assuntos}
-                            </div>
-                          </div>
-                        )}
+                        </TooltipProvider>
                       </div>
-                    </CardContent>
-                  </Card>
+                      {/* Descrição */}
+                      {a.descricao && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                          {a.descricao}
+                        </p>
+                      )}
+                      {/* Data */}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span className="font-medium">
+                          {fmtDate(a.dataISO)}
+                        </span>
+                      </div>
+                      {/* Nota */}
+                      {hasNota && (
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border">
+                          <div className="flex-1">
+                            <div className="flex items-baseline gap-2">
+                              <span
+                                className={cn(
+                                  "text-2xl font-bold",
+                                  a.nota! >= 7
+                                    ? "text-emerald-500"
+                                    : a.nota! >= 5
+                                    ? "text-amber-500"
+                                    : "text-red-500"
+                                )}
+                              >
+                                {a.nota!.toFixed(1)}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                / 10
+                              </span>
+                              {a.peso && a.peso !== 1 && (
+                                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                                  peso: {a.peso}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div
+                            className={cn(
+                              "px-3 py-1.5 rounded-md text-xs font-semibold",
+                              a.nota! >= 7
+                                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                                : a.nota! >= 5
+                                ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                                : "bg-red-500/20 text-red-600 dark:text-red-400"
+                            )}
+                          >
+                            {a.nota! >= 7
+                              ? "Aprovado"
+                              : a.nota! >= 5
+                              ? "Recuperação"
+                              : "Reprovado"}
+                          </div>
+                        </div>
+                      )}
+                      {/* Resumo dos assuntos */}
+                      {a.resumo_assuntos && (
+                        <div className="rounded-lg border bg-gradient-to-br from-muted/30 to-transparent p-3 space-y-2">
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            {a.gerado_por_ia && (
+                              <Sparkles className="h-3 w-3 text-primary" />
+                            )}
+                            <span>Resumo</span>
+                            {a.gerado_por_ia && (
+                              <span className="text-primary text-[10px] bg-primary/10 px-1.5 py-0.5 rounded">
+                                IA
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-foreground/80 whitespace-pre-wrap line-clamp-2 leading-relaxed">
+                            {a.resumo_assuntos}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -1258,16 +1290,44 @@ function CalendarioView({
               <h2 className="text-2xl font-semibold">
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </h2>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center gap-1">
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={goToPreviousMonth}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Mês anterior</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Button variant="outline" size="sm" onClick={goToToday}>
                   Hoje
                 </Button>
-                <Button variant="outline" size="sm" onClick={goToNextMonth}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={goToNextMonth}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Próximo mês</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </div>
@@ -1417,35 +1477,55 @@ function CalendarioView({
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onDuplicate(a)}
-                          className="h-8 w-8"
-                          title="Duplicar"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onEdit(a)}
-                          className="h-8 w-8"
-                          title="Editar"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onDelete(a.id)}
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <TooltipProvider delayDuration={300}>
+                        <div className="flex gap-1 shrink-0">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onDuplicate(a)}
+                                className="h-8 w-8 hover:bg-primary/10"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Duplicar</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onEdit(a)}
+                                className="h-8 w-8 hover:bg-primary/10"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Editar</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onDelete(a.id)}
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Excluir</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
                     </div>
                   );
                 })}

@@ -157,6 +157,14 @@ export async function POST(req: NextRequest) {
           .gte("data_iso", new Date().toISOString())
           .order("data_iso", { ascending: true })
           .limit(5);
+
+        // Buscar materiais da biblioteca do usuário
+        const { data: materiais } = await supabase
+          .from("biblioteca_materiais")
+          .select("titulo, descricao, tipo, categoria, tags")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(10);
         const { data: disciplina } = await supabase
           .from("disciplinas")
           .select("nome, tipo, horas_semana, professor, local")
@@ -211,6 +219,23 @@ export async function POST(req: NextRequest) {
             .join("\n");
           contextParts.push(`AVALIAÇÕES PRÓXIMAS:\n${avaliacoesText}`);
         }
+
+        // Adicionar materiais da biblioteca ao contexto
+        if (materiais && materiais.length > 0) {
+          const materiaisText = materiais
+            .map((m: any) => {
+              const tagsStr =
+                m.tags?.length > 0 ? ` [${m.tags.join(", ")}]` : "";
+              return `- ${m.titulo} (${m.tipo}${
+                m.categoria ? `, ${m.categoria}` : ""
+              })${tagsStr}${
+                m.descricao ? `\n  ${m.descricao.substring(0, 100)}...` : ""
+              }`;
+            })
+            .join("\n");
+          contextParts.push(`MATERIAIS NA BIBLIOTECA:\n${materiaisText}`);
+        }
+
         context = contextParts.join("\n\n").slice(0, 12000);
         console.log("✅ Contexto montado via queries diretas");
         console.log("📝 Tamanho do contexto:", context.length, "caracteres");

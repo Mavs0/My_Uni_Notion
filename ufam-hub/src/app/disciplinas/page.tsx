@@ -33,8 +33,20 @@ import {
   CheckCircle2,
   Grid3x3,
   List,
+  Archive,
+  ArchiveRestore,
+  Eye,
+  EyeOff,
+  Sparkles,
+  GraduationCap,
 } from "lucide-react";
 import { SyncDisciplinasWithCalendar } from "@/components/GoogleCalendarIntegration";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type TTipo = "obrigatoria" | "eletiva" | "optativa";
 type Disciplina = DisciplinaType;
@@ -84,16 +96,27 @@ function DisciplinaCard({
   disciplina,
   stats,
   onDelete,
+  onToggleAtivo,
   loadingStats,
 }: {
   disciplina: Disciplina;
   stats?: DisciplinaStats;
   onDelete: () => void;
+  onToggleAtivo: () => void;
   loadingStats: boolean;
 }) {
+  const isArquivada = disciplina.ativo === false;
+
   return (
-    <div className="group rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all hover:border-primary/20">
-      {}
+    <div
+      className={cn(
+        "group rounded-xl border bg-card p-5 shadow-sm hover:shadow-lg transition-all duration-300",
+        isArquivada
+          ? "opacity-60 hover:opacity-80 border-dashed"
+          : "hover:border-primary/30 hover:-translate-y-0.5"
+      )}
+    >
+      {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="mb-2 flex items-center gap-2 flex-wrap">
@@ -103,6 +126,11 @@ function DisciplinaCard({
             <span className={badgeTipo(disciplina.tipo)}>
               {disciplina.tipo}
             </span>
+            {isArquivada && (
+              <span className="rounded px-2 py-0.5 text-xs border bg-muted text-muted-foreground">
+                Arquivada
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
@@ -123,24 +151,71 @@ function DisciplinaCard({
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onDelete}
-          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Excluir disciplina"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleAtivo}
+                  className={cn(
+                    "h-8 w-8 opacity-0 group-hover:opacity-100 transition-all",
+                    isArquivada
+                      ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                      : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                  )}
+                >
+                  {isArquivada ? (
+                    <ArchiveRestore className="h-4 w-4" />
+                  ) : (
+                    <Archive className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isArquivada ? "Ativar disciplina" : "Arquivar disciplina"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onDelete}
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Excluir disciplina</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
-      {}
+      {/* Stats */}
       {stats && (
-        <div className="mb-4 grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
+        <div className="mb-4 grid grid-cols-2 gap-3 rounded-lg border bg-gradient-to-br from-muted/30 to-muted/10 p-3">
           {stats.media !== null && (
             <div>
               <div className="text-xs text-muted-foreground mb-1">Média</div>
               <div className="flex items-baseline gap-1">
-                <span className="text-lg font-bold text-foreground">
+                <span
+                  className={cn(
+                    "text-lg font-bold",
+                    stats.media >= 7
+                      ? "text-emerald-500"
+                      : stats.media >= 5
+                      ? "text-amber-500"
+                      : "text-red-500"
+                  )}
+                >
                   {stats.media.toFixed(1)}
                 </span>
                 <span className="text-xs text-muted-foreground">/ 10</span>
@@ -159,7 +234,7 @@ function DisciplinaCard({
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-primary transition-all"
+                    className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500"
                     style={{
                       width: `${
                         (stats.tarefasConcluidas / stats.totalTarefas) * 100
@@ -175,15 +250,18 @@ function DisciplinaCard({
           )}
         </div>
       )}
-      {}
+      {/* Horários */}
       {disciplina.horarios && disciplina.horarios.length > 0 && (
         <div className="mb-4">
-          <div className="text-xs text-muted-foreground mb-2">Horários</div>
+          <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            Horários
+          </div>
           <div className="space-y-1.5">
             {disciplina.horarios.slice(0, 3).map((h, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between rounded border bg-background px-2.5 py-1.5 text-xs"
+                className="flex items-center justify-between rounded-lg border bg-background/50 px-2.5 py-1.5 text-xs"
               >
                 <span className="font-medium">{DIAS[h.dia]}</span>
                 <span className="tabular-nums text-muted-foreground">
@@ -199,10 +277,18 @@ function DisciplinaCard({
           </div>
         </div>
       )}
-      {}
+      {/* Actions */}
       <div className="flex gap-2">
-        <Button asChild variant="default" size="sm" className="flex-1">
-          <a href={`/disciplinas/${disciplina.id}`}>Abrir</a>
+        <Button
+          asChild
+          variant="default"
+          size="sm"
+          className="flex-1 shadow-sm"
+        >
+          <a href={`/disciplinas/${disciplina.id}`}>
+            <GraduationCap className="h-4 w-4 mr-2" />
+            Abrir
+          </a>
         </Button>
       </div>
     </div>
@@ -213,15 +299,26 @@ function DisciplinaCardList({
   disciplina,
   stats,
   onDelete,
+  onToggleAtivo,
   loadingStats,
 }: {
   disciplina: Disciplina;
   stats?: DisciplinaStats;
   onDelete: () => void;
+  onToggleAtivo: () => void;
   loadingStats: boolean;
 }) {
+  const isArquivada = disciplina.ativo === false;
+
   return (
-    <div className="group rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all hover:border-primary/20">
+    <div
+      className={cn(
+        "group rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-all duration-300",
+        isArquivada
+          ? "opacity-60 hover:opacity-80 border-dashed"
+          : "hover:border-primary/30"
+      )}
+    >
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
           <div className="mb-2 flex items-center gap-2 flex-wrap">
@@ -231,6 +328,11 @@ function DisciplinaCardList({
             <span className={badgeTipo(disciplina.tipo)}>
               {disciplina.tipo}
             </span>
+            {isArquivada && (
+              <span className="rounded px-2 py-0.5 text-xs border bg-muted text-muted-foreground">
+                Arquivada
+              </span>
+            )}
           </div>
           <div className="mb-3 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -250,13 +352,31 @@ function DisciplinaCardList({
               </span>
             )}
           </div>
-          {}
+          {/* Stats */}
           {stats && (
             <div className="mb-3 flex flex-wrap items-center gap-4 text-sm">
               {stats.media !== null && (
                 <div className="flex items-center gap-1.5">
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-semibold text-foreground">
+                  <TrendingUp
+                    className={cn(
+                      "h-4 w-4",
+                      stats.media >= 7
+                        ? "text-emerald-500"
+                        : stats.media >= 5
+                        ? "text-amber-500"
+                        : "text-red-500"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      stats.media >= 7
+                        ? "text-emerald-500"
+                        : stats.media >= 5
+                        ? "text-amber-500"
+                        : "text-red-500"
+                    )}
+                  >
                     {stats.media.toFixed(1)}
                   </span>
                   <span className="text-muted-foreground">/ 10</span>
@@ -286,13 +406,13 @@ function DisciplinaCardList({
               )}
             </div>
           )}
-          {}
+          {/* Horários */}
           {disciplina.horarios && disciplina.horarios.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {disciplina.horarios.slice(0, 4).map((h, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 rounded border bg-muted/50 px-2 py-1 text-xs"
+                  className="inline-flex items-center gap-1 rounded-lg border bg-muted/50 px-2 py-1 text-xs"
                 >
                   <span className="font-medium">{DIAS[h.dia]}</span>
                   <span className="text-muted-foreground">
@@ -312,15 +432,51 @@ function DisciplinaCardList({
           <Button asChild variant="outline" size="sm">
             <a href={`/disciplinas/${disciplina.id}`}>Abrir</a>
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onDelete}
-            className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-            title="Excluir disciplina"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleAtivo}
+                  className={cn(
+                    "h-9 w-9",
+                    isArquivada
+                      ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                      : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                  )}
+                >
+                  {isArquivada ? (
+                    <ArchiveRestore className="h-4 w-4" />
+                  ) : (
+                    <Archive className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isArquivada ? "Ativar disciplina" : "Arquivar disciplina"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onDelete}
+                  className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Excluir disciplina</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </div>
@@ -332,11 +488,24 @@ export default function DisciplinasPage() {
   const [q, setQ] = useState("");
   const [filtroCargaHoraria, setFiltroCargaHoraria] = useState<string>("todas");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [disciplinaToDelete, setDisciplinaToDelete] = useState<string | null>(
-    null
-  );
-  const { disciplinas, loading, error, refetch, deleteDisciplina } =
-    useDisciplinas();
+  const [disciplinaToDelete, setDisciplinaToDelete] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
+  const [disciplinaToArchive, setDisciplinaToArchive] = useState<{
+    id: string;
+    nome: string;
+    isAtivo: boolean;
+  } | null>(null);
+  const {
+    disciplinas,
+    loading,
+    error,
+    refetch,
+    deleteDisciplina,
+    toggleAtivo,
+  } = useDisciplinas();
+  const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
   const [userProfile, setUserProfile] = useState<{
     periodo?: string;
     curso?: string;
@@ -437,6 +606,10 @@ export default function DisciplinasPage() {
   const list = useMemo(() => {
     if (!disciplinas) return [];
     let arr = [...disciplinas];
+    // Filtrar por status ativo/arquivada
+    if (!mostrarArquivadas) {
+      arr = arr.filter((d) => d.ativo !== false);
+    }
     if (tipo !== "todas") arr = arr.filter((d) => d.tipo === tipo);
     if (filtroCargaHoraria !== "todas") {
       const [min, max] = filtroCargaHoraria.split("-").map(Number);
@@ -456,22 +629,56 @@ export default function DisciplinasPage() {
       );
     }
     return arr.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  }, [disciplinas, tipo, q, filtroCargaHoraria]);
+  }, [disciplinas, tipo, q, filtroCargaHoraria, mostrarArquivadas]);
+
+  // Contagem de disciplinas arquivadas
+  const totalArquivadas = useMemo(() => {
+    return disciplinas.filter((d) => d.ativo === false).length;
+  }, [disciplinas]);
   const horasTotais = useMemo(
     () => list.reduce((acc, d) => acc + d.horasSemana, 0),
     [list]
   );
-  function removeItem(id: string) {
-    setDisciplinaToDelete(id);
+  function removeItem(id: string, nome: string) {
+    setDisciplinaToDelete({ id, nome });
   }
   async function confirmDelete() {
     if (!disciplinaToDelete) return;
-    const result = await deleteDisciplina(disciplinaToDelete);
+    const result = await deleteDisciplina(disciplinaToDelete.id);
     if (result.success) {
       toast.success("Disciplina removida com sucesso!");
       setDisciplinaToDelete(null);
     } else {
       toast.error(result.error || "Erro ao remover disciplina");
+    }
+  }
+  function handleToggleAtivo(id: string, nome: string, atualAtivo: boolean) {
+    // Se for arquivar (está ativo), mostra o dialog de confirmação
+    if (atualAtivo) {
+      setDisciplinaToArchive({ id, nome, isAtivo: atualAtivo });
+    } else {
+      // Se for ativar (está arquivada), ativa diretamente
+      confirmArchiveToggle(id, atualAtivo);
+    }
+  }
+
+  async function confirmArchiveToggle(id?: string, isAtivo?: boolean) {
+    const targetId = id || disciplinaToArchive?.id;
+    const targetIsAtivo =
+      isAtivo !== undefined ? isAtivo : disciplinaToArchive?.isAtivo;
+
+    if (!targetId) return;
+
+    const result = await toggleAtivo(targetId, !targetIsAtivo);
+    if (result.success) {
+      toast.success(
+        !targetIsAtivo
+          ? "Disciplina ativada com sucesso!"
+          : "Disciplina arquivada com sucesso!"
+      );
+      setDisciplinaToArchive(null);
+    } else {
+      toast.error(result.error || "Erro ao alterar status da disciplina");
     }
   }
   if (loading) {
@@ -520,87 +727,132 @@ export default function DisciplinasPage() {
             onOpenChange={setShouldOpenModal}
           />
         </div>
-        {}
-        <Card title="Filtros e Busca">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Buscar por nome, professor ou local..."
-                className="pl-9"
-              />
-              {q && (
-                <button
-                  onClick={() => setQ("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            {}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">
-                Tipo
-              </label>
-              <select
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as any)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        {/* Barra de busca e ações */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Busca */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar disciplina..."
+              className="pl-9 h-10"
+            />
+            {q && (
+              <button
+                onClick={() => setQ("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
-                <option value="todas">Todas</option>
-                <option value="obrigatoria">Obrigatórias</option>
-                <option value="eletiva">Eletivas</option>
-                <option value="optativa">Optativas</option>
-              </select>
-            </div>
-            {}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">
-                Carga Horária
-              </label>
-              <select
-                value={filtroCargaHoraria}
-                onChange={(e) => setFiltroCargaHoraria(e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="todas">Todas</option>
-                <option value="1-2">1-2h/sem</option>
-                <option value="3-4">3-4h/sem</option>
-                <option value="5-6">5-6h/sem</option>
-                <option value="7-8">7-8h/sem</option>
-                <option value="9-">9h+</option>
-              </select>
-            </div>
-            {}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">
-                Visualização
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  className="flex-1"
-                >
-                  <Grid3x3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className="flex-1"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-        </Card>
+
+          {/* Filtros inline */}
+          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as any)}
+              className="h-10 rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-[130px]"
+            >
+              <option value="todas">Todos os tipos</option>
+              <option value="obrigatoria">Obrigatórias</option>
+              <option value="eletiva">Eletivas</option>
+              <option value="optativa">Optativas</option>
+            </select>
+
+            <select
+              value={filtroCargaHoraria}
+              onChange={(e) => setFiltroCargaHoraria(e.target.value)}
+              className="h-10 rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-[120px]"
+            >
+              <option value="todas">Carga horária</option>
+              <option value="1-2">1-2h/sem</option>
+              <option value="3-4">3-4h/sem</option>
+              <option value="5-6">5-6h/sem</option>
+              <option value="7-8">7-8h/sem</option>
+              <option value="9-">9h+</option>
+            </select>
+
+            {/* Separador visual */}
+            <div className="hidden sm:block w-px bg-border" />
+
+            {/* Toggle de visualização */}
+            <div className="flex rounded-md border bg-background p-1 gap-1">
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setViewMode("grid")}
+                      className={cn(
+                        "p-2 rounded transition-colors",
+                        viewMode === "grid"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <Grid3x3 className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Grade</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={cn(
+                        "p-2 rounded transition-colors",
+                        viewMode === "list"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Lista</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            {/* Arquivadas */}
+            {totalArquivadas > 0 && (
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setMostrarArquivadas(!mostrarArquivadas)}
+                      className={cn(
+                        "h-10 px-3 rounded-md border flex items-center gap-2 text-sm transition-colors",
+                        mostrarArquivadas
+                          ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                          : "bg-background hover:bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <Archive className="h-4 w-4" />
+                      <span className="hidden sm:inline">
+                        {totalArquivadas}
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {mostrarArquivadas ? "Ocultar" : "Mostrar"}{" "}
+                      {totalArquivadas} arquivada
+                      {totalArquivadas > 1 ? "s" : ""}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        </div>
       </header>
       {}
       {list.length === 0 ? (
@@ -626,7 +878,10 @@ export default function DisciplinasPage() {
                 key={d.id}
                 disciplina={d}
                 stats={stats}
-                onDelete={() => removeItem(d.id)}
+                onDelete={() => removeItem(d.id, d.nome)}
+                onToggleAtivo={() =>
+                  handleToggleAtivo(d.id, d.nome, d.ativo !== false)
+                }
                 loadingStats={loadingStats}
               />
             );
@@ -641,7 +896,10 @@ export default function DisciplinasPage() {
                 key={d.id}
                 disciplina={d}
                 stats={stats}
-                onDelete={() => removeItem(d.id)}
+                onDelete={() => removeItem(d.id, d.nome)}
+                onToggleAtivo={() =>
+                  handleToggleAtivo(d.id, d.nome, d.ativo !== false)
+                }
                 loadingStats={loadingStats}
               />
             );
@@ -657,13 +915,31 @@ export default function DisciplinasPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar Remoção</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Remover Disciplina
+            </DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja remover esta disciplina? Esta ação não pode
-              ser desfeita e também removerá todas as avaliações e notas
-              relacionadas.
+              Tem certeza que deseja remover a disciplina{" "}
+              <span className="font-semibold text-foreground">
+                {disciplinaToDelete?.nome}
+              </span>
+              ?
             </DialogDescription>
           </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border bg-destructive/10 border-destructive/30 p-4 text-sm">
+              <p className="text-destructive font-medium">
+                ⚠️ Atenção: Esta ação é irreversível!
+              </p>
+              <ul className="mt-2 space-y-1 text-muted-foreground list-disc list-inside">
+                <li>A disciplina será excluída permanentemente</li>
+                <li>Todas as avaliações serão removidas</li>
+                <li>Todas as notas e materiais serão apagados</li>
+                <li>Não será possível recuperar esses dados</li>
+              </ul>
+            </div>
+          </div>
           <DialogFooter>
             <Button
               variant="outline"
@@ -672,7 +948,57 @@ export default function DisciplinasPage() {
               Cancelar
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>
+              <Trash2 className="h-4 w-4 mr-2" />
               Remover
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog de confirmação para arquivar */}
+      <Dialog
+        open={!!disciplinaToArchive}
+        onOpenChange={(open) => !open && setDisciplinaToArchive(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-amber-500" />
+              Arquivar Disciplina
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja arquivar a disciplina{" "}
+              <span className="font-semibold text-foreground">
+                {disciplinaToArchive?.nome}
+              </span>
+              ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border bg-amber-500/10 border-amber-500/30 p-4 text-sm">
+              <p className="text-amber-600 dark:text-amber-400">
+                <strong>O que acontece ao arquivar:</strong>
+              </p>
+              <ul className="mt-2 space-y-1 text-muted-foreground list-disc list-inside">
+                <li>A disciplina não aparecerá na lista principal</li>
+                <li>Você poderá reativá-la a qualquer momento</li>
+                <li>Seus dados, avaliações e notas serão mantidos</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDisciplinaToArchive(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => confirmArchiveToggle()}
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Arquivar
             </Button>
           </DialogFooter>
         </DialogContent>

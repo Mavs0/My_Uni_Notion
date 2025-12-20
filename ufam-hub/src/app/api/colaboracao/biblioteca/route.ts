@@ -213,9 +213,27 @@ export async function GET(request: NextRequest) {
       query = query.contains("tags", tagsArray);
       countQuery = countQuery.contains("tags", tagsArray);
     }
+    console.log("🔍 Buscando materiais com filtros:", {
+      tipo,
+      categoria,
+      grupo_id,
+      busca,
+      tags,
+      limit,
+      offset,
+      user_id: user.id,
+    });
+
     const { data, error, count } = await query;
+
+    console.log("📊 Resultado da query:", {
+      total: count,
+      encontrados: data?.length || 0,
+      erro: error ? error.message : null,
+    });
+
     if (error) {
-      console.error("Erro ao buscar materiais:", error);
+      console.error("❌ Erro ao buscar materiais:", error);
       return NextResponse.json(
         {
           error: "Erro ao buscar materiais",
