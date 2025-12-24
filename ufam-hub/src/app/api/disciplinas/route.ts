@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
         professor?: string | null;
         local?: string | null;
         ativo?: boolean;
+        ordem?: number | null;
+        favorito?: boolean | null;
+        cor?: string | null;
         created_at?: string;
         updated_at?: string;
         horarios?: Array<{
@@ -59,6 +62,9 @@ export async function GET(request: NextRequest) {
         professor: disc.professor || undefined,
         local: disc.local || undefined,
         ativo: disc.ativo !== false, // Default para true se não existir
+        ordem: disc.ordem ?? undefined,
+        favorito: disc.favorito ?? undefined,
+        cor: disc.cor || undefined,
         horarios: (disc.horarios || []).map((h) => ({
           id: h.id,
           dia: h.dia_semana,

@@ -3,7 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -13,32 +13,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const { data: factor, error: enrollError } = await supabase.auth.mfa.enroll(
-      {
-        factorType: "totp",
-        friendlyName: "UFAM Hub Authenticator",
-      }
-    );
+    const body = await request.json();
+    const { factorType = "totp" } = body;
 
-    if (enrollError) {
-      console.error("Erro ao ativar 2FA:", enrollError);
+    // Criar novo fator MFA
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: factorType as "totp",
+      friendlyName: `${user.email} - TOTP`,
+    });
+
+    if (error) {
+      console.error("Erro ao criar fator MFA:", error);
       return NextResponse.json(
-        {
-          error: "Erro ao ativar autenticação de dois fatores",
-          details: enrollError.message,
-        },
+        { error: "Erro ao criar fator MFA", details: error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
-      success: true,
-      qr_code: factor.totp.qr_code,
-      secret: factor.totp.secret,
-      id: factor.id,
+      id: data.id,
+      secret: data.totp?.secret || "",
+      qr_code: data.totp?.qr_code || "",
+      uri: data.totp?.uri || "",
     });
   } catch (error: any) {
-    console.error("Erro na API de 2FA enroll:", error);
+    console.error("Erro na API de MFA enroll:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 }

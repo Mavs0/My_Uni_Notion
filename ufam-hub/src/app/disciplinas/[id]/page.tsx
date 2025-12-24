@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useDisciplinas } from "@/hooks/useDisciplinas";
+import { useDisciplinas, CORES_DISCIPLINAS } from "@/hooks/useDisciplinas";
 import { useAvaliacoes } from "@/hooks/useAvaliacoes";
 import { useTarefas, type Tarefa } from "@/hooks/useTarefas";
+import { useNotas } from "@/hooks/useNotas";
 import {
   Loader2,
   AlertCircle,
@@ -30,6 +31,8 @@ import {
   Target,
   Sparkles,
   MoreVertical,
+  Palette,
+  Check,
 } from "lucide-react";
 import {
   Tooltip,
@@ -45,6 +48,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -136,17 +144,25 @@ function Section({
   children,
   right,
   icon,
+  cor,
 }: {
   title: string;
   children: React.ReactNode;
   right?: React.ReactNode;
   icon?: React.ReactNode;
+  cor?: string;
 }) {
   return (
-    <section className="rounded-xl border bg-card p-5 shadow-sm hover:shadow-md transition-shadow">
+    <section
+      className="rounded-xl border bg-card p-5 shadow-sm hover:shadow-md transition-shadow"
+      style={{
+        borderLeftWidth: cor ? "4px" : "1px",
+        borderLeftColor: cor || undefined,
+      }}
+    >
       <header className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-          {icon}
+          {icon && <span style={{ color: cor }}>{icon}</span>}
           {title}
         </h2>
         {right}
@@ -163,6 +179,7 @@ export default function DisciplinaDetailPage() {
     disciplinas,
     loading: loadingDisc,
     error: errorDisc,
+    updateCor,
   } = useDisciplinas();
   const {
     avaliacoes,
@@ -182,99 +199,28 @@ export default function DisciplinaDetailPage() {
   } = useTarefas({
     disciplinaId: id,
   });
-  
+  const {
+    notas,
+    loading: loadingNotas,
+    createNota,
+    updateNota,
+    deleteNota,
+  } = useNotas({
+    disciplinaId: id,
+  });
+
   const disciplina = useMemo(() => {
     if (!disciplinas || disciplinas.length === 0) return null;
     return disciplinas.find((d) => d.id === id) ?? null;
   }, [disciplinas, id]);
-  
+
+  const corDisciplina = disciplina?.cor || "#6366f1";
+
   const storeKey = (k: string) => `disc:${id}:${k}`;
-  const [anotacoes, setAnotacoes] = useState("");
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [blocosAssistidos, setBlocosAssistidos] = useState<number>(0);
-  const [salvando, setSalvando] = useState(false);
-  const [carregandoAnotacoes, setCarregandoAnotacoes] = useState(true);
-  const [notaId, setNotaId] = useState<string | null>(null);
-  
-  useEffect(() => {
-    if (!disciplina) return;
-    const disciplinaId = disciplina.id;
-    async function carregarAnotacoes() {
-      try {
-        setCarregandoAnotacoes(true);
-        const res = await fetch(
-          `/api/notas?disciplina_id=${encodeURIComponent(disciplinaId)}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setAnotacoes(data.content_md || "");
-          setNotaId(data.id || null);
-        } else if (res.status === 401) {
-          const local = localStorage.getItem(storeKey("notes"));
-          if (local) setAnotacoes(local);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar anotações:", error);
-        const local = localStorage.getItem(storeKey("notes"));
-        if (local) setAnotacoes(local);
-      } finally {
-        setCarregandoAnotacoes(false);
-      }
-    }
-    carregarAnotacoes();
-    setMateriais(
-      JSON.parse(localStorage.getItem(storeKey("materials")) || "[]")
-    );
-    setBlocosAssistidos(
-      Number(localStorage.getItem(storeKey("blocks")) || "0")
-    );
-  }, [disciplina, id]);
-  
-  useEffect(() => {
-    if (!disciplina || carregandoAnotacoes) return;
-    const timeoutId = setTimeout(async () => {
-      try {
-        setSalvando(true);
-        const res = await fetch("/api/notas", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            disciplina_id: disciplina.id,
-            content_md: anotacoes,
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const isNovaNota = !notaId && data.id;
-          setNotaId(data.id);
-          if (
-            isNovaNota &&
-            data.conquistasDesbloqueadas &&
-            data.conquistasDesbloqueadas.length > 0
-          ) {
-            data.conquistasDesbloqueadas.forEach((conquista: any) => {
-              toast.success(`🏆 Conquista desbloqueada: ${conquista.nome}`, {
-                description: conquista.descricao,
-                duration: 5000,
-              });
-            });
-          }
-          localStorage.setItem(storeKey("notes"), anotacoes);
-        } else if (res.status === 401) {
-          localStorage.setItem(storeKey("notes"), anotacoes);
-        } else {
-          console.error("Erro ao salvar anotações");
-          localStorage.setItem(storeKey("notes"), anotacoes);
-        }
-      } catch (error) {
-        console.error("Erro ao salvar anotações:", error);
-        localStorage.setItem(storeKey("notes"), anotacoes);
-      } finally {
-        setSalvando(false);
-      }
-    }, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [anotacoes, disciplina, carregandoAnotacoes]);
+  const [notaToDelete, setNotaToDelete] = useState<string | null>(null);
+
   useEffect(() => {
     localStorage.setItem(storeKey("materials"), JSON.stringify(materiais));
   }, [materiais, id]);
@@ -327,7 +273,9 @@ export default function DisciplinaDetailPage() {
         </Button>
         <div className="rounded-xl border p-8 text-center">
           <GraduationCap className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-sm text-muted-foreground font-medium">Disciplina não encontrada.</p>
+          <p className="text-sm text-muted-foreground font-medium">
+            Disciplina não encontrada.
+          </p>
           <p className="mt-2 text-xs text-muted-foreground">
             A disciplina pode ter sido removida ou você não tem permissão para
             acessá-la.
@@ -336,7 +284,7 @@ export default function DisciplinaDetailPage() {
       </main>
     );
   }
-  
+
   const horasPorBloco = 2;
   const horasAssistidas = blocosAssistidos * horasPorBloco;
   const pctSemana = Math.min(
@@ -356,12 +304,21 @@ export default function DisciplinaDetailPage() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar para disciplinas
         </Button>
-        
+
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
           {/* Info da disciplina */}
           <div className="flex-1">
             <div className="flex items-start gap-4">
-              <div className="hidden sm:flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+              <div
+                className="hidden sm:flex h-14 w-14 items-center justify-center rounded-xl shrink-0 transition-all"
+                style={{
+                  backgroundColor: `${corDisciplina}15`,
+                  color: corDisciplina,
+                  borderWidth: "2px",
+                  borderStyle: "solid",
+                  borderColor: `${corDisciplina}30`,
+                }}
+              >
                 <GraduationCap className="h-7 w-7" />
               </div>
               <div className="flex-1 min-w-0">
@@ -370,6 +327,66 @@ export default function DisciplinaDetailPage() {
                   <span className={badgeTipo(disciplina.tipo)}>
                     {disciplina.tipo}
                   </span>
+                  {/* Seletor de Cor */}
+                  <Popover>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
+                              <Palette className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Alterar cor da disciplina</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <PopoverContent className="w-auto p-3" align="start">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Escolha uma cor</p>
+                        <div className="grid grid-cols-6 gap-2">
+                          {CORES_DISCIPLINAS.map((c) => (
+                            <button
+                              key={c.valor}
+                              onClick={async () => {
+                                const result = await updateCor(
+                                  disciplina.id,
+                                  c.valor
+                                );
+                                if (result.success) {
+                                  toast.success("Cor atualizada!");
+                                } else {
+                                  toast.error(
+                                    result.error || "Erro ao atualizar cor"
+                                  );
+                                }
+                              }}
+                              className={cn(
+                                "h-7 w-7 rounded-full border-2 transition-all hover:scale-110",
+                                corDisciplina === c.valor
+                                  ? "border-foreground ring-2 ring-offset-2"
+                                  : "border-transparent"
+                              )}
+                              style={{
+                                backgroundColor: c.valor,
+                              }}
+                              title={c.nome}
+                            >
+                              {corDisciplina === c.valor && (
+                                <Check className="h-4 w-4 text-white mx-auto" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
@@ -388,9 +405,18 @@ export default function DisciplinaDetailPage() {
                     {disciplina.horarios.map((h, i) => (
                       <span
                         key={i}
-                        className="inline-flex items-center gap-1 rounded-lg border bg-muted/50 px-2.5 py-1 text-xs"
+                        className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs transition-all"
+                        style={{
+                          backgroundColor: `${corDisciplina}10`,
+                          borderColor: `${corDisciplina}30`,
+                        }}
                       >
-                        <span className="font-medium">{DIAS[h.dia]}</span>
+                        <span
+                          className="font-medium"
+                          style={{ color: corDisciplina }}
+                        >
+                          {DIAS[h.dia]}
+                        </span>
                         <span className="text-muted-foreground">
                           {h.inicio}–{h.fim}
                         </span>
@@ -403,9 +429,15 @@ export default function DisciplinaDetailPage() {
           </div>
 
           {/* Card de progresso semanal */}
-          <div className="lg:w-[320px] rounded-xl border bg-card p-4 shadow-sm">
+          <div
+            className="lg:w-[320px] rounded-xl border bg-card p-4 shadow-sm transition-all"
+            style={{
+              borderLeftWidth: "4px",
+              borderLeftColor: corDisciplina,
+            }}
+          >
             <div className="flex items-center gap-2 mb-3">
-              <Target className="h-4 w-4 text-primary" />
+              <Target className="h-4 w-4" style={{ color: corDisciplina }} />
               <h3 className="text-sm font-semibold">Progresso Semanal</h3>
             </div>
             <div className="mb-2 flex justify-between text-sm">
@@ -416,27 +448,17 @@ export default function DisciplinaDetailPage() {
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className={cn(
-                  "h-full transition-all duration-500",
-                  pctSemana >= 100
-                    ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
-                    : pctSemana >= 50
-                    ? "bg-gradient-to-r from-primary to-primary/70"
-                    : "bg-gradient-to-r from-amber-500 to-amber-400"
-                )}
-                style={{ width: `${pctSemana}%` }}
+                className="h-full transition-all duration-500 rounded-full"
+                style={{
+                  width: `${pctSemana}%`,
+                  background: `linear-gradient(to right, ${corDisciplina}, ${corDisciplina}CC)`,
+                }}
               />
             </div>
             <div className="mt-1 text-right">
               <span
-                className={cn(
-                  "text-xs font-medium",
-                  pctSemana >= 100
-                    ? "text-emerald-500"
-                    : pctSemana >= 50
-                    ? "text-primary"
-                    : "text-amber-500"
-                )}
+                className="text-xs font-medium"
+                style={{ color: corDisciplina }}
               >
                 {pctSemana}% concluído
               </span>
@@ -448,7 +470,9 @@ export default function DisciplinaDetailPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBlocosAssistidos((v) => Math.max(0, v - 1))}
+                      onClick={() =>
+                        setBlocosAssistidos((v) => Math.max(0, v - 1))
+                      }
                       className="flex-1"
                     >
                       − 1 bloco
@@ -465,6 +489,10 @@ export default function DisciplinaDetailPage() {
                       size="sm"
                       onClick={() => setBlocosAssistidos((v) => v + 1)}
                       className="flex-1"
+                      style={{
+                        backgroundColor: corDisciplina,
+                        borderColor: corDisciplina,
+                      }}
                     >
                       + 1 bloco
                     </Button>
@@ -490,62 +518,45 @@ export default function DisciplinaDetailPage() {
       <Section
         title="Anotações"
         icon={<BookOpen className="h-4 w-4" />}
-        right={
-          <div className="flex items-center gap-3">
-            {salvando && (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-muted">
-                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Salvando...</span>
-              </div>
-            )}
-            {!salvando && notaId && anotacoes && (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10">
-                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                <span className="text-xs text-emerald-500 font-medium">
-                  Salvo
-                </span>
-              </div>
-            )}
-            {!salvando && !notaId && anotacoes && (
-              <span className="text-xs text-amber-500 px-2 py-1 rounded-full bg-amber-500/10">
-                Não salvo
-              </span>
-            )}
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              Salvo automaticamente
-            </span>
-          </div>
-        }
+        cor={corDisciplina}
+        right={<NovaNotaButton disciplinaId={id} onCreate={createNota} />}
       >
-        {carregandoAnotacoes ? (
+        {loadingNotas ? (
           <div className="flex h-48 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-            <span className="text-sm text-muted-foreground">Carregando anotações...</span>
+            <span className="text-sm text-muted-foreground">
+              Carregando anotações...
+            </span>
+          </div>
+        ) : notas.length === 0 ? (
+          <div className="text-center py-8">
+            <BookOpen className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-sm text-muted-foreground">
+              Nenhuma anotação ainda.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Crie sua primeira anotação para esta disciplina
+            </p>
           </div>
         ) : (
-          <>
-            <textarea
-              value={anotacoes}
-              onChange={(e) => setAnotacoes(e.target.value)}
-              placeholder="Escreva aqui suas anotações, fórmulas, referências..."
-              className="h-48 w-full rounded-lg border bg-background p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-            />
-            {anotacoes && (
-              <div className="mt-4 rounded-lg border bg-muted/30 p-4">
-                <div className="mb-2 text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  Pré-visualização
-                </div>
-                <pre className="whitespace-pre-wrap text-sm text-foreground">{anotacoes}</pre>
-              </div>
-            )}
-          </>
+          <div className="space-y-3">
+            {notas.map((nota) => (
+              <NotaCard
+                key={nota.id}
+                nota={nota}
+                corDisciplina={corDisciplina}
+                onEdit={updateNota}
+                onDelete={() => setNotaToDelete(nota.id)}
+              />
+            ))}
+          </div>
         )}
       </Section>
       {/* Seção de Materiais */}
       <Section
         title="Materiais"
         icon={<Folder className="h-4 w-4" />}
+        cor={corDisciplina}
         right={
           <AddMaterial onAdd={(m) => setMateriais((prev) => [m, ...prev])} />
         }
@@ -553,8 +564,12 @@ export default function DisciplinaDetailPage() {
         {materiais.length === 0 ? (
           <div className="text-center py-8">
             <Folder className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground">Sem materiais ainda.</p>
-            <p className="text-xs text-muted-foreground mt-1">Adicione links ou arquivos para esta disciplina</p>
+            <p className="text-sm text-muted-foreground">
+              Sem materiais ainda.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Adicione links ou arquivos para esta disciplina
+            </p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -564,18 +579,28 @@ export default function DisciplinaDetailPage() {
                 className="group flex items-center justify-between rounded-lg border bg-background p-3 hover:border-primary/30 transition-colors"
               >
                 <div className="min-w-0 flex-1 flex items-center gap-3">
-                  <div className={cn(
-                    "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
-                    m.tipo === "url" ? "bg-blue-500/10 text-blue-500" :
-                    m.tipo === "pdf" ? "bg-red-500/10 text-red-500" :
-                    "bg-purple-500/10 text-purple-500"
-                  )}>
-                    {m.tipo === "url" ? <LinkIcon className="h-4 w-4" /> :
-                     m.tipo === "pdf" ? <FileText className="h-4 w-4" /> :
-                     <ImageIcon className="h-4 w-4" />}
+                  <div
+                    className={cn(
+                      "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
+                      m.tipo === "url"
+                        ? "bg-blue-500/10 text-blue-500"
+                        : m.tipo === "pdf"
+                        ? "bg-red-500/10 text-red-500"
+                        : "bg-purple-500/10 text-purple-500"
+                    )}
+                  >
+                    {m.tipo === "url" ? (
+                      <LinkIcon className="h-4 w-4" />
+                    ) : m.tipo === "pdf" ? (
+                      <FileText className="h-4 w-4" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{m.titulo}</div>
+                    <div className="truncate text-sm font-medium">
+                      {m.titulo}
+                    </div>
                     <div className="mt-0.5 flex items-center gap-2">
                       {m.tipo === "url" ? (
                         <a
@@ -641,7 +666,9 @@ export default function DisciplinaDetailPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() =>
-                          setMateriais((prev) => prev.filter((x) => x.id !== m.id))
+                          setMateriais((prev) =>
+                            prev.filter((x) => x.id !== m.id)
+                          )
                         }
                         className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-all"
                       >
@@ -657,21 +684,28 @@ export default function DisciplinaDetailPage() {
         )}
       </Section>
       {/* Seção de Tarefas */}
-      <Section 
-        title="Tarefas" 
+      <Section
+        title="Tarefas"
         icon={<ClipboardList className="h-4 w-4" />}
+        cor={corDisciplina}
         right={<AddTarefa disciplinaId={id} />}
       >
         {loadingTarefas ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-            <span className="text-sm text-muted-foreground">Carregando tarefas...</span>
+            <span className="text-sm text-muted-foreground">
+              Carregando tarefas...
+            </span>
           </div>
         ) : tarefas.length === 0 ? (
           <div className="text-center py-8">
             <ClipboardList className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground">Nenhuma tarefa cadastrada.</p>
-            <p className="text-xs text-muted-foreground mt-1">Crie tarefas para organizar seus estudos</p>
+            <p className="text-sm text-muted-foreground">
+              Nenhuma tarefa cadastrada.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Crie tarefas para organizar seus estudos
+            </p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -729,6 +763,7 @@ export default function DisciplinaDetailPage() {
       <Section
         title="Avaliações"
         icon={<Calendar className="h-4 w-4" />}
+        cor={corDisciplina}
         right={
           <NovaAvaliacaoButton
             disciplinaId={disciplina.id}
@@ -762,7 +797,9 @@ export default function DisciplinaDetailPage() {
             <p className="text-sm text-muted-foreground">
               Sem avaliações cadastradas para esta disciplina.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Adicione provas, trabalhos e seminários</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Adicione provas, trabalhos e seminários
+            </p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -775,33 +812,45 @@ export default function DisciplinaDetailPage() {
                 const dias = daysUntil(a.dataISO);
                 const isPast = dias < 0;
                 const isUrgent = dias >= 0 && dias <= 3;
-                
+
                 return (
-                  <li 
-                    key={a.id} 
+                  <li
+                    key={a.id}
                     className={cn(
                       "group rounded-xl border p-4 transition-all hover:shadow-sm",
-                      isPast ? "opacity-60 bg-muted/30" : 
-                      isUrgent ? "border-amber-500/30 bg-amber-500/5" : 
-                      "bg-background"
+                      isPast
+                        ? "opacity-60 bg-muted/30"
+                        : isUrgent
+                        ? "border-amber-500/30 bg-amber-500/5"
+                        : "bg-background"
                     )}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
-                        <div className={cn(
-                          "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                          a.tipo === "prova" ? "bg-red-500/10 text-red-500" :
-                          a.tipo === "trabalho" ? "bg-blue-500/10 text-blue-500" :
-                          "bg-emerald-500/10 text-emerald-500"
-                        )}>
+                        <div
+                          className={cn(
+                            "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+                            a.tipo === "prova"
+                              ? "bg-red-500/10 text-red-500"
+                              : a.tipo === "trabalho"
+                              ? "bg-blue-500/10 text-blue-500"
+                              : "bg-emerald-500/10 text-emerald-500"
+                          )}
+                        >
                           <Calendar className="h-5 w-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={tipoBadgeMap[a.tipo]}>{a.tipo}</span>
+                            <span className={tipoBadgeMap[a.tipo]}>
+                              {a.tipo}
+                            </span>
                             {isUrgent && !isPast && (
                               <span className="text-xs text-amber-500 font-medium">
-                                {dias === 0 ? "Hoje!" : dias === 1 ? "Amanhã!" : `Em ${dias} dias`}
+                                {dias === 0
+                                  ? "Hoje!"
+                                  : dias === 1
+                                  ? "Amanhã!"
+                                  : `Em ${dias} dias`}
                               </span>
                             )}
                           </div>
@@ -828,7 +877,9 @@ export default function DisciplinaDetailPage() {
                                     result.error || "Erro ao remover avaliação"
                                   );
                                 } else {
-                                  toast.success("Avaliação removida com sucesso!");
+                                  toast.success(
+                                    "Avaliação removida com sucesso!"
+                                  );
                                 }
                               }}
                               className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-all"
@@ -844,7 +895,8 @@ export default function DisciplinaDetailPage() {
                       <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm">
                         <div className="mb-2 text-xs font-medium text-muted-foreground flex items-center gap-1">
                           {a.gerado_por_ia && <Sparkles className="h-3 w-3" />}
-                          Resumo dos assuntos {a.gerado_por_ia ? "(gerado por IA)" : ""}
+                          Resumo dos assuntos{" "}
+                          {a.gerado_por_ia ? "(gerado por IA)" : ""}
                         </div>
                         <div className="whitespace-pre-wrap text-foreground">
                           {a.resumo_assuntos}
@@ -857,7 +909,240 @@ export default function DisciplinaDetailPage() {
           </ul>
         )}
       </Section>
+      {/* Dialog de confirmação para excluir nota */}
+      <Dialog
+        open={!!notaToDelete}
+        onOpenChange={(open) => !open && setNotaToDelete(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Excluir Nota
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir esta nota? Esta ação não pode ser
+              desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNotaToDelete(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (notaToDelete) {
+                  await deleteNota(notaToDelete);
+                  setNotaToDelete(null);
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
+  );
+}
+
+function NotaCard({
+  nota,
+  corDisciplina,
+  onEdit,
+  onDelete,
+}: {
+  nota: import("@/hooks/useNotas").Nota;
+  corDisciplina: string;
+  onEdit: (
+    id: string,
+    nota: Partial<import("@/hooks/useNotas").Nota>
+  ) => Promise<{ success: boolean }>;
+  onDelete: () => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [titulo, setTitulo] = useState(nota.titulo);
+  const [content_md, setContent_md] = useState(nota.content_md);
+
+  const handleSave = async () => {
+    const result = await onEdit(nota.id, { titulo, content_md });
+    if (result.success) {
+      setIsEditing(false);
+    }
+  };
+
+  return (
+    <div
+      className="group rounded-xl border p-4 transition-all hover:shadow-sm bg-background"
+      style={{ borderLeftWidth: "4px", borderLeftColor: corDisciplina }}
+    >
+      {isEditing ? (
+        <div className="space-y-3">
+          <Input
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Título da nota"
+            className="font-medium"
+          />
+          <textarea
+            value={content_md}
+            onChange={(e) => setContent_md(e.target.value)}
+            placeholder="Conteúdo da nota..."
+            className="w-full min-h-[100px] rounded-lg border bg-background p-3 text-sm resize-none focus:outline-none"
+            style={{
+              borderColor: `${corDisciplina}30`,
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleSave}>
+              Salvar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setIsEditing(false);
+                setTitulo(nota.titulo);
+                setContent_md(nota.content_md);
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <h4 className="font-medium text-sm flex-1">{nota.titulo}</h4>
+            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Editar nota</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={onDelete}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Excluir nota</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+          {nota.content_md && (
+            <pre className="whitespace-pre-wrap text-sm text-muted-foreground mt-2">
+              {nota.content_md.length > 200
+                ? `${nota.content_md.substring(0, 200)}...`
+                : nota.content_md}
+            </pre>
+          )}
+          {nota.updated_at && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Atualizada em{" "}
+              {new Date(nota.updated_at).toLocaleDateString("pt-BR")}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NovaNotaButton({
+  disciplinaId,
+  onCreate,
+}: {
+  disciplinaId: string;
+  onCreate: (
+    nota: Omit<
+      import("@/hooks/useNotas").Nota,
+      "id" | "created_at" | "updated_at"
+    >
+  ) => Promise<{ success: boolean }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [titulo, setTitulo] = useState("");
+  const [content_md, setContent_md] = useState("");
+
+  async function salvar() {
+    if (!titulo.trim()) {
+      toast.error("Título é obrigatório");
+      return;
+    }
+    const result = await onCreate({
+      disciplinaId,
+      titulo: titulo.trim(),
+      content_md: content_md.trim(),
+    });
+    if (result.success) {
+      setTitulo("");
+      setContent_md("");
+      setOpen(false);
+    }
+  }
+
+  return (
+    <>
+      <Button onClick={() => setOpen(true)} size="sm">
+        <Plus className="h-4 w-4 mr-2" />
+        Nova Nota
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nova Nota</DialogTitle>
+            <DialogDescription>
+              Crie uma nova anotação para esta disciplina
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Título *</label>
+              <Input
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                placeholder="Ex: Resumo da Aula 1, Fórmulas Importantes..."
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Conteúdo</label>
+              <textarea
+                value={content_md}
+                onChange={(e) => setContent_md(e.target.value)}
+                placeholder="Escreva aqui suas anotações, fórmulas, referências..."
+                className="w-full min-h-[200px] rounded-lg border bg-background p-4 text-sm resize-none focus:outline-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvar}>Criar Nota</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -1231,7 +1516,7 @@ function NovaAvaliacaoButton({
   const [descricao, setDescricao] = useState("");
   const [resumo, setResumo] = useState("");
   const [loadingResumo, setLoadingResumo] = useState(false);
-  
+
   async function gerarResumoIA() {
     setLoadingResumo(true);
     await new Promise((r) => setTimeout(r, 600));
@@ -1248,7 +1533,7 @@ function NovaAvaliacaoButton({
     setResumo(txt);
     setLoadingResumo(false);
   }
-  
+
   function salvar() {
     const iso = new Date(dataLocal).toISOString();
     onCreate({
@@ -1264,14 +1549,14 @@ function NovaAvaliacaoButton({
     setResumo("");
     setOpen(false);
   }
-  
+
   function resetForm() {
     setTipo("prova");
     setDataLocal(toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000)));
     setDescricao("");
     setResumo("");
   }
-  
+
   return (
     <>
       <Button
@@ -1293,7 +1578,8 @@ function NovaAvaliacaoButton({
               Nova Avaliação
             </DialogTitle>
             <DialogDescription>
-              Adicione uma nova prova, trabalho ou seminário para esta disciplina
+              Adicione uma nova prova, trabalho ou seminário para esta
+              disciplina
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1319,9 +1605,11 @@ function NovaAvaliacaoButton({
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Descrição (opcional)</label>
+              <label className="text-sm font-medium">
+                Descrição (opcional)
+              </label>
               <textarea
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
@@ -1329,10 +1617,12 @@ function NovaAvaliacaoButton({
                 className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
               />
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Resumo de estudo (opcional)</label>
+                <label className="text-sm font-medium">
+                  Resumo de estudo (opcional)
+                </label>
                 <Button
                   variant="outline"
                   size="sm"
@@ -1513,7 +1803,7 @@ function TarefaItem({
     diasRestantes !== null && diasRestantes < 0 && !tarefa.concluida;
   const isUrgente =
     diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 2;
-  
+
   async function salvarEdicao() {
     await onEdit({
       titulo: titulo.trim(),
@@ -1523,7 +1813,7 @@ function TarefaItem({
     });
     setEditing(false);
   }
-  
+
   if (editing) {
     return (
       <li className="rounded-xl border border-primary/50 bg-primary/5 p-4">
@@ -1584,13 +1874,15 @@ function TarefaItem({
       </li>
     );
   }
-  
+
   return (
     <li
       className={cn(
         "group rounded-xl border p-4 transition-all hover:shadow-sm",
         tarefa.concluida && "opacity-60 bg-muted/30",
-        isVencida && !tarefa.concluida && "border-destructive/50 bg-destructive/5",
+        isVencida &&
+          !tarefa.concluida &&
+          "border-destructive/50 bg-destructive/5",
         isUrgente && !tarefa.concluida && "border-amber-500/30 bg-amber-500/5"
       )}
     >
@@ -1610,7 +1902,9 @@ function TarefaItem({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              {tarefa.concluida ? "Marcar como pendente" : "Marcar como concluída"}
+              {tarefa.concluida
+                ? "Marcar como pendente"
+                : "Marcar como concluída"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -1626,7 +1920,9 @@ function TarefaItem({
                 {tarefa.titulo}
               </h4>
               {tarefa.descricao && (
-                <p className="mt-1 text-xs text-muted-foreground">{tarefa.descricao}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {tarefa.descricao}
+                </p>
               )}
             </div>
             <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">

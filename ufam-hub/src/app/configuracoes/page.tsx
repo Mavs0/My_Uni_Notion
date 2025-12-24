@@ -1873,31 +1873,110 @@ export default function ConfiguracoesPage() {
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
                       <Search className="h-4 w-4" />
-                      Navegação
+                      Busca e Navegação
                     </h3>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
                         <div>
-                          <div className="font-medium text-sm">Buscar</div>
+                          <div className="font-medium text-sm">
+                            Busca rápida
+                          </div>
                           <div className="text-xs text-muted-foreground">
-                            Abrir busca rápida
+                            Abrir busca rápida com acesso a todas as páginas
                           </div>
                         </div>
                         <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
-                          ⌘K
+                          ⌘/Ctrl + K
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                        <div>
+                          <div className="font-medium text-sm">Dashboard</div>
+                          <div className="text-xs text-muted-foreground">
+                            Ir para a página inicial
+                          </div>
+                        </div>
+                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
+                          ⌘/Ctrl + H
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                        <div>
+                          <div className="font-medium text-sm">Disciplinas</div>
+                          <div className="text-xs text-muted-foreground">
+                            Ir para a página de disciplinas
+                          </div>
+                        </div>
+                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
+                          ⌘/Ctrl + Shift + D
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                        <div>
+                          <div className="font-medium text-sm">Avaliações</div>
+                          <div className="text-xs text-muted-foreground">
+                            Ir para a página de avaliações
+                          </div>
+                        </div>
+                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
+                          ⌘/Ctrl + Shift + A
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                        <div>
+                          <div className="font-medium text-sm">Gamificação</div>
+                          <div className="text-xs text-muted-foreground">
+                            Ir para a página de gamificação
+                          </div>
+                        </div>
+                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
+                          ⌘/Ctrl + Shift + G
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                        <div>
+                          <div className="font-medium text-sm">Revisão</div>
+                          <div className="text-xs text-muted-foreground">
+                            Ir para a página de revisão de flashcards
+                          </div>
+                        </div>
+                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
+                          ⌘/Ctrl + Shift + R
+                        </kbd>
+                      </div>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Ações Rápidas
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                        <div>
+                          <div className="font-medium text-sm">
+                            Nova disciplina
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Criar uma nova disciplina
+                          </div>
+                        </div>
+                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
+                          ⌘/Ctrl + N
                         </kbd>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
                         <div>
                           <div className="font-medium text-sm">
-                            Pular para conteúdo
+                            Nova avaliação
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            Navegação por teclado
+                            Criar uma nova avaliação
                           </div>
                         </div>
                         <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
-                          Tab
+                          ⌘/Ctrl + Shift + N
                         </kbd>
                       </div>
                     </div>
@@ -1906,7 +1985,7 @@ export default function ConfiguracoesPage() {
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
                       <Settings className="h-4 w-4" />
-                      Configurações
+                      Geral
                     </h3>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
@@ -1915,18 +1994,32 @@ export default function ConfiguracoesPage() {
                             Fechar diálogo
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            Fechar qualquer diálogo aberto
+                            Fechar qualquer modal ou diálogo aberto
                           </div>
                         </div>
                         <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
-                          Esc
+                          Escape
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                        <div>
+                          <div className="font-medium text-sm">
+                            Pular para conteúdo
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Navegação por teclado para acessibilidade
+                          </div>
+                        </div>
+                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
+                          Tab
                         </kbd>
                       </div>
                     </div>
                   </div>
                   <div className="pt-4 border-t">
                     <p className="text-xs text-muted-foreground">
-                      * Personalização de atalhos em breve
+                      💡 Dica: Use ⌘/Ctrl + K para abrir a busca rápida e ver
+                      todos os atalhos disponíveis
                     </p>
                   </div>
                 </div>

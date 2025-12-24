@@ -184,6 +184,7 @@ export async function GET(request: NextRequest) {
         created_at,
         user_id,
         grupo_id,
+        ativo,
         grupo:grupos_estudo(id, nome)
       `,
         { count: "exact" }
@@ -224,7 +225,108 @@ export async function GET(request: NextRequest) {
       user_id: user.id,
     });
 
-    const { data, error, count } = await query;
+    let data: any[] | null = null;
+    let error: any = null;
+    let count: number | null = null;
+
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const adminClient = createSupabaseAdmin();
+
+      let adminQuery = adminClient
+        .from("biblioteca_materiais")
+        .select(
+          `
+          id,
+          titulo,
+          descricao,
+          tipo,
+          categoria,
+          arquivo_url,
+          arquivo_tipo,
+          arquivo_tamanho,
+          visualizacoes,
+          downloads,
+          curtidas,
+          tags,
+          created_at,
+          user_id,
+          grupo_id,
+          visibilidade,
+          ativo,
+          grupo:grupos_estudo(id, nome)
+        `,
+          { count: "exact" }
+        )
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      // Aplicar filtros
+      if (tipo) {
+        adminQuery = adminQuery.eq("tipo", tipo);
+      }
+      if (categoria) {
+        adminQuery = adminQuery.eq("categoria", categoria);
+      }
+      if (grupo_id) {
+        adminQuery = adminQuery.eq("grupo_id", grupo_id);
+      }
+      if (busca) {
+        adminQuery = adminQuery.or(
+          `titulo.ilike.%${busca}%,descricao.ilike.%${busca}%`
+        );
+      }
+      if (tags) {
+        const tagsArray = tags.split(",");
+        adminQuery = adminQuery.contains("tags", tagsArray);
+      }
+
+      const result = await adminQuery;
+      data = result.data;
+      error = result.error;
+      count = result.count;
+
+      // Filtrar manualmente por visibilidade (já que não temos RLS)
+      if (data) {
+        // Buscar grupos do usuário
+        const { data: membrosData } = await adminClient
+          .from("grupo_membros")
+          .select("grupo_id")
+          .eq("user_id", user.id)
+          .eq("status", "ativo");
+
+        const gruposDoUsuario = new Set(
+          membrosData?.map((m) => m.grupo_id) || []
+        );
+
+        data = data.filter((material: any) => {
+          // Materiais públicos ou gerais são visíveis para todos
+          if (
+            material.visibilidade === "publico" ||
+            material.visibilidade === "geral"
+          ) {
+            return true;
+          }
+          // Materiais do próprio usuário
+          if (material.user_id === user.id) {
+            return true;
+          }
+          // Materiais privados de grupos onde o usuário é membro
+          if (
+            material.visibilidade === "privado" &&
+            material.grupo_id &&
+            gruposDoUsuario.has(material.grupo_id)
+          ) {
+            return true;
+          }
+          return false;
+        });
+      }
+    } else {
+      const result = await query;
+      data = result.data;
+      error = result.error;
+      count = result.count;
+    }
 
     console.log("📊 Resultado da query:", {
       total: count,

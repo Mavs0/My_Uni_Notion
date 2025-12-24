@@ -23,6 +23,12 @@ import {
   Library,
   Trophy,
 } from "lucide-react";
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { HelpCenter } from "@/components/onboarding/HelpCenter";
+import { TutorialList } from "@/components/tutorials/TutorialList";
+import { TipManager } from "@/components/tips/SmartContextualTip";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
   BarChart,
@@ -536,6 +542,9 @@ export default function DashboardPage() {
   const [loadingMetas, setLoadingMetas] = useState(false);
   const [notificacoes, setNotificacoes] = useState<any[]>([]);
   const [loadingNotificacoes, setLoadingNotificacoes] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
   const {
     disciplinas,
     loading: loadingDisc,
@@ -543,56 +552,72 @@ export default function DashboardPage() {
   } = useDisciplinas();
   const { avaliacoes, loading: loadingAv, error: errorAv } = useAvaliacoes();
   useEffect(() => {
-    const loadEstatisticas = async () => {
+    // Paralelizar todas as chamadas de API para melhor performance
+    const loadAllData = async () => {
       try {
-        setLoadingEstatisticas(true);
-        const response = await fetch(
-          `/api/estatisticas?periodo=${periodoEstatisticas}`
-        );
-        if (response.ok) {
-          const data = await response.json();
+        // Carregar dados em paralelo usando Promise.all
+        const [estatisticasRes, metasRes, notificacoesRes, onboardingRes] =
+          await Promise.allSettled([
+            fetch(`/api/estatisticas?periodo=${periodoEstatisticas}`),
+            fetch("/api/metas"),
+            fetch("/api/notificacoes/recentes?limit=5"),
+            fetch("/api/onboarding/status"),
+          ]);
+
+        // Processar estatísticas
+        if (
+          estatisticasRes.status === "fulfilled" &&
+          estatisticasRes.value.ok
+        ) {
+          const data = await estatisticasRes.value.json();
           setEstatisticas(data);
         }
-      } catch (err) {
-        console.error("Erro ao carregar estatísticas:", err);
-      } finally {
         setLoadingEstatisticas(false);
+
+        // Processar metas
+        if (metasRes.status === "fulfilled" && metasRes.value.ok) {
+          const { metas: metasData } = await metasRes.value.json();
+          setMetas(metasData || []);
+        }
+        setLoadingMetas(false);
+
+        // Processar notificações
+        if (
+          notificacoesRes.status === "fulfilled" &&
+          notificacoesRes.value.ok
+        ) {
+          const { notificacoes: notifData } =
+            await notificacoesRes.value.json();
+          setNotificacoes(notifData || []);
+        }
+        setLoadingNotificacoes(false);
+
+        // Processar onboarding
+        if (onboardingRes.status === "fulfilled" && onboardingRes.value.ok) {
+          const data = await onboardingRes.value.json();
+          setIsNewUser(data.isNewUser);
+          setShowChecklist(data.isNewUser);
+          if (data.isNewUser) {
+            setTimeout(() => {
+              setShowTour(true);
+            }, 2000);
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+        setLoadingEstatisticas(false);
+        setLoadingMetas(false);
+        setLoadingNotificacoes(false);
       }
     };
-    loadEstatisticas();
-    loadMetas();
-    loadNotificacoes();
+
+    // Iniciar carregamento
+    setLoadingEstatisticas(true);
+    setLoadingMetas(true);
+    setLoadingNotificacoes(true);
+    loadAllData();
   }, [periodoEstatisticas]);
 
-  const loadNotificacoes = async () => {
-    try {
-      setLoadingNotificacoes(true);
-      const response = await fetch("/api/notificacoes/recentes?limit=5");
-      if (response.ok) {
-        const { notificacoes: notifData } = await response.json();
-        setNotificacoes(notifData || []);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar notificações:", err);
-    } finally {
-      setLoadingNotificacoes(false);
-    }
-  };
-
-  const loadMetas = async () => {
-    try {
-      setLoadingMetas(true);
-      const response = await fetch("/api/metas");
-      if (response.ok) {
-        const { metas: metasData } = await response.json();
-        setMetas(metasData || []);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar metas:", err);
-    } finally {
-      setLoadingMetas(false);
-    }
-  };
   const hoje = weekdayIndex();
   const disciplinasMap = useMemo(
     () => new Map(disciplinas.map((d) => [d.id, d])),
@@ -679,11 +704,43 @@ export default function DashboardPage() {
     );
   }
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-        <p className="text-muted-foreground">Visão geral do seu semestre</p>
+    <main className="mx-auto max-w-6xl space-y-6 p-6" data-tour="dashboard">
+      <header className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
+          <p className="text-muted-foreground">Visão geral do seu semestre</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <HelpCenter />
+          {isNewUser && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTour(true)}
+            >
+              Iniciar Tour
+            </Button>
+          )}
+        </div>
       </header>
+
+      {/* Checklist de Onboarding */}
+      {showChecklist && <OnboardingChecklist />}
+
+      {/* Tour Guiado */}
+      <OnboardingTour
+        open={showTour}
+        onComplete={() => {
+          setShowTour(false);
+          setShowChecklist(false);
+        }}
+        onSkip={() => {
+          setShowTour(false);
+        }}
+      />
+
+      {/* Dicas Contextuais Inteligentes */}
+      <TipManager pagina="/dashboard" maxTips={1} />
       {}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border bg-card p-4">
@@ -911,6 +968,10 @@ export default function DashboardPage() {
         </div>
       </Card>
       {}
+      <Card title="Tutoriais Interativos">
+        <TutorialList />
+      </Card>
+      {}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <GoogleCalendarIntegration />
@@ -1127,11 +1188,11 @@ export default function DashboardPage() {
                     />
                     <YAxis fontSize={11} />
                     <Tooltip
-                      formatter={(value: any, name: string) => {
+                      formatter={(value: any, name?: string) => {
                         if (name === "horas") return [`${value}h`, "Estudadas"];
                         if (name === "meta")
                           return [`${value}h`, "Meta Mensal"];
-                        return [value, name];
+                        return [value, name || ""];
                       }}
                     />
                     <Legend />

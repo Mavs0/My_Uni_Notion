@@ -18,7 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Accessibility, Type, Contrast, Keyboard, Eye } from "lucide-react";
+import {
+  Accessibility,
+  Type,
+  Contrast,
+  Keyboard,
+  Eye,
+  Mic,
+} from "lucide-react";
+import { VoiceAccessibility } from "./VoiceAccessibility";
 
 export function AccessibilitySettings({
   standalone = false,
@@ -147,6 +155,16 @@ export function AccessibilitySettings({
             onCheckedChange={handleReducedMotionChange}
             aria-label="Ativar redução de movimento"
           />
+        </div>
+      </div>
+
+      <div className="pt-4 border-t">
+        <div className="flex items-center gap-2 mb-3">
+          <Mic className="h-4 w-4 text-muted-foreground" />
+          <Label className="text-sm font-medium">Acessibilidade por Voz</Label>
+        </div>
+        <div className="mb-4">
+          <VoiceAccessibility />
         </div>
       </div>
 

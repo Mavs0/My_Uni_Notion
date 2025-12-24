@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createSupabaseServer(request);
     const body = await request.json();
     const { factorId, challengeId, code } = body;
 
@@ -13,44 +14,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createSupabaseServer();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    // Verificar código MFA durante login
+    const { data, error } = await supabase.auth.mfa.verify({
+      factorId,
+      challengeId,
+      code,
+    });
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    const { data: verifyData, error: verifyCodeError } =
-      await supabase.auth.mfa.verify({
-        factorId,
-        challengeId,
-        code,
-      });
-
-    if (verifyCodeError) {
-      console.error("Erro ao verificar código 2FA no login:", verifyCodeError);
+    if (error) {
+      console.error("Erro ao verificar MFA no login:", error);
       return NextResponse.json(
-        {
-          error: "Código inválido",
-          details: verifyCodeError.message,
-        },
+        { error: "Código inválido", details: error.message },
         { status: 400 }
       );
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
+    // A sessão é automaticamente atualizada pelo Supabase
     return NextResponse.json({
       success: true,
-      session,
     });
   } catch (error: any) {
-    console.error("Erro na API de verificação 2FA no login:", error);
+    console.error("Erro na API de login MFA:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 }

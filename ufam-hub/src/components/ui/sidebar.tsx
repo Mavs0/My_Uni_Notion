@@ -12,9 +12,12 @@ import {
   Users,
   Library,
   MessageSquare,
+  Clock,
+  Activity,
   ChevronLeft,
   ChevronRight,
   X,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
@@ -26,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./tooltip";
+import { HelpCenter } from "@/components/onboarding/HelpCenter";
 interface NavItem {
   title: string;
   href: string;
@@ -74,9 +78,29 @@ const navSections: NavSection[] = [
         icon: Brain,
       },
       {
+        title: "Pomodoro",
+        href: "/pomodoro",
+        icon: Clock,
+      },
+      {
         title: "Gamificação",
         href: "/gamificacao",
         icon: Trophy,
+      },
+      {
+        title: "Descobrir",
+        href: "/descobrir",
+        icon: Users,
+      },
+      {
+        title: "Feed",
+        href: "/feed",
+        icon: Activity,
+      },
+      {
+        title: "Ajuda",
+        href: "/ajuda",
+        icon: HelpCircle,
       },
     ],
   },
@@ -127,53 +151,66 @@ export function Sidebar() {
     }
   }, [collapsed, mounted]);
   const NavContent = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-      {navSections.map((section) => (
-        <div key={section.title}>
-          {(!collapsed || isMobile) && (
-            <h3 className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {section.title}
-            </h3>
-          )}
-          <div className="space-y-1">
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                pathname === item.href || pathname.startsWith(item.href + "/");
-              const linkElement = (
-                <Link
-                  href={item.href}
-                  onClick={
-                    isMobile ? () => setMobileMenuOpen(false) : undefined
-                  }
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                    collapsed && !isMobile && "justify-center"
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {(!collapsed || isMobile) && <span>{item.title}</span>}
-                </Link>
-              );
-              if (collapsed && !isMobile) {
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
-                    <TooltipContent side="right">{item.title}</TooltipContent>
-                  </Tooltip>
+    <>
+      <nav className="flex-1 overflow-y-auto p-4 space-y-6">
+        {navSections.map((section) => (
+          <div key={section.title}>
+            {(!collapsed || isMobile) && (
+              <h3 className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {section.title}
+              </h3>
+            )}
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+                const linkElement = (
+                  <Link
+                    href={item.href}
+                    onClick={
+                      isMobile ? () => setMobileMenuOpen(false) : undefined
+                    }
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                      collapsed && !isMobile && "justify-center"
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {(!collapsed || isMobile) && <span>{item.title}</span>}
+                  </Link>
                 );
-              }
-              return (
-                <React.Fragment key={item.href}>{linkElement}</React.Fragment>
-              );
-            })}
+                if (collapsed && !isMobile) {
+                  return (
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
+                      <TooltipContent side="right">{item.title}</TooltipContent>
+                    </Tooltip>
+                  );
+                }
+                return (
+                  <React.Fragment key={item.href}>{linkElement}</React.Fragment>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
-    </nav>
+        ))}
+      </nav>
+      <div className="border-t p-4">
+        <HelpCenter
+          trigger={
+            <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+              <HelpCircle className="h-4 w-4" />
+              {(!collapsed || isMobile) && <span>Ajuda</span>}
+            </button>
+          }
+        />
+      </div>
+    </>
   );
   return (
     <TooltipProvider delayDuration={200}>

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { streamText } from "ai";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getAIModel } from "@/lib/ai/config";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest) {
       } else {
         const { data: notas, error: notasError } = await supabase
           .from("notas")
-          .select("content_md")
+          .select("titulo, content_md")
           .eq("user_id", user.id)
           .eq("disciplina_id", disciplinaId)
           .order("updated_at", { ascending: false })
@@ -174,9 +175,13 @@ export async function POST(req: NextRequest) {
         const contextParts: string[] = [];
         if (notas && notas.length > 0) {
           const notasText = notas
-            .map((n) => n.content_md)
-            .filter(Boolean)
-            .join("\n---\n");
+            .map((n) => {
+              const titulo = n.titulo || "Sem título";
+              const conteudo = n.content_md || "";
+              return `[${titulo}]\n${conteudo}`;
+            })
+            .filter((n) => n.trim())
+            .join("\n\n---\n\n");
           contextParts.push(`ANOTAÇÕES DA DISCIPLINA:\n${notasText}`);
         }
         if (disciplina) {
@@ -263,11 +268,132 @@ export async function POST(req: NextRequest) {
       contextoLength: context.length,
       hasContext: context.length > 0,
     });
-    let result;
+    // Sempre tentar fallback primeiro (como funciona em quiz e mapa mental)
+    // O @ai-sdk/google pode não funcionar corretamente com alguns modelos
+    console.log("Tentando usar @google/generative-ai diretamente...");
     try {
-      result = await streamText({
-        model: model,
-        system: `Você é um tutor acadêmico especializado em ajudar estudantes universitários.
+      const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      if (!apiKey) {
+        throw new Error("API key não configurada");
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+
+      // Primeiro, tentar listar modelos disponíveis
+      let modelosDisponiveis: string[] = [];
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          modelosDisponiveis = (data.models || [])
+            .map((m: any) => m.name?.replace("models/", "") || "")
+            .filter((n: string) => n && n.includes("gemini"));
+          console.log(
+            "✅ Modelos disponíveis encontrados:",
+            modelosDisponiveis
+          );
+        }
+      } catch (listError) {
+        console.log("⚠️ Não foi possível listar modelos, usando lista padrão");
+      }
+
+      // Tentar modelos diferentes na ordem de preferência
+      const modelosParaTentar =
+        modelosDisponiveis.length > 0
+          ? modelosDisponiveis
+          : [
+              "gemini-1.5-flash-002",
+              "gemini-1.5-pro-002",
+              "gemini-1.5-flash",
+              "gemini-1.5-pro",
+              "gemini-pro",
+            ];
+
+      let modeloFuncionou = false;
+      let ultimoErro: any = null;
+
+      for (const nomeModelo of modelosParaTentar) {
+        try {
+          const modelo = genAI.getGenerativeModel({ model: nomeModelo });
+
+          // Criar prompt completo com system e user
+          const promptCompleto = `Você é um tutor acadêmico especializado em ajudar estudantes universitários.
+
+${
+  context && context.trim().length > 0 && !context.includes("[sem contexto")
+    ? `CONTEXTO DISPONÍVEL:\n${context}\n\nUse este contexto para responder quando relevante.`
+    : "Você não tem contexto específico disponível, mas pode ajudar com informações gerais."
+}
+
+INSTRUÇÕES:
+- Responda de forma clara e didática
+- Use exemplos quando apropriado
+- Se não souber algo, seja honesto e sugira onde o estudante pode encontrar a informação
+- Mantenha um tom acolhedor e encorajador
+- SEMPRE forneça uma resposta útil, mesmo sem contexto específico
+
+PERGUNTA DO ESTUDANTE:
+${perguntaFinal}`;
+
+          // Usar streaming
+          const resultadoStream = await modelo.generateContentStream(
+            promptCompleto
+          );
+
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            async start(controller) {
+              try {
+                for await (const chunk of resultadoStream.stream) {
+                  const texto = chunk.text();
+                  if (texto) {
+                    controller.enqueue(encoder.encode(texto));
+                  }
+                }
+                controller.close();
+              } catch (error) {
+                controller.error(error);
+              }
+            },
+          });
+
+          console.log(`✅ Modelo ${nomeModelo} funcionou!`);
+          modeloFuncionou = true;
+
+          // Retornar diretamente o stream do fallback
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
+              "X-Accel-Buffering": "no",
+            },
+          });
+        } catch (erroModelo: any) {
+          console.log(`❌ Modelo ${nomeModelo} falhou:`, erroModelo.message);
+          ultimoErro = erroModelo;
+          continue;
+        }
+      }
+
+      if (!modeloFuncionou) {
+        throw new Error(
+          `Nenhum modelo disponível. Tentei: ${modelosParaTentar.join(
+            ", "
+          )}. Último erro: ${ultimoErro?.message || "Desconhecido"}`
+        );
+      }
+    } catch (fallbackError: any) {
+      console.error("❌ Erro no fallback direto:", fallbackError);
+      console.log("⚠️ Tentando usar @ai-sdk/google como último recurso...");
+
+      // Tentar @ai-sdk/google como último recurso
+      try {
+        const result = await streamText({
+          model: model,
+          system: `Você é um tutor acadêmico especializado em ajudar estudantes universitários.
 ${
   context && context.trim().length > 0 && !context.includes("[sem contexto")
     ? `CONTEXTO DISPONÍVEL:\n${context}\n\nUse este contexto para responder quando relevante.`
@@ -279,71 +405,25 @@ INSTRUÇÕES:
 - Se não souber algo, seja honesto e sugira onde o estudante pode encontrar a informação
 - Mantenha um tom acolhedor e encorajador
 - SEMPRE forneça uma resposta útil, mesmo sem contexto específico`,
-        prompt: perguntaFinal,
-        temperature: 0.7,
-      });
-      console.log("✅ streamText executado com sucesso");
-    } catch (streamTextError) {
-      console.error("❌ Erro ao executar streamText:", streamTextError);
-      if (streamTextError instanceof Error) {
-        console.error("❌ Mensagem:", streamTextError.message);
-        console.error("❌ Stack:", streamTextError.stack);
+          prompt: perguntaFinal,
+          temperature: 0.7,
+        });
+
+        if (result && typeof result.toTextStreamResponse === "function") {
+          const response = result.toTextStreamResponse();
+          response.headers.set("Content-Type", "text/plain; charset=utf-8");
+          response.headers.set("Cache-Control", "no-cache");
+          response.headers.set("Connection", "keep-alive");
+          response.headers.set("X-Accel-Buffering", "no");
+          return response;
+        }
+      } catch (streamTextError: any) {
+        console.error("❌ Erro ao usar @ai-sdk/google:", streamTextError);
       }
-      throw streamTextError;
-    }
-    console.log("✅ StreamText criado com sucesso - usando API de IA");
-    console.log("📝 Pergunta:", question.substring(0, 100));
-    console.log(
-      "📚 Contexto (primeiros 200 chars):",
-      context.substring(0, 200)
-    );
-    try {
-      console.log("🔄 Criando stream response...");
-      console.log(
-        "📊 Métodos disponíveis no result:",
-        Object.keys(result || {})
+
+      throw new Error(
+        `Erro ao usar API direta do Google: ${fallbackError.message}. Verifique sua API key e modelos disponíveis no Google AI Studio.`
       );
-      if (!result || typeof result.toTextStreamResponse !== "function") {
-        console.error("❌ result não tem método toTextStreamResponse");
-        console.error("❌ Tipo de result:", typeof result);
-        console.error("❌ Result keys:", result ? Object.keys(result) : "null");
-        throw new Error(
-          "Erro ao criar stream: método toTextStreamResponse não encontrado"
-        );
-      }
-      console.log("📡 Chamando toTextStreamResponse()...");
-      const response = result.toTextStreamResponse();
-      if (!response) {
-        console.error("❌ Stream response retornou null/undefined");
-        throw new Error("Erro ao criar stream: resposta vazia");
-      }
-      console.log("✅ Response criado");
-      console.log("📊 Response status:", response.status);
-      console.log("📊 Response ok:", response.ok);
-      console.log("📊 Response body:", response.body ? "presente" : "ausente");
-      if (!response.body) {
-        console.error("❌ Response não tem body!");
-        throw new Error(
-          "Stream não contém dados - verifique a configuração da API Gemini"
-        );
-      }
-      console.log(
-        "📊 Response headers:",
-        Object.fromEntries(response.headers.entries())
-      );
-      response.headers.set("Content-Type", "text/plain; charset=utf-8");
-      response.headers.set("Cache-Control", "no-cache");
-      response.headers.set("Connection", "keep-alive");
-      response.headers.set("X-Accel-Buffering", "no");
-      console.log("✅ Retornando stream response...");
-      return response;
-    } catch (streamError) {
-      console.error("❌ Erro ao criar stream response:", streamError);
-      if (streamError instanceof Error) {
-        console.error("❌ Erro message:", streamError.message);
-        console.error("❌ Erro stack:", streamError.stack);
-      }
-      throw streamError;
     }
   } catch (error) {
     console.error("❌ Erro na API de IA:", error);

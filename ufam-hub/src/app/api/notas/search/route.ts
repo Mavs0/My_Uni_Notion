@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         `
         id,
         disciplina_id,
+        titulo,
         content_md,
         created_at,
         updated_at,
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
       `
       )
       .eq("user_id", user.id)
-      .ilike("content_md", searchTerm)
+      .or(`content_md.ilike.${searchTerm},titulo.ilike.${searchTerm}`)
       .order("updated_at", { ascending: false });
     if (error) {
       console.error("Erro ao buscar notas:", error);
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
         id: nota.id,
         disciplinaId: nota.disciplina_id,
         disciplinaNome: (disciplina as any)?.nome || "Disciplina",
+        titulo: nota.titulo || "Sem título",
         content_md: nota.content_md,
         created_at: nota.created_at,
         updated_at: nota.updated_at,

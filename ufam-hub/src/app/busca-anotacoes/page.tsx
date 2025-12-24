@@ -1,11 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, FileText, Loader2, ArrowRight } from "lucide-react";
+import { Search, FileText, Loader2, ArrowRight, BookOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNotasSearch, type NotaSearchResult } from "@/hooks/useNotasSearch";
+import { useNotas } from "@/hooks/useNotas";
+import { useDisciplinas } from "@/hooks/useDisciplinas";
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -22,13 +24,56 @@ export default function BuscaAnotacoesPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
-  const { search, results, loading, error } = useNotasSearch();
+  const {
+    search,
+    results: searchResults,
+    loading: searchLoading,
+    error: searchError,
+  } = useNotasSearch();
+  const {
+    notas: allNotas,
+    loading: allNotasLoading,
+    error: allNotasError,
+  } = useNotas();
+  const { disciplinas } = useDisciplinas();
+
+  // Criar mapa de disciplinas para buscar nomes rapidamente
+  const disciplinasMap = useMemo(() => {
+    return new Map(disciplinas.map((d) => [d.id, d.nome]));
+  }, [disciplinas]);
+
+  // Quando há busca, usar resultados da busca
+  // Quando não há busca, mostrar todas as notas
+  const hasSearch = debouncedQuery.trim().length > 0;
+
+  const allNotasFormatted = useMemo(() => {
+    return allNotas.map((nota) => ({
+      id: nota.id,
+      disciplinaId: nota.disciplinaId,
+      disciplinaNome:
+        disciplinasMap.get(nota.disciplinaId) || "Disciplina desconhecida",
+      titulo: nota.titulo,
+      content_md: nota.content_md,
+      created_at: nota.created_at || "",
+      updated_at: nota.updated_at || "",
+      snippet:
+        nota.content_md.length > 200
+          ? `${nota.content_md.substring(0, 200)}...`
+          : nota.content_md,
+    }));
+  }, [allNotas, disciplinasMap]);
+
+  const results = hasSearch ? searchResults : allNotasFormatted;
+  const loading = hasSearch ? searchLoading : allNotasLoading;
+  const error = hasSearch ? searchError : allNotasError;
+
   useEffect(() => {
     if (debouncedQuery.trim().length > 0) {
       search(debouncedQuery);
     }
   }, [debouncedQuery, search]);
-  const handleResultClick = (nota: NotaSearchResult) => {
+
+  const handleResultClick = (nota: NotaSearchResult | any) => {
     router.push(`/disciplinas/${nota.disciplinaId}`);
   };
   return (
@@ -68,17 +113,20 @@ export default function BuscaAnotacoesPage() {
           </CardContent>
         </Card>
       )}
-      {!loading && !error && query.trim().length === 0 && (
-        <Card>
-          <CardContent className="pt-6 text-center text-zinc-500">
-            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Digite algo para começar a buscar</p>
-            <p className="text-sm mt-2">
-              A busca procura em todas as suas anotações de todas as disciplinas
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {!loading &&
+        !error &&
+        query.trim().length === 0 &&
+        results.length === 0 && (
+          <Card>
+            <CardContent className="pt-6 text-center text-zinc-500">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhuma anotação encontrada</p>
+              <p className="text-sm mt-2">
+                Crie anotações nas suas disciplinas para vê-las aqui
+              </p>
+            </CardContent>
+          </Card>
+        )}
       {!loading &&
         !error &&
         query.trim().length > 0 &&
@@ -96,12 +144,32 @@ export default function BuscaAnotacoesPage() {
         )}
       {!loading && !error && results.length > 0 && (
         <div className="space-y-3">
-          <div className="text-sm text-zinc-500">
-            {results.length} {results.length === 1 ? "resultado" : "resultados"}{" "}
-            encontrado
-            {results.length === 1 ? "" : "s"}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-zinc-500">
+              {hasSearch ? (
+                <>
+                  {results.length}{" "}
+                  {results.length === 1 ? "resultado" : "resultados"} encontrado
+                  {results.length === 1 ? "" : "s"}
+                </>
+              ) : (
+                <>
+                  {results.length}{" "}
+                  {results.length === 1 ? "anotação" : "anotações"} em{" "}
+                  {new Set(results.map((r: any) => r.disciplinaId)).size}{" "}
+                  {new Set(results.map((r: any) => r.disciplinaId)).size === 1
+                    ? "disciplina"
+                    : "disciplinas"}
+                </>
+              )}
+            </div>
+            {!hasSearch && (
+              <div className="text-xs text-zinc-500">
+                Digite para filtrar suas anotações
+              </div>
+            )}
           </div>
-          {results.map((nota) => (
+          {results.map((nota: any) => (
             <Card
               key={nota.id}
               className="hover:border-primary/50 transition-colors cursor-pointer"
@@ -109,10 +177,21 @@ export default function BuscaAnotacoesPage() {
             >
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    {nota.disciplinaNome}
-                  </CardTitle>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <span className="truncate">{nota.disciplinaNome}</span>
+                      </CardTitle>
+                      {nota.titulo && (
+                        <p className="text-sm text-muted-foreground mt-1 truncate">
+                          {nota.titulo}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -129,30 +208,36 @@ export default function BuscaAnotacoesPage() {
               <CardContent>
                 <div className="space-y-2">
                   <div className="text-sm text-zinc-400 line-clamp-3">
-                    {nota.snippet.split("**").map((part, i) => {
-                      if (i % 2 === 1) {
-                        return (
-                          <mark
-                            key={i}
-                            className="bg-yellow-500/20 text-yellow-300 dark:bg-yellow-500/30 dark:text-yellow-400 px-1 rounded"
-                          >
-                            {part}
-                          </mark>
-                        );
-                      }
-                      return <span key={i}>{part}</span>;
-                    })}
+                    {hasSearch
+                      ? nota.snippet
+                          .split("**")
+                          .map((part: string, i: number) => {
+                            if (i % 2 === 1) {
+                              return (
+                                <mark
+                                  key={i}
+                                  className="bg-yellow-500/20 text-yellow-300 dark:bg-yellow-500/30 dark:text-yellow-400 px-1 rounded"
+                                >
+                                  {part}
+                                </mark>
+                              );
+                            }
+                            return <span key={i}>{part}</span>;
+                          })
+                      : nota.snippet}
                   </div>
-                  <div className="text-xs text-zinc-500">
-                    Atualizado em{" "}
-                    {new Date(nota.updated_at).toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
+                  {nota.updated_at && (
+                    <div className="text-xs text-zinc-500">
+                      Atualizado em{" "}
+                      {new Date(nota.updated_at).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

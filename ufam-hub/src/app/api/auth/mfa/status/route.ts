@@ -3,7 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -13,35 +13,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const { data: factors, error: factorsError } =
-      await supabase.auth.mfa.listFactors();
+    // Listar fatores MFA do usuário
+    const { data, error } = await supabase.auth.mfa.listFactors();
 
-    if (factorsError) {
-      console.error("Erro ao listar fatores MFA:", factorsError);
+    if (error) {
+      console.error("Erro ao listar fatores MFA:", error);
       return NextResponse.json(
-        {
-          error: "Erro ao verificar status do 2FA",
-          details: factorsError.message,
-        },
+        { error: "Erro ao listar fatores MFA", details: error.message },
         { status: 500 }
       );
     }
 
-    const totpFactor = factors?.totp?.[0];
-    const isEnabled = !!totpFactor;
+    const totpFactors = data.totp || [];
+    const enabled = totpFactors.length > 0;
 
     return NextResponse.json({
-      enabled: isEnabled,
-      factor: totpFactor
-        ? {
-            id: totpFactor.id,
-            friendly_name: totpFactor.friendly_name,
-            status: totpFactor.status,
-          }
-        : null,
+      enabled,
+      factor: enabled ? totpFactors[0] : null,
+      factors: totpFactors,
     });
   } catch (error: any) {
-    console.error("Erro na API de status 2FA:", error);
+    console.error("Erro na API de status MFA:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 }

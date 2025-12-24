@@ -44,7 +44,16 @@ import {
   ExternalLink,
   Tag,
   Users,
+  Archive,
+  ArchiveRestore,
+  EyeOff,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import Link from "next/link";
 interface Material {
@@ -58,6 +67,8 @@ interface Material {
   arquivo_tamanho?: number;
   visualizacoes: number;
   downloads: number;
+  ativo?: boolean;
+  user_id?: string;
   curtidas: number;
   tags?: string[];
   created_at: string;
@@ -87,6 +98,7 @@ export default function BibliotecaPage() {
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
   const [filtroGrupo, setFiltroGrupo] = useState<string>(grupoIdFromUrl || "");
+  const [filtroFormato, setFiltroFormato] = useState<string>("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
@@ -105,13 +117,33 @@ export default function BibliotecaPage() {
   );
   const [subtipoAnotacao, setSubtipoAnotacao] = useState<string>("");
   const [subtipoFlashcard, setSubtipoFlashcard] = useState<string>("");
+  const [mostrarArquivados, setMostrarArquivados] = useState(false);
+  const [materialToArchive, setMaterialToArchive] = useState<{
+    id: string;
+    titulo: string;
+    isAtivo: boolean;
+  } | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (grupoIdFromUrl && !filtroGrupo) {
       setFiltroGrupo(grupoIdFromUrl);
     }
     loadGrupos();
+    loadCurrentUser();
   }, [grupoIdFromUrl]);
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await fetch("/api/profile");
+      if (response.ok) {
+        const { profile } = await response.json();
+        setCurrentUserId(profile?.id || null);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar usuário:", error);
+    }
+  };
 
   const loadGrupos = async () => {
     try {
@@ -166,7 +198,13 @@ export default function BibliotecaPage() {
     },
     limit: 20,
     enabled: true,
-    dependencies: [search, filtroTipo, filtroCategoria, filtroGrupo],
+    dependencies: [
+      search,
+      filtroTipo,
+      filtroCategoria,
+      filtroGrupo,
+      filtroFormato,
+    ],
   });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -338,6 +376,47 @@ export default function BibliotecaPage() {
     resetMateriais();
   };
 
+  // Função para verificar formato do arquivo
+  const matchesFormato = (material: Material, formato: string): boolean => {
+    if (!formato) return true;
+    const url = material.arquivo_url?.toLowerCase() || "";
+    const tipo = material.arquivo_tipo?.toLowerCase() || "";
+
+    switch (formato) {
+      case "pdf":
+        return url.endsWith(".pdf") || tipo === "application/pdf";
+      case "image":
+        return (
+          [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"].some((ext) =>
+            url.endsWith(ext)
+          ) || tipo.startsWith("image/")
+        );
+      case "doc":
+        return (
+          [".doc", ".docx", ".txt", ".rtf"].some((ext) => url.endsWith(ext)) ||
+          tipo.includes("document") ||
+          tipo.includes("text")
+        );
+      case "csv":
+        return (
+          [".csv", ".xlsx", ".xls"].some((ext) => url.endsWith(ext)) ||
+          tipo.includes("spreadsheet") ||
+          tipo.includes("csv")
+        );
+      default:
+        return true;
+    }
+  };
+
+  // Materiais filtrados por formato e status ativo (filtro local)
+  const materiaisFiltrados = materiaisInfinite.filter((m) => {
+    const matchFormato = filtroFormato
+      ? matchesFormato(m, filtroFormato)
+      : true;
+    const matchAtivo = mostrarArquivados ? true : m.ativo !== false;
+    return matchFormato && matchAtivo;
+  });
+
   const handleDownload = async (material: Material) => {
     if (material.arquivo_url) {
       try {
@@ -351,6 +430,58 @@ export default function BibliotecaPage() {
       }
     }
   };
+
+  const handleToggleAtivo = (
+    materialId: string,
+    materialTitulo: string,
+    atualAtivo: boolean
+  ) => {
+    if (atualAtivo) {
+      setMaterialToArchive({
+        id: materialId,
+        titulo: materialTitulo,
+        isAtivo: atualAtivo,
+      });
+    } else {
+      confirmArchiveToggle(materialId, atualAtivo);
+    }
+  };
+
+  const confirmArchiveToggle = async (id?: string, isAtivo?: boolean) => {
+    const targetId = id || materialToArchive?.id;
+    const targetIsAtivo =
+      isAtivo !== undefined ? isAtivo : materialToArchive?.isAtivo;
+
+    if (!targetId) return;
+
+    try {
+      const response = await fetch(
+        `/api/colaboracao/biblioteca/${targetId}/toggle-ativo`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ativo: !targetIsAtivo }),
+        }
+      );
+
+      if (response.ok) {
+        toast.success(
+          !targetIsAtivo
+            ? "Material ativado com sucesso!"
+            : "Material arquivado com sucesso!"
+        );
+        setMaterialToArchive(null);
+        resetMateriais();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Erro ao alterar status do material");
+      }
+    } catch (error) {
+      console.error("Erro ao alterar status do material:", error);
+      toast.error("Erro ao alterar status do material");
+    }
+  };
+
   return (
     <main className="mx-auto max-w-6xl p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -701,80 +832,256 @@ export default function BibliotecaPage() {
           </DialogContent>
         </Dialog>
       </div>
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder="Buscar materiais..."
-            className="pl-9"
-          />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Select
-            value={filtroTipo || "all"}
-            onValueChange={(value) =>
-              setFiltroTipo(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todos os tipos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os tipos</SelectItem>
-              <SelectItem value="anotacao">Anotação</SelectItem>
-              <SelectItem value="arquivo">Arquivo</SelectItem>
-              <SelectItem value="link">Link</SelectItem>
-              <SelectItem value="flashcard">Flashcard</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filtroCategoria || "all"}
-            onValueChange={(value) =>
-              setFiltroCategoria(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todas as categorias" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as categorias</SelectItem>
-              <SelectItem value="apostila">Apostila</SelectItem>
-              <SelectItem value="resumo">Resumo</SelectItem>
-              <SelectItem value="exercicio">Exercício</SelectItem>
-              <SelectItem value="prova">Prova</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filtroGrupo || "all"}
-            onValueChange={(value) =>
-              setFiltroGrupo(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todos os grupos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os grupos</SelectItem>
-              {grupos.map((grupo) => (
-                <SelectItem key={grupo.id} value={grupo.id}>
-                  {grupo.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      {loadingInfinite && materiaisInfinite.length === 0 ? (
+      {/* Área de Busca e Filtros Melhorada */}
+      <Card className="border-dashed">
+        <CardContent className="p-4 space-y-4">
+          {/* Linha de busca */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="Buscar por título ou descrição..."
+                className="pl-9 h-10"
+              />
+            </div>
+            <Button onClick={handleSearch} className="h-10">
+              <Search className="h-4 w-4 mr-2" />
+              Buscar
+            </Button>
+          </div>
+
+          {/* Linha de filtros */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              <span className="font-medium">Filtros</span>
+              {(filtroTipo ||
+                filtroCategoria ||
+                filtroFormato ||
+                filtroGrupo ||
+                mostrarArquivados) && (
+                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-medium">
+                  {
+                    [
+                      filtroTipo,
+                      filtroCategoria,
+                      filtroFormato,
+                      filtroGrupo,
+                      mostrarArquivados,
+                    ].filter(Boolean).length
+                  }{" "}
+                  ativo(s)
+                </span>
+              )}
+              {(filtroTipo ||
+                filtroCategoria ||
+                filtroFormato ||
+                filtroGrupo ||
+                mostrarArquivados) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    setFiltroTipo("");
+                    setFiltroCategoria("");
+                    setFiltroFormato("");
+                    setFiltroGrupo("");
+                    setMostrarArquivados(false);
+                  }}
+                >
+                  Limpar todos
+                </Button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              <Select
+                value={filtroTipo || "all"}
+                onValueChange={(value) =>
+                  setFiltroTipo(value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger
+                  className={`h-9 ${
+                    filtroTipo ? "border-primary bg-primary/5" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue placeholder="Tipo" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="anotacao">📝 Anotação</SelectItem>
+                  <SelectItem value="arquivo">📁 Arquivo</SelectItem>
+                  <SelectItem value="link">🔗 Link</SelectItem>
+                  <SelectItem value="flashcard">🃏 Flashcard</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filtroCategoria || "all"}
+                onValueChange={(value) =>
+                  setFiltroCategoria(value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger
+                  className={`h-9 ${
+                    filtroCategoria ? "border-primary bg-primary/5" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue placeholder="Categoria" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectItem value="apostila">📚 Apostila</SelectItem>
+                  <SelectItem value="resumo">📋 Resumo</SelectItem>
+                  <SelectItem value="exercicio">✏️ Exercício</SelectItem>
+                  <SelectItem value="prova">📝 Prova</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filtroFormato || "all"}
+                onValueChange={(value) =>
+                  setFiltroFormato(value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger
+                  className={`h-9 ${
+                    filtroFormato ? "border-primary bg-primary/5" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue placeholder="Formato" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os formatos</SelectItem>
+                  <SelectItem value="pdf">📄 PDF</SelectItem>
+                  <SelectItem value="image">🖼️ Imagem</SelectItem>
+                  <SelectItem value="doc">📃 Documento</SelectItem>
+                  <SelectItem value="csv">📊 CSV/Planilha</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filtroGrupo || "all"}
+                onValueChange={(value) =>
+                  setFiltroGrupo(value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger
+                  className={`h-9 ${
+                    filtroGrupo ? "border-primary bg-primary/5" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue placeholder="Grupo" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os grupos</SelectItem>
+                  {grupos.map((grupo) => (
+                    <SelectItem key={grupo.id} value={grupo.id}>
+                      {grupo.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant={mostrarArquivados ? "default" : "outline"}
+                size="sm"
+                className={`h-9 ${mostrarArquivados ? "" : "border-dashed"}`}
+                onClick={() => setMostrarArquivados(!mostrarArquivados)}
+              >
+                {mostrarArquivados ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5 mr-1.5" />
+                    Ocultar Arquivados
+                  </>
+                ) : (
+                  <>
+                    <Archive className="h-3.5 w-3.5 mr-1.5" />
+                    Ver Arquivados
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Tags de filtros ativos */}
+          {(filtroTipo || filtroCategoria || filtroFormato || filtroGrupo) && (
+            <div className="flex flex-wrap gap-2 pt-2 border-t">
+              {filtroTipo && (
+                <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
+                  Tipo: {filtroTipo}
+                  <button
+                    onClick={() => setFiltroTipo("")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+              {filtroCategoria && (
+                <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
+                  Categoria: {filtroCategoria}
+                  <button
+                    onClick={() => setFiltroCategoria("")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+              {filtroFormato && (
+                <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
+                  Formato: {filtroFormato}
+                  <button
+                    onClick={() => setFiltroFormato("")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+              {filtroGrupo && (
+                <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
+                  Grupo:{" "}
+                  {grupos.find((g) => g.id === filtroGrupo)?.nome ||
+                    filtroGrupo}
+                  <button
+                    onClick={() => setFiltroGrupo("")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      {loadingInfinite && materiaisFiltrados.length === 0 ? (
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <Library className="size-12 animate-pulse mx-auto mb-4 text-primary" />
             <p className="text-muted-foreground">Carregando materiais...</p>
           </div>
         </div>
-      ) : materiaisInfinite.length === 0 ? (
+      ) : materiaisFiltrados.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Library className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -788,138 +1095,241 @@ export default function BibliotecaPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {materiaisInfinite.map((material, index) => {
-            const isLast = index === materiaisInfinite.length - 1;
+          {materiaisFiltrados.map((material, index) => {
+            const isLast = index === materiaisFiltrados.length - 1;
             return (
-              <div
-                key={material.id}
-                ref={isLast ? lastElementRef : null}
-              >
+              <div key={material.id} ref={isLast ? lastElementRef : null}>
                 <Card
-                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  className={`hover:shadow-md transition-shadow cursor-pointer ${
+                    material.ativo === false ? "opacity-60" : ""
+                  }`}
                   onClick={() => {
                     window.location.href = `/biblioteca/${material.id}`;
                   }}
                 >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{material.titulo}</CardTitle>
-                    {material.descricao && (
-                      <CardDescription className="mt-1 line-clamp-2">
-                        {material.descricao}
-                      </CardDescription>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                    {material.tipo === "arquivo" && (
-                      <FileText className="h-3 w-3" />
-                    )}
-                    {material.tipo === "link" && (
-                      <LinkIcon className="h-3 w-3" />
-                    )}
-                    {material.tipo === "anotacao" && (
-                      <FileText className="h-3 w-3" />
-                    )}
-                    {material.tipo === "flashcard" && (
-                      <FileText className="h-3 w-3" />
-                    )}
-                    <span className="capitalize">{material.tipo}</span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-4 w-4" />
-                      <span>{material.visualizacoes || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Download className="h-4 w-4" />
-                      <span>{material.downloads || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart className="h-4 w-4" />
-                      <span>{material.curtidas || 0}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    {material.usuario && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <User className="h-4 w-4" />
-                        <span>
-                          {material.usuario.raw_user_meta_data?.nome ||
-                            material.usuario.raw_user_meta_data?.email ||
-                            "Usuário"}
-                        </span>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-lg">
+                            {material.titulo}
+                          </CardTitle>
+                          {material.ativo === false && (
+                            <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+                              Arquivado
+                            </span>
+                          )}
+                        </div>
+                        {material.descricao && (
+                          <CardDescription className="mt-1 line-clamp-2">
+                            {material.descricao}
+                          </CardDescription>
+                        )}
                       </div>
-                    )}
-                    {material.grupo && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span className="text-xs">{material.grupo.nome}</span>
+                      <div className="flex items-center gap-2">
+                        {/* Botão de arquivar (só aparece para o dono) */}
+                        {material.user_id === currentUserId && (
+                          <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`h-8 w-8 ${
+                                    material.ativo === false
+                                      ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                      : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleAtivo(
+                                      material.id,
+                                      material.titulo,
+                                      material.ativo !== false
+                                    );
+                                  }}
+                                >
+                                  {material.ativo === false ? (
+                                    <ArchiveRestore className="h-4 w-4" />
+                                  ) : (
+                                    <Archive className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {material.ativo !== false
+                                    ? "Arquivar material"
+                                    : "Ativar material"}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                          {material.tipo === "arquivo" && (
+                            <FileText className="h-3 w-3" />
+                          )}
+                          {material.tipo === "link" && (
+                            <LinkIcon className="h-3 w-3" />
+                          )}
+                          {material.tipo === "anotacao" && (
+                            <FileText className="h-3 w-3" />
+                          )}
+                          {material.tipo === "flashcard" && (
+                            <FileText className="h-3 w-3" />
+                          )}
+                          <span className="capitalize">{material.tipo}</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  {material.tags && material.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {material.tags.slice(0, 3).map((tag, idx) => (
-                        <span
-                          key={idx}
-                          className="text-xs bg-muted px-2 py-0.5 rounded flex items-center gap-1"
-                        >
-                          <Tag className="h-3 w-3" />
-                          {tag}
-                        </span>
-                      ))}
-                      {material.tags.length > 3 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{material.tags.length - 3}
-                        </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Eye className="h-4 w-4" />
+                          <span>{material.visualizacoes || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Download className="h-4 w-4" />
+                          <span>{material.downloads || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-4 w-4" />
+                          <span>{material.curtidas || 0}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        {material.usuario && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <User className="h-4 w-4" />
+                            <span>
+                              {material.usuario.raw_user_meta_data?.nome ||
+                                material.usuario.raw_user_meta_data?.email ||
+                                "Usuário"}
+                            </span>
+                          </div>
+                        )}
+                        {material.grupo && (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            <span className="text-xs">
+                              {material.grupo.nome}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {material.tags && material.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {material.tags.slice(0, 3).map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs bg-muted px-2 py-0.5 rounded flex items-center gap-1"
+                            >
+                              <Tag className="h-3 w-3" />
+                              {tag}
+                            </span>
+                          ))}
+                          {material.tags.length > 3 && (
+                            <span className="text-xs text-muted-foreground">
+                              +{material.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
                       )}
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.location.href = `/biblioteca/${material.id}`;
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver Detalhes
+                        </Button>
+                        {material.arquivo_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(material);
+                            }}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.location.href = `/biblioteca/${material.id}`;
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver Detalhes
-                    </Button>
-                    {material.arquivo_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownload(material);
-                        }}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
               </div>
             );
           })}
           {loadingInfinite && hasMore && (
             <div className="col-span-full flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">Carregando mais...</span>
+              <span className="ml-2 text-muted-foreground">
+                Carregando mais...
+              </span>
             </div>
           )}
         </div>
       )}
+
+      {/* Dialog de confirmação para arquivar */}
+      <Dialog
+        open={!!materialToArchive}
+        onOpenChange={(open) => !open && setMaterialToArchive(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-amber-500" />
+              Arquivar Material
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja arquivar o material{" "}
+              <span className="font-semibold text-foreground">
+                {materialToArchive?.titulo}
+              </span>
+              ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border bg-amber-500/10 border-amber-500/30 p-4 text-sm">
+              <p className="text-amber-600 dark:text-amber-400">
+                <strong>O que acontece ao arquivar:</strong>
+              </p>
+              <ul className="mt-2 space-y-1 text-muted-foreground list-disc list-inside">
+                <li>O material não aparecerá na lista principal</li>
+                <li>Você poderá reativá-lo a qualquer momento</li>
+                <li>Os dados e visualizações serão mantidos</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMaterialToArchive(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => confirmArchiveToggle()}
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Arquivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

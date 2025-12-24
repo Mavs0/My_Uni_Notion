@@ -3,17 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { factorId, code } = body;
-
-    if (!factorId || !code) {
-      return NextResponse.json(
-        { error: "factorId e code são obrigatórios" },
-        { status: 400 }
-      );
-    }
-
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -23,45 +13,72 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const { data, error: verifyError } = await supabase.auth.mfa.challenge({
-      factorId,
-    });
+    const body = await request.json();
+    const { factorId, code, challengeId } = body;
 
-    if (verifyError || !data) {
-      console.error("Erro ao criar challenge:", verifyError);
+    if (!factorId || !code) {
       return NextResponse.json(
-        {
-          error: "Erro ao criar challenge de verificação",
-          details: verifyError?.message,
-        },
-        { status: 500 }
-      );
-    }
-
-    const { data: verifyData, error: verifyCodeError } =
-      await supabase.auth.mfa.verify({
-        factorId,
-        challengeId: data.id,
-        code,
-      });
-
-    if (verifyCodeError) {
-      console.error("Erro ao verificar código 2FA:", verifyCodeError);
-      return NextResponse.json(
-        {
-          error: "Código inválido",
-          details: verifyCodeError.message,
-        },
+        { error: "factorId e code são obrigatórios" },
         { status: 400 }
       );
     }
 
+    // Verificar código MFA
+    let verifyData;
+    if (challengeId) {
+      // Verificar challenge existente
+      const { data, error } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId,
+        code,
+      });
+
+      if (error) {
+        console.error("Erro ao verificar MFA:", error);
+        return NextResponse.json(
+          { error: "Código inválido", details: error.message },
+          { status: 400 }
+        );
+      }
+
+      verifyData = data;
+    } else {
+      // Criar challenge e verificar
+      const challengeResult = await supabase.auth.mfa.challenge({ factorId });
+
+      if (challengeResult.error) {
+        console.error("Erro ao criar challenge:", challengeResult.error);
+        return NextResponse.json(
+          {
+            error: "Erro ao criar challenge",
+            details: challengeResult.error.message,
+          },
+          { status: 500 }
+        );
+      }
+
+      const { data, error } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challengeResult.data.id,
+        code,
+      });
+
+      if (error) {
+        console.error("Erro ao verificar MFA:", error);
+        return NextResponse.json(
+          { error: "Código inválido", details: error.message },
+          { status: 400 }
+        );
+      }
+
+      verifyData = data;
+    }
+
     return NextResponse.json({
       success: true,
-      enabled: true,
     });
   } catch (error: any) {
-    console.error("Erro na API de verificação 2FA:", error);
+    console.error("Erro na API de MFA verify:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 }

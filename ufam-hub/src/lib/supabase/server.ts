@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import { SESSION_COOKIE_OPTIONS } from "./session-security";
 
 export async function createSupabaseServer(request?: NextRequest) {
   const cookieStore = await cookies();
@@ -31,7 +32,12 @@ export async function createSupabaseServer(request?: NextRequest) {
         set(name: string, value: string, options: CookieOptions) {
           if (canModifyCookies) {
             try {
-              cookieStore.set({ name, value, ...options });
+              // Aplicar configurações de segurança para cookies de sessão
+              const secureOptions: CookieOptions =
+                name.includes("auth-token") || name.includes("session")
+                  ? { ...SESSION_COOKIE_OPTIONS, ...options }
+                  : options;
+              cookieStore.set({ name, value, ...secureOptions });
             } catch (error) {
               console.warn(`Não foi possível definir cookie ${name}:`, error);
             }

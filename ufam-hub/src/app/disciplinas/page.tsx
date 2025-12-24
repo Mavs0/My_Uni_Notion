@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import {
   useDisciplinas,
   type Disciplina as DisciplinaType,
+  CORES_DISCIPLINAS,
 } from "@/hooks/useDisciplinas";
 import {
   Loader2,
@@ -39,6 +40,11 @@ import {
   EyeOff,
   Sparkles,
   GraduationCap,
+  Star,
+  Palette,
+  GripVertical,
+  Check,
+  Pin,
 } from "lucide-react";
 import { SyncDisciplinasWithCalendar } from "@/components/GoogleCalendarIntegration";
 import {
@@ -47,6 +53,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type TTipo = "obrigatoria" | "eletiva" | "optativa";
 type Disciplina = DisciplinaType;
@@ -97,29 +108,60 @@ function DisciplinaCard({
   stats,
   onDelete,
   onToggleAtivo,
+  onToggleFavorito,
+  onUpdateCor,
   loadingStats,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging,
 }: {
   disciplina: Disciplina;
   stats?: DisciplinaStats;
   onDelete: () => void;
   onToggleAtivo: () => void;
+  onToggleFavorito: () => void;
+  onUpdateCor: (cor: string) => void;
   loadingStats: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
 }) {
   const isArquivada = disciplina.ativo === false;
+  const isFavorito = disciplina.favorito === true;
+  const cor = disciplina.cor || "#6366f1";
 
   return (
     <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       className={cn(
         "group rounded-xl border bg-card p-5 shadow-sm hover:shadow-lg transition-all duration-300",
         isArquivada
           ? "opacity-60 hover:opacity-80 border-dashed"
-          : "hover:border-primary/30 hover:-translate-y-0.5"
+          : "hover:border-primary/30 hover:-translate-y-0.5",
+        isDragging && "opacity-50 scale-95"
       )}
+      style={{ borderLeftWidth: "4px", borderLeftColor: cor }}
     >
       {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-3">
+        {/* Drag Handle */}
+        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground mt-1">
+          <GripVertical className="h-5 w-5" />
+        </div>
+
         <div className="flex-1 min-w-0">
           <div className="mb-2 flex items-center gap-2 flex-wrap">
+            {isFavorito && (
+              <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+            )}
             <h3 className="font-semibold text-lg text-foreground truncate">
               {disciplina.nome}
             </h3>
@@ -152,6 +194,84 @@ function DisciplinaCard({
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* Favoritar */}
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleFavorito}
+                  className={cn(
+                    "h-8 w-8 transition-all",
+                    isFavorito
+                      ? "text-yellow-500"
+                      : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-yellow-500"
+                  )}
+                >
+                  <Star
+                    className={cn("h-4 w-4", isFavorito && "fill-yellow-500")}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isFavorito
+                    ? "Remover dos favoritos"
+                    : "Adicionar aos favoritos"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Seletor de Cor */}
+          <Popover>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Palette className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Alterar cor</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <PopoverContent className="w-auto p-3" align="end">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Escolha uma cor</p>
+                <div className="grid grid-cols-6 gap-2">
+                  {CORES_DISCIPLINAS.map((c) => (
+                    <button
+                      key={c.valor}
+                      onClick={() => onUpdateCor(c.valor)}
+                      className={cn(
+                        "h-7 w-7 rounded-full border-2 transition-all hover:scale-110",
+                        cor === c.valor
+                          ? "border-foreground ring-2 ring-offset-2 ring-primary"
+                          : "border-transparent"
+                      )}
+                      style={{ backgroundColor: c.valor }}
+                      title={c.nome}
+                    >
+                      {cor === c.valor && (
+                        <Check className="h-4 w-4 text-white mx-auto" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Arquivar */}
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -180,6 +300,8 @@ function DisciplinaCard({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Excluir */}
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -300,28 +422,58 @@ function DisciplinaCardList({
   stats,
   onDelete,
   onToggleAtivo,
+  onToggleFavorito,
+  onUpdateCor,
   loadingStats,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging,
 }: {
   disciplina: Disciplina;
   stats?: DisciplinaStats;
   onDelete: () => void;
   onToggleAtivo: () => void;
+  onToggleFavorito: () => void;
+  onUpdateCor: (cor: string) => void;
   loadingStats: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
 }) {
   const isArquivada = disciplina.ativo === false;
+  const isFavorito = disciplina.favorito === true;
+  const cor = disciplina.cor || "#6366f1";
 
   return (
     <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       className={cn(
         "group rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-all duration-300",
         isArquivada
           ? "opacity-60 hover:opacity-80 border-dashed"
-          : "hover:border-primary/30"
+          : "hover:border-primary/30",
+        isDragging && "opacity-50 scale-95"
       )}
+      style={{ borderLeftWidth: "4px", borderLeftColor: cor }}
     >
       <div className="flex items-start gap-4">
+        {/* Drag Handle */}
+        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground mt-1">
+          <GripVertical className="h-5 w-5" />
+        </div>
         <div className="flex-1 min-w-0">
           <div className="mb-2 flex items-center gap-2 flex-wrap">
+            {isFavorito && (
+              <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+            )}
             <h3 className="font-semibold text-base text-foreground">
               {disciplina.nome}
             </h3>
@@ -432,6 +584,81 @@ function DisciplinaCardList({
           <Button asChild variant="outline" size="sm">
             <a href={`/disciplinas/${disciplina.id}`}>Abrir</a>
           </Button>
+
+          {/* Favoritar */}
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleFavorito}
+                  className={cn(
+                    "h-9 w-9",
+                    isFavorito
+                      ? "text-yellow-500"
+                      : "text-muted-foreground hover:text-yellow-500"
+                  )}
+                >
+                  <Star
+                    className={cn("h-4 w-4", isFavorito && "fill-yellow-500")}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isFavorito
+                    ? "Remover dos favoritos"
+                    : "Adicionar aos favoritos"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Seletor de Cor */}
+          <Popover>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                      <Palette className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Alterar cor</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <PopoverContent className="w-auto p-3" align="end">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Escolha uma cor</p>
+                <div className="grid grid-cols-6 gap-2">
+                  {CORES_DISCIPLINAS.map((c) => (
+                    <button
+                      key={c.valor}
+                      onClick={() => onUpdateCor(c.valor)}
+                      className={cn(
+                        "h-7 w-7 rounded-full border-2 transition-all hover:scale-110",
+                        cor === c.valor
+                          ? "border-foreground ring-2 ring-offset-2 ring-primary"
+                          : "border-transparent"
+                      )}
+                      style={{ backgroundColor: c.valor }}
+                      title={c.nome}
+                    >
+                      {cor === c.valor && (
+                        <Check className="h-4 w-4 text-white mx-auto" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Arquivar */}
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -460,6 +687,8 @@ function DisciplinaCardList({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Excluir */}
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -504,7 +733,11 @@ export default function DisciplinasPage() {
     refetch,
     deleteDisciplina,
     toggleAtivo,
+    toggleFavorito,
+    updateCor,
+    reordenarDisciplinas,
   } = useDisciplinas();
+  const [draggedId, setDraggedId] = useState<string | null>(null);
   const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
   const [userProfile, setUserProfile] = useState<{
     periodo?: string;
@@ -628,7 +861,18 @@ export default function DisciplinasPage() {
           d.local?.toLowerCase().includes(n)
       );
     }
-    return arr.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    // Ordenar: favoritos primeiro, depois por ordem customizada, depois por nome
+    return arr.sort((a, b) => {
+      // Favoritos primeiro
+      if (a.favorito && !b.favorito) return -1;
+      if (!a.favorito && b.favorito) return 1;
+      // Depois por ordem customizada
+      if ((a.ordem ?? 0) !== (b.ordem ?? 0)) {
+        return (a.ordem ?? 0) - (b.ordem ?? 0);
+      }
+      // Por último, alfabética
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
   }, [disciplinas, tipo, q, filtroCargaHoraria, mostrarArquivadas]);
 
   // Contagem de disciplinas arquivadas
@@ -639,6 +883,71 @@ export default function DisciplinasPage() {
     () => list.reduce((acc, d) => acc + d.horasSemana, 0),
     [list]
   );
+
+  // Funções de drag & drop
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      return;
+    }
+
+    const draggedIndex = list.findIndex((d) => d.id === draggedId);
+    const targetIndex = list.findIndex((d) => d.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedId(null);
+      return;
+    }
+
+    // Criar nova ordem
+    const newList = [...list];
+    const [removed] = newList.splice(draggedIndex, 1);
+    newList.splice(targetIndex, 0, removed);
+
+    // Atualizar ordem no banco
+    const novaOrdem = newList.map((d, idx) => ({ id: d.id, ordem: idx }));
+    const result = await reordenarDisciplinas(novaOrdem);
+
+    if (result.success) {
+      toast.success("Ordem atualizada!");
+    }
+
+    setDraggedId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+  };
+
+  // Função para favoritar
+  const handleToggleFavorito = async (id: string, atualFavorito: boolean) => {
+    const result = await toggleFavorito(id, !atualFavorito);
+    if (result.success) {
+      toast.success(
+        !atualFavorito ? "Disciplina favoritada!" : "Removida dos favoritos"
+      );
+    }
+  };
+
+  // Função para mudar cor
+  const handleUpdateCor = async (id: string, novaCor: string) => {
+    const result = await updateCor(id, novaCor);
+    if (result.success) {
+      toast.success("Cor atualizada!");
+    }
+  };
+
   function removeItem(id: string, nome: string) {
     setDisciplinaToDelete({ id, nome });
   }
@@ -679,6 +988,29 @@ export default function DisciplinasPage() {
       setDisciplinaToArchive(null);
     } else {
       toast.error(result.error || "Erro ao alterar status da disciplina");
+    }
+  }
+
+  // Função para fixar posições de todas as disciplinas
+  const [fixandoPosicoes, setFixandoPosicoes] = useState(false);
+  async function handleFixarPosicoes() {
+    try {
+      setFixandoPosicoes(true);
+      const response = await fetch("/api/disciplinas/fixar-posicoes", {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success(data.message || "Posições fixadas com sucesso!");
+        await refetch();
+      } else {
+        toast.error(data.error || "Erro ao fixar posições");
+      }
+    } catch (err: any) {
+      console.error("Erro ao fixar posições:", err);
+      toast.error("Erro ao fixar posições");
+    } finally {
+      setFixandoPosicoes(false);
     }
   }
   if (loading) {
@@ -851,6 +1183,39 @@ export default function DisciplinasPage() {
                 </Tooltip>
               </TooltipProvider>
             )}
+
+            {/* Fixar Posições */}
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleFixarPosicoes}
+                    disabled={fixandoPosicoes || disciplinas.length === 0}
+                    className={cn(
+                      "h-10 px-3 rounded-md border flex items-center gap-2 text-sm transition-colors",
+                      fixandoPosicoes || disciplinas.length === 0
+                        ? "opacity-50 cursor-not-allowed bg-background text-muted-foreground"
+                        : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {fixandoPosicoes ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="hidden sm:inline">Fixando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Pin className="h-4 w-4" />
+                        <span className="hidden sm:inline">Fixar Posições</span>
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Fixar a posição atual de todas as disciplinas</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </header>
@@ -882,7 +1247,16 @@ export default function DisciplinasPage() {
                 onToggleAtivo={() =>
                   handleToggleAtivo(d.id, d.nome, d.ativo !== false)
                 }
+                onToggleFavorito={() =>
+                  handleToggleFavorito(d.id, d.favorito === true)
+                }
+                onUpdateCor={(cor) => handleUpdateCor(d.id, cor)}
                 loadingStats={loadingStats}
+                onDragStart={(e) => handleDragStart(e, d.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, d.id)}
+                onDragEnd={handleDragEnd}
+                isDragging={draggedId === d.id}
               />
             );
           })}
@@ -900,7 +1274,16 @@ export default function DisciplinasPage() {
                 onToggleAtivo={() =>
                   handleToggleAtivo(d.id, d.nome, d.ativo !== false)
                 }
+                onToggleFavorito={() =>
+                  handleToggleFavorito(d.id, d.favorito === true)
+                }
+                onUpdateCor={(cor) => handleUpdateCor(d.id, cor)}
                 loadingStats={loadingStats}
+                onDragStart={(e) => handleDragStart(e, d.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, d.id)}
+                onDragEnd={handleDragEnd}
+                isDragging={draggedId === d.id}
               />
             );
           })}

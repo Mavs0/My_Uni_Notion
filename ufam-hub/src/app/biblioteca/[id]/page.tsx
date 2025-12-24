@@ -24,10 +24,36 @@ import {
   Link as LinkIcon,
   MessageSquare,
   Share2,
+  Send,
+  Trash2,
+  Image as ImageIcon,
+  FileImage,
+  Loader2,
+  Maximize2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface Comentario {
+  id: string;
+  conteudo: string;
+  created_at: string;
+  usuario?: {
+    id: string;
+    raw_user_meta_data?: {
+      nome?: string;
+      email?: string;
+    };
+  };
+}
 
 interface Material {
   id: string;
@@ -63,10 +89,113 @@ export default function MaterialDetailPage() {
   const [material, setMaterial] = useState<Material | null>(null);
   const [loading, setLoading] = useState(true);
   const [curtido, setCurtido] = useState(false);
+  const [comentarios, setComentarios] = useState<Comentario[]>([]);
+  const [novoComentario, setNovoComentario] = useState("");
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
+  const [loadingComentarios, setLoadingComentarios] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadMaterial();
+    loadComentarios();
+    loadCurrentUser();
   }, [materialId]);
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await fetch("/api/profile");
+      if (response.ok) {
+        const { profile } = await response.json();
+        setCurrentUserId(profile?.id || null);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar usuário:", error);
+    }
+  };
+
+  const loadComentarios = async () => {
+    try {
+      setLoadingComentarios(true);
+      const response = await fetch(
+        `/api/colaboracao/biblioteca/${materialId}/comentarios`
+      );
+      if (response.ok) {
+        const { comentarios: data } = await response.json();
+        setComentarios(data || []);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar comentários:", error);
+    } finally {
+      setLoadingComentarios(false);
+    }
+  };
+
+  const handleEnviarComentario = async () => {
+    if (!novoComentario.trim()) return;
+
+    try {
+      setEnviandoComentario(true);
+      const response = await fetch(
+        `/api/colaboracao/biblioteca/${materialId}/comentarios`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conteudo: novoComentario }),
+        }
+      );
+
+      if (response.ok) {
+        const { comentario } = await response.json();
+        setComentarios([comentario, ...comentarios]);
+        setNovoComentario("");
+        toast.success("Comentário adicionado!");
+      } else {
+        const { error } = await response.json();
+        toast.error(error || "Erro ao adicionar comentário");
+      }
+    } catch (error) {
+      console.error("Erro ao enviar comentário:", error);
+      toast.error("Erro ao enviar comentário");
+    } finally {
+      setEnviandoComentario(false);
+    }
+  };
+
+  const handleDeletarComentario = async (comentarioId: string) => {
+    try {
+      const response = await fetch(
+        `/api/colaboracao/biblioteca/${materialId}/comentarios?comentario_id=${comentarioId}`,
+        { method: "DELETE" }
+      );
+
+      if (response.ok) {
+        setComentarios(comentarios.filter((c) => c.id !== comentarioId));
+        toast.success("Comentário removido!");
+      } else {
+        const { error } = await response.json();
+        toast.error(error || "Erro ao remover comentário");
+      }
+    } catch (error) {
+      console.error("Erro ao deletar comentário:", error);
+      toast.error("Erro ao remover comentário");
+    }
+  };
+
+  const isPDF = (url?: string, tipo?: string) => {
+    if (!url) return false;
+    return url.toLowerCase().endsWith(".pdf") || tipo === "application/pdf";
+  };
+
+  const isImage = (url?: string, tipo?: string) => {
+    if (!url) return false;
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"];
+    const urlLower = url.toLowerCase();
+    return (
+      imageExtensions.some((ext) => urlLower.endsWith(ext)) ||
+      tipo?.startsWith("image/")
+    );
+  };
 
   const loadMaterial = async () => {
     try {
@@ -303,10 +432,65 @@ export default function MaterialDetailPage() {
             )}
 
             {material.arquivo_url && (
-              <div className="space-y-2">
+              <div className="space-y-4">
+                {/* Pré-visualização para imagens */}
+                {isImage(material.arquivo_url, material.arquivo_tipo) && (
+                  <div className="relative group">
+                    <div className="rounded-lg border overflow-hidden bg-muted/30">
+                      <img
+                        src={material.arquivo_url}
+                        alt={material.titulo}
+                        className="w-full max-h-[400px] object-contain cursor-pointer"
+                        onClick={() => setShowPreview(true)}
+                      />
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setShowPreview(true)}
+                    >
+                      <Maximize2 className="h-4 w-4 mr-1" />
+                      Expandir
+                    </Button>
+                  </div>
+                )}
+
+                {/* Pré-visualização para PDFs */}
+                {isPDF(material.arquivo_url, material.arquivo_tipo) && (
+                  <div className="rounded-lg border overflow-hidden bg-muted/30">
+                    <div className="flex items-center justify-between p-3 border-b bg-muted/50">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <FileText className="h-4 w-4 text-red-500" />
+                        Visualização do PDF
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowPreview(true)}
+                      >
+                        <Maximize2 className="h-4 w-4 mr-1" />
+                        Tela cheia
+                      </Button>
+                    </div>
+                    <iframe
+                      src={`${material.arquivo_url}#toolbar=0&navpanes=0`}
+                      className="w-full h-[500px]"
+                      title={material.titulo}
+                    />
+                  </div>
+                )}
+
+                {/* Informações do arquivo */}
                 <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-8 w-8 text-primary" />
+                    {isImage(material.arquivo_url, material.arquivo_tipo) ? (
+                      <FileImage className="h-8 w-8 text-blue-500" />
+                    ) : isPDF(material.arquivo_url, material.arquivo_tipo) ? (
+                      <FileText className="h-8 w-8 text-red-500" />
+                    ) : (
+                      <FileText className="h-8 w-8 text-primary" />
+                    )}
                     <div>
                       <div className="font-medium">
                         {material.tipo === "link" ? "Link externo" : "Arquivo"}
@@ -363,6 +547,143 @@ export default function MaterialDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Seção de Comentários */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Comentários ({comentarios.length})
+          </CardTitle>
+          <CardDescription>
+            Compartilhe sua opinião sobre este material
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Formulário de novo comentário */}
+          <div className="flex gap-2">
+            <Input
+              value={novoComentario}
+              onChange={(e) => setNovoComentario(e.target.value)}
+              placeholder="Escreva um comentário... (ex: 'Ótimo resumo para revisar antes da prova!')"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleEnviarComentario();
+                }
+              }}
+              disabled={enviandoComentario}
+            />
+            <Button
+              onClick={handleEnviarComentario}
+              disabled={enviandoComentario || !novoComentario.trim()}
+            >
+              {enviandoComentario ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          {/* Lista de comentários */}
+          {loadingComentarios ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : comentarios.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>Nenhum comentário ainda. Seja o primeiro a comentar!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {comentarios.map((comentario) => {
+                const nomeComentario =
+                  comentario.usuario?.raw_user_meta_data?.nome ||
+                  comentario.usuario?.raw_user_meta_data?.email ||
+                  "Usuário";
+                const emailComentario =
+                  comentario.usuario?.raw_user_meta_data?.email || "";
+
+                return (
+                  <div
+                    key={comentario.id}
+                    className="flex gap-3 p-3 rounded-lg border bg-muted/30"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="text-xs">
+                        {getInitials(nomeComentario, emailComentario)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">
+                            {nomeComentario}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(comentario.created_at).toLocaleDateString(
+                              "pt-BR",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
+                          </span>
+                        </div>
+                        {comentario.usuario?.id === currentUserId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() =>
+                              handleDeletarComentario(comentario.id)
+                            }
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-sm mt-1">{comentario.conteudo}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal de pré-visualização em tela cheia */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center justify-between">
+              <span>{material.titulo}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto p-4 pt-0">
+            {isImage(material.arquivo_url, material.arquivo_tipo) && (
+              <img
+                src={material.arquivo_url}
+                alt={material.titulo}
+                className="w-full h-auto max-h-[80vh] object-contain"
+              />
+            )}
+            {isPDF(material.arquivo_url, material.arquivo_tipo) && (
+              <iframe
+                src={material.arquivo_url}
+                className="w-full h-[80vh]"
+                title={material.titulo}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

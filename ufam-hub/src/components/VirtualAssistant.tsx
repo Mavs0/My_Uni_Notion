@@ -8,6 +8,10 @@ import {
   Sparkles,
   Minimize2,
   Maximize2,
+  Calendar,
+  BookOpen,
+  FileText,
+  Clock,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -17,6 +21,11 @@ interface Message {
   role: "user" | "assistant";
   text: string;
   timestamp: number;
+}
+interface QuickAction {
+  label: string;
+  action: string;
+  icon?: React.ReactNode;
 }
 const QUICK_QUESTIONS = [
   "Quais provas tenho hoje?",
@@ -30,35 +39,199 @@ export function VirtualAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
+  const [shouldSave, setShouldSave] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Carregar histórico ao abrir
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      loadHistory();
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen && !isMinimized) {
       inputRef.current?.focus();
     }
   }, [isOpen, isMinimized]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping]);
+
+  // Salvar histórico quando houver mudanças nas mensagens (mas não ao fechar)
+  useEffect(() => {
+    if (messages.length > 0 && shouldSave && !loading && !isTyping) {
+      const timer = setTimeout(() => {
+        saveHistory();
+      }, 2000); // Debounce de 2 segundos para evitar salvamentos excessivos
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, shouldSave, loading, isTyping]); // Usar messages.length ao invés de messages
+
+  const loadHistory = async () => {
+    try {
+      const response = await fetch("/api/ai/va/historico", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.historico && data.historico.length > 0) {
+          // Usar o ID do banco de dados como chave principal, garantindo unicidade
+          const historicoMessages: Message[] = data.historico.map(
+            (h: any, index: number) => ({
+              id:
+                h.id ||
+                h.metadata?.id ||
+                `hist_${h.created_at}_${h.role}_${index}_${Math.random()
+                  .toString(36)
+                  .substr(2, 9)}`,
+              role: h.role as "user" | "assistant",
+              text: h.conteudo || "",
+              timestamp:
+                h.metadata?.timestamp || new Date(h.created_at).getTime(),
+            })
+          );
+          // Remover duplicatas baseado no ID
+          const uniqueMessages = historicoMessages.filter(
+            (msg, index, self) =>
+              index === self.findIndex((m) => m.id === msg.id)
+          );
+          setMessages(uniqueMessages);
+          // Extrair ações rápidas da última resposta
+          if (uniqueMessages.length > 0) {
+            const lastAssistantMsg = uniqueMessages
+              .filter((m) => m.role === "assistant")
+              .pop();
+            if (lastAssistantMsg) {
+              extractQuickActions(lastAssistantMsg.text);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao carregar histórico:", error);
+    }
+  };
+
+  const saveHistory = async () => {
+    if (!shouldSave) return;
+    // Usar função de callback para pegar o estado mais recente
+    setMessages((currentMessages) => {
+      if (currentMessages.length === 0) return currentMessages;
+      // Salvar de forma assíncrona sem bloquear
+      fetch("/api/ai/va/historico", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ mensagens: currentMessages }),
+      }).catch((error) => {
+        console.error("Erro ao salvar histórico:", error);
+      });
+      return currentMessages;
+    });
+  };
+
+  const extractQuickActions = (text: string) => {
+    const actions: QuickAction[] = [];
+    const lowerText = text.toLowerCase();
+
+    // Detectar menções a avaliações/provas
+    if (
+      lowerText.includes("avaliação") ||
+      lowerText.includes("prova") ||
+      lowerText.includes("trabalho")
+    ) {
+      actions.push({
+        label: "Ver Avaliações",
+        action: "Ver minhas avaliações",
+        icon: <Calendar className="h-4 w-4" />,
+      });
+    }
+
+    // Detectar menções a disciplinas
+    if (lowerText.includes("disciplina") || lowerText.includes("matéria")) {
+      actions.push({
+        label: "Ver Disciplinas",
+        action: "Listar minhas disciplinas",
+        icon: <BookOpen className="h-4 w-4" />,
+      });
+    }
+
+    // Detectar menções a horários
+    if (lowerText.includes("horário") || lowerText.includes("aula")) {
+      actions.push({
+        label: "Ver Horários",
+        action: "Mostrar meus horários",
+        icon: <Clock className="h-4 w-4" />,
+      });
+    }
+
+    // Detectar menções a notas/anotações
+    if (lowerText.includes("nota") || lowerText.includes("anotação")) {
+      actions.push({
+        label: "Ver Anotações",
+        action: "Mostrar minhas anotações",
+        icon: <FileText className="h-4 w-4" />,
+      });
+    }
+
+    setQuickActions(actions);
+  };
+  // Função auxiliar para gerar IDs únicos
+  const generateUniqueId = (prefix: string) => {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  // Função auxiliar para remover duplicatas de mensagens
+  const removeDuplicateMessages = (messages: Message[]): Message[] => {
+    const seen = new Set<string>();
+    return messages.filter((msg) => {
+      if (seen.has(msg.id)) {
+        return false;
+      }
+      seen.add(msg.id);
+      return true;
+    });
+  };
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
+    setShouldSave(true); // Permitir salvar quando enviar mensagem
     const userMessage: Message = {
-      id: `msg_${Date.now()}_user`,
+      id: generateUniqueId("msg_user"),
       role: "user",
       text: text.trim(),
       timestamp: Date.now(),
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => {
+      const uniquePrev = removeDuplicateMessages(prev);
+      if (uniquePrev.some((m) => m.id === userMessage.id)) {
+        return uniquePrev;
+      }
+      return [...uniquePrev, userMessage];
+    });
     setInput("");
     setLoading(true);
-    const assistantMessageId = `msg_${Date.now()}_assistant`;
+    setIsTyping(true);
+    setQuickActions([]); // Limpar ações anteriores
+    const assistantMessageId = generateUniqueId("msg_assistant");
     const assistantMessage: Message = {
       id: assistantMessageId,
       role: "assistant",
       text: "",
       timestamp: Date.now(),
     };
-    setMessages((prev) => [...prev, assistantMessage]);
+    setMessages((prev) => {
+      const uniquePrev = removeDuplicateMessages(prev);
+      if (uniquePrev.some((m) => m.id === assistantMessageId)) {
+        return uniquePrev;
+      }
+      return [...uniquePrev, assistantMessage];
+    });
     try {
       const response = await fetch("/api/ai/quick", {
         method: "POST",
@@ -126,18 +299,25 @@ export function VirtualAssistant() {
         if (chunk && chunk.length > 0) {
           accumulatedText += chunk;
           hasContent = true;
-          setMessages((prev) =>
-            prev.map((msg) =>
+          setIsTyping(true);
+          setMessages((prev) => {
+            const uniquePrev = removeDuplicateMessages(prev);
+            return uniquePrev.map((msg) =>
               msg.id === assistantMessageId
                 ? { ...msg, text: accumulatedText }
                 : msg
-            )
-          );
+            );
+          });
         }
       }
       console.log(
         `✅ [VA] Stream processado: ${chunkCount} chunks, ${accumulatedText.length} caracteres`
       );
+      setIsTyping(false);
+      // Extrair ações rápidas da resposta
+      if (accumulatedText.trim()) {
+        extractQuickActions(accumulatedText);
+      }
       if (!hasContent || !accumulatedText.trim()) {
         console.error(
           "❌ [VA] Stream vazio recebido. Chunks:",
@@ -166,22 +346,40 @@ export function VirtualAssistant() {
           : errorMessage.includes("500")
           ? "❌ Problema no servidor. Verifique se a API de IA está configurada."
           : `❌ ${errorMessage}`;
-      setMessages((prev) =>
-        prev.map((msg) =>
+      setMessages((prev) => {
+        const uniquePrev = removeDuplicateMessages(prev);
+        return uniquePrev.map((msg) =>
           msg.id === assistantMessageId
             ? {
                 ...msg,
                 text: errorText,
               }
             : msg
-        )
-      );
+        );
+      });
     } finally {
       setLoading(false);
+      setIsTyping(false);
     }
   };
+
   const handleQuickQuestion = (question: string) => {
     sendMessage(question);
+  };
+
+  const handleQuickAction = (action: string) => {
+    sendMessage(action);
+  };
+
+  const handleClose = () => {
+    setShouldSave(false); // Não salvar ao fechar
+    setIsOpen(false);
+    setIsMinimized(false);
+    // Limpar mensagens após um pequeno delay para não salvar
+    setTimeout(() => {
+      setMessages([]);
+      setQuickActions([]);
+    }, 100);
   };
   if (!isOpen) {
     return (
@@ -229,10 +427,7 @@ export function VirtualAssistant() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => {
-                setIsOpen(false);
-                setIsMinimized(false);
-              }}
+              onClick={handleClose}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -295,11 +490,45 @@ export function VirtualAssistant() {
                       </div>
                     </div>
                   ))}
-                  {loading && (
+                  {/* Indicador de digitação */}
+                  {isTyping && !loading && (
                     <div className="flex justify-start">
-                      <div className="bg-muted text-foreground border rounded-lg px-3 py-2 text-sm">
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                      <div className="bg-muted text-foreground border rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <span
+                            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                            style={{ animationDelay: "0ms" }}
+                          />
+                          <span
+                            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                            style={{ animationDelay: "150ms" }}
+                          />
+                          <span
+                            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                            style={{ animationDelay: "300ms" }}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          Digitando...
+                        </span>
                       </div>
+                    </div>
+                  )}
+                  {/* Botões de ação rápida */}
+                  {quickActions.length > 0 && !loading && !isTyping && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {quickActions.map((action, idx) => (
+                        <Button
+                          key={idx}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQuickAction(action.action)}
+                          className="text-xs h-8"
+                        >
+                          {action.icon}
+                          <span className="ml-1">{action.label}</span>
+                        </Button>
+                      ))}
                     </div>
                   )}
                 </>

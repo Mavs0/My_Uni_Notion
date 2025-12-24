@@ -20,6 +20,8 @@ import {
   BarChart3,
   Trophy,
   Brain,
+  Users,
+  Library,
 } from "lucide-react";
 import { useNotasSearch } from "@/hooks/useNotasSearch";
 export function useCommandPalette() {
@@ -60,32 +62,59 @@ export function CommandPalette({
     }
   };
   const navigationItems = [
-    { label: "Dashboard", href: "/dashboard", icon: null },
-    { label: "Disciplinas", href: "/disciplinas", icon: BookOpen },
-    { label: "Avaliações", href: "/avaliacoes", icon: GraduationCap },
-    { label: "Gamificação", href: "/gamificacao", icon: Trophy },
-    { label: "Revisão", href: "/revisao", icon: Brain },
+    { label: "Dashboard", href: "/dashboard", icon: null, shortcut: "⌘H" },
+    {
+      label: "Disciplinas",
+      href: "/disciplinas",
+      icon: BookOpen,
+      shortcut: "⌘⇧D",
+    },
+    {
+      label: "Avaliações",
+      href: "/avaliacoes",
+      icon: GraduationCap,
+      shortcut: "⌘⇧A",
+    },
+    {
+      label: "Gamificação",
+      href: "/gamificacao",
+      icon: Trophy,
+      shortcut: "⌘⇧G",
+    },
+    { label: "Revisão", href: "/revisao", icon: Brain, shortcut: "⌘⇧R" },
     { label: "Calendário", href: "/calendar", icon: Calendar },
     { label: "Chat IA", href: "/chat", icon: MessageSquare },
+    { label: "Grupos de Estudo", href: "/grupos", icon: Users },
+    { label: "Biblioteca", href: "/biblioteca", icon: Library },
+    { label: "Estatísticas", href: "/estatisticas", icon: BarChart3 },
   ];
+
   const actionItems = [
-    {
-      label: "Nova avaliação",
-      href: "/avaliacoes",
-      action: "new",
-      icon: GraduationCap,
-    },
     {
       label: "Nova disciplina",
       href: "/disciplinas",
       action: "new",
       icon: BookOpen,
+      shortcut: "⌘N",
+    },
+    {
+      label: "Nova avaliação",
+      href: "/avaliacoes",
+      action: "new",
+      icon: GraduationCap,
+      shortcut: "⌘⇧N",
     },
     {
       label: "Novo evento",
       href: "/calendar",
       action: "new",
       icon: Plus,
+    },
+    {
+      label: "Criar grupo de estudo",
+      href: "/grupos",
+      action: "new",
+      icon: Users,
     },
   ];
   const filteredNavigation = navigationItems.filter((item) =>
@@ -115,10 +144,17 @@ export function CommandPalette({
                 <CommandItem
                   key={item.href}
                   onSelect={() => go(item.href)}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-between"
                 >
-                  {Icon && <Icon className="h-4 w-4" />}
-                  {item.label}
+                  <div className="flex items-center gap-2">
+                    {Icon && <Icon className="h-4 w-4" />}
+                    {item.label}
+                  </div>
+                  {item.shortcut && (
+                    <kbd className="pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground hidden sm:flex">
+                      {item.shortcut}
+                    </kbd>
+                  )}
                 </CommandItem>
               );
             })}
@@ -132,10 +168,17 @@ export function CommandPalette({
                 <CommandItem
                   key={`${item.href}-${item.action}`}
                   onSelect={() => go(item.href, item.action)}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-between"
                 >
-                  {Icon && <Icon className="h-4 w-4" />}
-                  {item.label}
+                  <div className="flex items-center gap-2">
+                    {Icon && <Icon className="h-4 w-4" />}
+                    {item.label}
+                  </div>
+                  {item.shortcut && (
+                    <kbd className="pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground hidden sm:flex">
+                      {item.shortcut}
+                    </kbd>
+                  )}
                 </CommandItem>
               );
             })}

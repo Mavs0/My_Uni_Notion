@@ -10,6 +10,9 @@ export interface Disciplina {
   professor?: string;
   local?: string;
   ativo?: boolean;
+  cor?: string;
+  favorito?: boolean;
+  ordem?: number;
   horarios?: Array<{
     id: string;
     dia: number;
@@ -19,6 +22,22 @@ export interface Disciplina {
   created_at?: string;
   updated_at?: string;
 }
+
+// Cores predefinidas para disciplinas
+export const CORES_DISCIPLINAS = [
+  { nome: "Índigo", valor: "#6366f1" },
+  { nome: "Violeta", valor: "#8b5cf6" },
+  { nome: "Rosa", valor: "#ec4899" },
+  { nome: "Vermelho", valor: "#ef4444" },
+  { nome: "Laranja", valor: "#f97316" },
+  { nome: "Âmbar", valor: "#f59e0b" },
+  { nome: "Verde", valor: "#22c55e" },
+  { nome: "Esmeralda", valor: "#10b981" },
+  { nome: "Ciano", valor: "#06b6d4" },
+  { nome: "Azul", valor: "#3b82f6" },
+  { nome: "Azul Escuro", valor: "#1e40af" },
+  { nome: "Cinza", valor: "#6b7280" },
+];
 export function useDisciplinas() {
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,6 +201,72 @@ export function useDisciplinas() {
     [fetchDisciplinas]
   );
 
+  const toggleFavorito = useCallback(
+    async (id: string, favorito: boolean) => {
+      try {
+        const response = await fetch(`/api/disciplinas/${id}/favorito`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ favorito }),
+        });
+        if (!response.ok) {
+          const { error } = await response.json();
+          throw new Error(error || "Erro ao alterar favorito");
+        }
+        await fetchDisciplinas();
+        return { success: true };
+      } catch (err: any) {
+        console.error("Erro ao alterar favorito:", err);
+        return { success: false, error: err.message };
+      }
+    },
+    [fetchDisciplinas]
+  );
+
+  const updateCor = useCallback(
+    async (id: string, cor: string) => {
+      try {
+        const response = await fetch(`/api/disciplinas/${id}/cor`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cor }),
+        });
+        if (!response.ok) {
+          const { error } = await response.json();
+          throw new Error(error || "Erro ao alterar cor");
+        }
+        await fetchDisciplinas();
+        return { success: true };
+      } catch (err: any) {
+        console.error("Erro ao alterar cor:", err);
+        return { success: false, error: err.message };
+      }
+    },
+    [fetchDisciplinas]
+  );
+
+  const reordenarDisciplinas = useCallback(
+    async (novaOrdem: { id: string; ordem: number }[]) => {
+      try {
+        const response = await fetch("/api/disciplinas/reordenar", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ disciplinas: novaOrdem }),
+        });
+        if (!response.ok) {
+          const { error } = await response.json();
+          throw new Error(error || "Erro ao reordenar");
+        }
+        await fetchDisciplinas();
+        return { success: true };
+      } catch (err: any) {
+        console.error("Erro ao reordenar:", err);
+        return { success: false, error: err.message };
+      }
+    },
+    [fetchDisciplinas]
+  );
+
   return {
     disciplinas,
     loading,
@@ -191,5 +276,8 @@ export function useDisciplinas() {
     updateDisciplina,
     deleteDisciplina,
     toggleAtivo,
+    toggleFavorito,
+    updateCor,
+    reordenarDisciplinas,
   };
 }

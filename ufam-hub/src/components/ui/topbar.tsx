@@ -8,6 +8,8 @@ import { Search, User, LogOut, Settings, LogIn, Menu } from "lucide-react";
 import * as React from "react";
 import { useCommandPalette, CommandPalette } from "./command-palette";
 import { AccessibilitySettings } from "@/components/AccessibilitySettings";
+import { VoiceAccessibility } from "@/components/VoiceAccessibility";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +22,8 @@ import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import { useMobileMenu } from "./mobile-menu-context";
-export default function TopBar() {
+
+function TopBar() {
   const { open, setOpen } = useCommandPalette();
   const [q, setQ] = React.useState("");
   const router = useRouter();
@@ -38,38 +41,73 @@ export default function TopBar() {
     if (q.trim()) setOpen(true);
   };
   React.useEffect(() => {
+    let cancelled = false;
+
     const loadUserProfile = async () => {
       try {
         const supabase = createSupabaseBrowser();
         const {
           data: { user },
         } = await supabase.auth.getUser();
+
+        if (cancelled) return;
+
         if (user) {
           setIsAuthenticated(true);
-          const response = await fetch("/api/profile");
-          if (response.ok) {
-            const { profile } = await response.json();
-            setUserProfile({
-              nome: profile.nome || "",
-              email: profile.email || "",
-              avatar_url: profile.avatar_url || "",
-            });
-          } else {
-            setUserProfile({
-              nome:
-                user.user_metadata?.nome || user.user_metadata?.full_name || "",
-              email: user.email || "",
-              avatar_url: user.user_metadata?.avatar_url || "",
-            });
+
+          // Tentar carregar perfil completo, mas não bloquear se falhar
+          try {
+            const response = await fetch("/api/profile");
+            if (response.ok && !cancelled) {
+              const { profile } = await response.json();
+              if (!cancelled) {
+                setUserProfile({
+                  nome: profile.nome || "",
+                  email: profile.email || "",
+                  avatar_url: profile.avatar_url || "",
+                });
+              }
+            } else if (!cancelled) {
+              // Fallback para metadata do usuário
+              setUserProfile({
+                nome:
+                  user.user_metadata?.nome ||
+                  user.user_metadata?.full_name ||
+                  "",
+                email: user.email || "",
+                avatar_url: user.user_metadata?.avatar_url || "",
+              });
+            }
+          } catch {
+            // Se falhar, usar metadata do usuário
+            if (!cancelled) {
+              setUserProfile({
+                nome:
+                  user.user_metadata?.nome ||
+                  user.user_metadata?.full_name ||
+                  "",
+                email: user.email || "",
+                avatar_url: user.user_metadata?.avatar_url || "",
+              });
+            }
           }
         } else {
-          setIsAuthenticated(false);
+          if (!cancelled) {
+            setIsAuthenticated(false);
+          }
         }
       } catch (error) {
-        console.error("Erro ao carregar perfil:", error);
+        if (!cancelled) {
+          console.error("Erro ao carregar perfil:", error);
+        }
       }
     };
+
     loadUserProfile();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const getInitials = (nome: string, email: string) => {
     if (nome) {
@@ -134,6 +172,8 @@ export default function TopBar() {
             </form>
             <div className="flex items-center gap-2 shrink-0">
               {}
+              {isAuthenticated && <NotificationCenter />}
+              <VoiceAccessibility />
               <AccessibilitySettings />
               <ThemeToggle />
               {}
@@ -209,3 +249,6 @@ export default function TopBar() {
     </>
   );
 }
+
+// Memoizar componente para evitar re-renders desnecessários
+export default React.memo(TopBar);
