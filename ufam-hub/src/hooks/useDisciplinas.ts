@@ -25,18 +25,63 @@ export interface Disciplina {
 
 // Cores predefinidas para disciplinas
 export const CORES_DISCIPLINAS = [
+  // Azuis
   { nome: "Índigo", valor: "#6366f1" },
+  { nome: "Azul", valor: "#3b82f6" },
+  { nome: "Azul Claro", valor: "#60a5fa" },
+  { nome: "Azul Escuro", valor: "#1e40af" },
+  { nome: "Azul Celeste", valor: "#0ea5e9" },
+  { nome: "Azul Marinho", valor: "#1e3a8a" },
+
+  // Roxos/Violetas
   { nome: "Violeta", valor: "#8b5cf6" },
+  { nome: "Roxo", valor: "#a855f7" },
+  { nome: "Roxo Escuro", valor: "#7c3aed" },
+  { nome: "Lavanda", valor: "#c084fc" },
+
+  // Rosas/Vermelhos
   { nome: "Rosa", valor: "#ec4899" },
+  { nome: "Rosa Claro", valor: "#f472b6" },
   { nome: "Vermelho", valor: "#ef4444" },
+  { nome: "Vermelho Escuro", valor: "#dc2626" },
+  { nome: "Coral", valor: "#ff6b6b" },
+  { nome: "Cereja", valor: "#e11d48" },
+
+  // Laranjas/Amarelos
   { nome: "Laranja", valor: "#f97316" },
+  { nome: "Laranja Claro", valor: "#fb923c" },
   { nome: "Âmbar", valor: "#f59e0b" },
+  { nome: "Amarelo", valor: "#eab308" },
+  { nome: "Dourado", valor: "#fbbf24" },
+
+  // Verdes
   { nome: "Verde", valor: "#22c55e" },
   { nome: "Esmeralda", valor: "#10b981" },
+  { nome: "Verde Claro", valor: "#4ade80" },
+  { nome: "Verde Escuro", valor: "#16a34a" },
+  { nome: "Verde Água", valor: "#14b8a6" },
+  { nome: "Verde Menta", valor: "#6ee7b7" },
+
+  // Cianos/Turquesas
   { nome: "Ciano", valor: "#06b6d4" },
-  { nome: "Azul", valor: "#3b82f6" },
-  { nome: "Azul Escuro", valor: "#1e40af" },
+  { nome: "Turquesa", valor: "#0891b2" },
+  { nome: "Azul Petróleo", valor: "#0d9488" },
+
+  // Neutros
   { nome: "Cinza", valor: "#6b7280" },
+  { nome: "Cinza Claro", valor: "#9ca3af" },
+  { nome: "Cinza Escuro", valor: "#374151" },
+  { nome: "Preto", valor: "#1f2937" },
+  { nome: "Marrom", valor: "#92400e" },
+  { nome: "Bege", valor: "#d97706" },
+
+  // Cores especiais
+  { nome: "Magenta", valor: "#d946ef" },
+  { nome: "Fúcsia", valor: "#c026d3" },
+  { nome: "Salmão", valor: "#fb7185" },
+  { nome: "Pêssego", valor: "#fdba74" },
+  { nome: "Limão", valor: "#84cc16" },
+  { nome: "Teal", valor: "#2dd4bf" },
 ];
 export function useDisciplinas() {
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);

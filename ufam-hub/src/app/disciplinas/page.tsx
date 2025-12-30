@@ -16,8 +16,8 @@ import { toast } from "sonner";
 import {
   useDisciplinas,
   type Disciplina as DisciplinaType,
-  CORES_DISCIPLINAS,
 } from "@/hooks/useDisciplinas";
+import { ColorPicker } from "@/components/ui/color-picker";
 import {
   Loader2,
   Trash2,
@@ -225,11 +225,14 @@ function DisciplinaCard({
           </TooltipProvider>
 
           {/* Seletor de Cor */}
-          <Popover>
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ColorPicker
+                  value={cor}
+                  onChange={onUpdateCor}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  trigger={
                     <Button
                       variant="ghost"
                       size="icon"
@@ -237,39 +240,14 @@ function DisciplinaCard({
                     >
                       <Palette className="h-4 w-4" />
                     </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Alterar cor</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <PopoverContent className="w-auto p-3" align="end">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Escolha uma cor</p>
-                <div className="grid grid-cols-6 gap-2">
-                  {CORES_DISCIPLINAS.map((c) => (
-                    <button
-                      key={c.valor}
-                      onClick={() => onUpdateCor(c.valor)}
-                      className={cn(
-                        "h-7 w-7 rounded-full border-2 transition-all hover:scale-110",
-                        cor === c.valor
-                          ? "border-foreground ring-2 ring-offset-2 ring-primary"
-                          : "border-transparent"
-                      )}
-                      style={{ backgroundColor: c.valor }}
-                      title={c.nome}
-                    >
-                      {cor === c.valor && (
-                        <Check className="h-4 w-4 text-white mx-auto" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+                  }
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Alterar cor</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Arquivar */}
           <TooltipProvider delayDuration={300}>
@@ -616,47 +594,24 @@ function DisciplinaCardList({
           </TooltipProvider>
 
           {/* Seletor de Cor */}
-          <Popover>
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ColorPicker
+                  value={cor}
+                  onChange={onUpdateCor}
+                  trigger={
                     <Button variant="ghost" size="icon" className="h-9 w-9">
                       <Palette className="h-4 w-4" />
                     </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Alterar cor</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <PopoverContent className="w-auto p-3" align="end">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Escolha uma cor</p>
-                <div className="grid grid-cols-6 gap-2">
-                  {CORES_DISCIPLINAS.map((c) => (
-                    <button
-                      key={c.valor}
-                      onClick={() => onUpdateCor(c.valor)}
-                      className={cn(
-                        "h-7 w-7 rounded-full border-2 transition-all hover:scale-110",
-                        cor === c.valor
-                          ? "border-foreground ring-2 ring-offset-2 ring-primary"
-                          : "border-transparent"
-                      )}
-                      style={{ backgroundColor: c.valor }}
-                      title={c.nome}
-                    >
-                      {cor === c.valor && (
-                        <Check className="h-4 w-4 text-white mx-auto" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+                  }
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Alterar cor</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Arquivar */}
           <TooltipProvider delayDuration={300}>

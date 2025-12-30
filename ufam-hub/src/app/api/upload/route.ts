@@ -28,26 +28,43 @@ export async function POST(request: NextRequest) {
     }
 
     const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const fileName = `${user.id}/${timestamp}-${randomStr}.${fileExt}`;
     const filePath = `${folder}/${fileName}`;
+
+    // Determinar o bucket baseado na pasta (feed usa biblioteca)
+    const bucketName = folder === "feed" ? "biblioteca" : folder;
 
     console.log("📤 Iniciando upload:", {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
       filePath,
+      bucketName,
     });
 
     let uploadData, uploadError;
 
-    const { data: uploadDataResult, error: uploadErrorResult } =
-      await supabase.storage.from("biblioteca").upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    uploadData = uploadDataResult;
-    uploadError = uploadErrorResult;
+    // Usar adminClient se disponível para evitar problemas de RLS no storage
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const adminClient = createSupabaseAdmin();
+      const { data: uploadDataResult, error: uploadErrorResult } =
+        await adminClient.storage.from(bucketName).upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+      uploadData = uploadDataResult;
+      uploadError = uploadErrorResult;
+    } else {
+      const { data: uploadDataResult, error: uploadErrorResult } =
+        await supabase.storage.from(bucketName).upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+      uploadData = uploadDataResult;
+      uploadError = uploadErrorResult;
+    }
 
     if (uploadError) {
       console.error("❌ Erro ao fazer upload:", uploadError);
@@ -91,13 +108,20 @@ export async function POST(request: NextRequest) {
 
             console.log("✅ Bucket 'biblioteca' criado com sucesso!");
 
+            // Usar adminClient para fazer upload (evita problemas de RLS)
             const { data: retryUpload, error: retryError } =
-              await supabase.storage.from("biblioteca").upload(filePath, file, {
-                cacheControl: "3600",
-                upsert: false,
-              });
+              await adminClient.storage
+                .from(bucketName)
+                .upload(filePath, file, {
+                  cacheControl: "3600",
+                  upsert: false,
+                });
 
             if (retryError) {
+              console.error(
+                "❌ Erro ao fazer upload após criar bucket:",
+                retryError
+              );
               return NextResponse.json(
                 {
                   error: "Erro ao fazer upload após criar bucket",
@@ -151,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from("biblioteca").getPublicUrl(filePath);
+    } = supabase.storage.from(bucketName).getPublicUrl(filePath);
 
     console.log("✅ Upload concluído:", { path: filePath, url: publicUrl });
 

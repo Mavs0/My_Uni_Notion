@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useDisciplinas, CORES_DISCIPLINAS } from "@/hooks/useDisciplinas";
+import { useDisciplinas } from "@/hooks/useDisciplinas";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { useAvaliacoes } from "@/hooks/useAvaliacoes";
 import { useTarefas, type Tarefa } from "@/hooks/useTarefas";
 import { useNotas } from "@/hooks/useNotas";
@@ -221,6 +222,33 @@ export default function DisciplinaDetailPage() {
   const [blocosAssistidos, setBlocosAssistidos] = useState<number>(0);
   const [notaToDelete, setNotaToDelete] = useState<string | null>(null);
 
+  // Carregar materiais do localStorage ao montar o componente
+  useEffect(() => {
+    const saved = localStorage.getItem(storeKey("materials"));
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setMateriais(parsed);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar materiais do localStorage:", e);
+      }
+    }
+  }, [id]);
+
+  // Carregar blocos assistidos do localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(storeKey("blocks"));
+    if (saved) {
+      try {
+        setBlocosAssistidos(parseInt(saved) || 0);
+      } catch (e) {
+        console.error("Erro ao carregar blocos do localStorage:", e);
+      }
+    }
+  }, [id]);
+
   useEffect(() => {
     localStorage.setItem(storeKey("materials"), JSON.stringify(materiais));
   }, [materiais, id]);
@@ -328,11 +356,22 @@ export default function DisciplinaDetailPage() {
                     {disciplina.tipo}
                   </span>
                   {/* Seletor de Cor */}
-                  <Popover>
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <PopoverTrigger asChild>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <ColorPicker
+                          value={corDisciplina}
+                          onChange={async (cor) => {
+                            const result = await updateCor(disciplina.id, cor);
+                            if (result.success) {
+                              toast.success("Cor atualizada!");
+                            } else {
+                              toast.error(
+                                result.error || "Erro ao atualizar cor"
+                              );
+                            }
+                          }}
+                          trigger={
                             <Button
                               variant="ghost"
                               size="icon"
@@ -340,53 +379,14 @@ export default function DisciplinaDetailPage() {
                             >
                               <Palette className="h-4 w-4" />
                             </Button>
-                          </PopoverTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Alterar cor da disciplina</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <PopoverContent className="w-auto p-3" align="start">
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Escolha uma cor</p>
-                        <div className="grid grid-cols-6 gap-2">
-                          {CORES_DISCIPLINAS.map((c) => (
-                            <button
-                              key={c.valor}
-                              onClick={async () => {
-                                const result = await updateCor(
-                                  disciplina.id,
-                                  c.valor
-                                );
-                                if (result.success) {
-                                  toast.success("Cor atualizada!");
-                                } else {
-                                  toast.error(
-                                    result.error || "Erro ao atualizar cor"
-                                  );
-                                }
-                              }}
-                              className={cn(
-                                "h-7 w-7 rounded-full border-2 transition-all hover:scale-110",
-                                corDisciplina === c.valor
-                                  ? "border-foreground ring-2 ring-offset-2"
-                                  : "border-transparent"
-                              )}
-                              style={{
-                                backgroundColor: c.valor,
-                              }}
-                              title={c.nome}
-                            >
-                              {corDisciplina === c.valor && (
-                                <Check className="h-4 w-4 text-white mx-auto" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                          }
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Alterar cor da disciplina</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
@@ -1518,20 +1518,37 @@ function NovaAvaliacaoButton({
   const [loadingResumo, setLoadingResumo] = useState(false);
 
   async function gerarResumoIA() {
+    if (!disciplinaId) {
+      toast.error("Selecione uma disciplina primeiro");
+      return;
+    }
+
     setLoadingResumo(true);
-    await new Promise((r) => setTimeout(r, 600));
-    const txt = [
-      `📌 Objetivo da ${tipo}`,
-      `• Revisar conceitos-chave.`,
-      `• Resolver exercícios representativos dos tópicos.`,
-      "",
-      `📝 Tópicos sugeridos`,
-      `1) Definições essenciais`,
-      `2) Exemplos resolvidos`,
-      `3) Armadilhas comuns`,
-    ].join("\n");
-    setResumo(txt);
-    setLoadingResumo(false);
+    try {
+      const response = await fetch("/api/ai/resumo-estudo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          disciplinaId,
+          tipoAvaliacao: tipo,
+          descricao: descricao || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Erro ao gerar resumo");
+      }
+
+      const data = await response.json();
+      setResumo(data.resumo || "");
+      toast.success("Resumo gerado com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao gerar resumo:", err);
+      toast.error(err.message || "Erro ao gerar resumo com IA");
+    } finally {
+      setLoadingResumo(false);
+    }
   }
 
   function salvar() {

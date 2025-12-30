@@ -7,80 +7,98 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { disciplinaId, quantidade = 5 } = body;
+    const { disciplinaId, tipoAvaliacao, descricao } = body;
+
     if (!disciplinaId) {
       return NextResponse.json(
         { error: "ID da disciplina é obrigatório" },
         { status: 400 }
       );
     }
+
     const supabase = await createSupabaseServer();
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
+
+    // Buscar disciplina
     const { data: disciplina, error: discError } = await supabase
       .from("disciplinas")
       .select("id, nome")
       .eq("id", disciplinaId)
       .eq("user_id", user.id)
       .single();
+
     if (discError || !disciplina) {
       return NextResponse.json(
         { error: "Disciplina não encontrada" },
         { status: 404 }
       );
     }
+
+    // Buscar anotações da disciplina
     const { data: notas, error: notasError } = await supabase
       .from("notas")
-      .select("content_md")
+      .select("titulo, content_md")
       .eq("user_id", user.id)
       .eq("disciplina_id", disciplinaId)
       .order("updated_at", { ascending: false })
-      .limit(5);
+      .limit(10);
+
     if (notasError) {
       console.error("Erro ao buscar notas:", notasError);
     }
-    if (!notas || notas.length === 0) {
-      return NextResponse.json(
-        {
-          error: "Nenhuma anotação encontrada para esta disciplina",
-        },
-        { status: 400 }
-      );
-    }
-    const conteudoAnotacoes = notas
-      .map((n) => n.content_md)
-      .filter(Boolean)
-      .join("\n\n---\n\n")
-      .slice(0, 8000);
 
-    const prompt = `Você é um assistente especializado em criar flashcards educacionais eficazes.
-Com base nas anotações abaixo da disciplina "${disciplina.nome}", crie exatamente ${quantidade} flashcards no formato JSON.
-Cada flashcard deve ter:
-- "frente": Uma pergunta clara e objetiva (máximo 100 caracteres)
-- "verso": Uma resposta concisa e completa (máximo 200 caracteres)
-- "dificuldade": 0 (fácil), 1 (médio) ou 2 (difícil)
-ANOTAÇÕES:
-${conteudoAnotacoes}
-Retorne APENAS um JSON válido no formato:
-{
-  "flashcards": [
-    {
-      "frente": "Pergunta aqui",
-      "verso": "Resposta aqui",
-      "dificuldade": 1
-    }
-  ]
-}
-IMPORTANTE:
-- Crie perguntas que testem compreensão, não apenas memorização
-- As respostas devem ser precisas e baseadas nas anotações
-- Varie a dificuldade dos flashcards
-- Retorne APENAS o JSON, sem texto adicional, sem markdown, sem código`;
+    // Buscar avaliações anteriores da disciplina
+    const { data: avaliacoesAnteriores, error: avalError } = await supabase
+      .from("avaliacoes")
+      .select("tipo, descricao, resumo_assuntos")
+      .eq("user_id", user.id)
+      .eq("disciplina_id", disciplinaId)
+      .order("data_iso", { ascending: false })
+      .limit(5);
+
+    const conteudoAnotacoes =
+      notas
+        ?.map((n) => `**${n.titulo}**:\n${n.content_md}`)
+        .join("\n\n---\n\n")
+        .slice(0, 6000) || "";
+
+    const tipoTexto =
+      tipoAvaliacao === "prova"
+        ? "prova"
+        : tipoAvaliacao === "trabalho"
+        ? "trabalho"
+        : tipoAvaliacao === "apresentacao"
+        ? "apresentação"
+        : "avaliação";
+
+    const prompt = `Você é um assistente especializado em criar resumos de estudo eficazes para avaliações acadêmicas.
+
+Com base nas informações abaixo da disciplina "${
+      disciplina.nome
+    }", crie um resumo de estudo para uma ${tipoTexto}${
+      descricao ? ` sobre: ${descricao}` : ""
+    }.
+
+${conteudoAnotacoes ? `ANOTAÇÕES DO ALUNO:\n${conteudoAnotacoes}\n\n` : ""}
+
+Crie um resumo estruturado e prático que inclua:
+1. Objetivo da ${tipoTexto} (o que será avaliado)
+2. Tópicos principais a revisar (lista organizada)
+3. Conceitos-chave e definições importantes
+4. Dicas de estudo específicas para esta ${tipoTexto}
+5. Pontos de atenção (erros comuns, armadilhas)
+
+Formate o resumo de forma clara e organizada, usando emojis quando apropriado para melhor visualização.
+Seja específico e baseie-se nas anotações fornecidas quando disponíveis.
+
+Retorne APENAS o texto do resumo, sem formatação adicional, sem markdown, sem código.`;
 
     let resultText = "";
 
@@ -108,7 +126,7 @@ IMPORTANTE:
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
-        // Primeiro, listar modelos disponíveis
+        // Listar modelos disponíveis
         let modelosDisponiveis: string[] = [];
         try {
           const response = await fetch(
@@ -119,7 +137,6 @@ IMPORTANTE:
             modelosDisponiveis = (data.models || [])
               .map((m: any) => m.name?.replace("models/", "") || "")
               .filter((n: string) => {
-                // Filtrar apenas modelos Gemini que suportam generateContent
                 const model = data.models.find(
                   (mod: any) => mod.name?.replace("models/", "") === n
                 );
@@ -140,8 +157,7 @@ IMPORTANTE:
           );
         }
 
-        // Tentar modelos diferentes na ordem de preferência
-        // Usar modelos disponíveis se encontrados, senão usar lista padrão atualizada
+        // Tentar modelos diferentes
         const modelosParaTentar =
           modelosDisponiveis.length > 0
             ? modelosDisponiveis
@@ -180,83 +196,23 @@ IMPORTANTE:
           );
         }
       }
-      let flashcardsData;
-      try {
-        // Tentar extrair JSON da resposta
-        const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          flashcardsData = JSON.parse(jsonMatch[0]);
-        } else {
-          // Tentar parsear diretamente
-          flashcardsData = JSON.parse(resultText);
-        }
-      } catch (parseError: any) {
-        console.error("Erro ao parsear resposta da IA:", parseError);
-        console.error("Resposta recebida:", resultText.substring(0, 500));
-        return NextResponse.json(
-          {
-            error:
-              "Erro ao processar resposta da IA. A resposta pode não estar no formato JSON esperado.",
-            details: parseError.message,
-            rawResponse: resultText.substring(0, 200),
-          },
-          { status: 500 }
-        );
-      }
-      if (
-        !flashcardsData.flashcards ||
-        !Array.isArray(flashcardsData.flashcards)
-      ) {
-        return NextResponse.json(
-          { error: "Formato de resposta inválido da IA" },
-          { status: 500 }
-        );
-      }
-      const flashcardsParaCriar = flashcardsData.flashcards.map((fc: any) => ({
-        user_id: user.id,
-        disciplina_id: disciplinaId,
-        frente: fc.frente || "",
-        verso: fc.verso || "",
-        dificuldade: fc.dificuldade || 1,
-        gerado_por_ia: true,
-        tags: [],
-      }));
-      const { data: flashcardsCriados, error: createError } = await supabase
-        .from("flashcards")
-        .insert(flashcardsParaCriar)
-        .select(
-          `
-          *,
-          disciplinas (
-            id,
-            nome
-          )
-        `
-        );
-      if (createError) {
-        console.error("Erro ao criar flashcards:", createError);
-        return NextResponse.json(
-          { error: "Erro ao criar flashcards" },
-          { status: 500 }
-        );
-      }
+
       return NextResponse.json({
-        flashcards: flashcardsCriados,
-        quantidade: flashcardsCriados?.length || 0,
+        resumo: resultText,
       });
     } catch (aiError: any) {
-      console.error("Erro ao gerar flashcards com IA:", aiError);
+      console.error("Erro ao gerar resumo com IA:", aiError);
       return NextResponse.json(
         {
           error:
             aiError.message ||
-            "Erro ao gerar flashcards. Verifique se a API do Gemini está configurada.",
+            "Erro ao gerar resumo. Verifique se a API do Gemini está configurada.",
         },
         { status: 500 }
       );
     }
   } catch (error: any) {
-    console.error("Erro na API de geração de flashcards:", error);
+    console.error("Erro na API de resumo de estudo:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 }

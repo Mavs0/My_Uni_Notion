@@ -35,6 +35,10 @@ export default function RevisaoPage() {
   const [modoRevisao, setModoRevisao] = useState(false);
   const [openCriar, setOpenCriar] = useState(false);
   const [openGerar, setOpenGerar] = useState(false);
+  const [openPreview, setOpenPreview] = useState(false);
+  const [flashcardPreview, setFlashcardPreview] = useState<Flashcard | null>(
+    null
+  );
   const [disciplinaGerar, setDisciplinaGerar] = useState("");
   const [quantidadeGerar, setQuantidadeGerar] = useState(5);
   const { disciplinas } = useDisciplinas();
@@ -46,12 +50,12 @@ export default function RevisaoPage() {
     revisarFlashcard,
     createFlashcard,
     gerarFlashcards,
-  } = useFlashcards({ paraRevisar: modoRevisao });
+  } = useFlashcards(); // Sempre buscar todos os flashcards
   const flashcardsParaRevisar = flashcards.filter((fc) => {
-    if (!modoRevisao) return true;
-    if (!fc.revisao) return true;
+    if (!modoRevisao) return false; // Quando não está em modo revisão, não mostrar na lista de revisão
+    if (!fc.revisao) return true; // Se não tem revisão, precisa revisar
     const proximaRevisao = new Date(fc.revisao.proxima_revisao);
-    return proximaRevisao <= new Date();
+    return proximaRevisao <= new Date(); // Se a próxima revisão já passou, precisa revisar
   });
   useEffect(() => {
     if (flashcardsParaRevisar.length > 0 && !flashcardAtual) {
@@ -287,8 +291,58 @@ export default function RevisaoPage() {
           </CardContent>
         </Card>
       ) : (
-        
-        <div>
+        <div className="space-y-6">
+          {/* Lista de todos os flashcards */}
+          {flashcards.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4">
+                Todos os Flashcards ({flashcards.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {flashcards.map((fc) => (
+                  <Card
+                    key={fc.id}
+                    className="hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => {
+                      setFlashcardPreview(fc);
+                      setOpenPreview(true);
+                    }}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-base line-clamp-2">
+                          {fc.frente}
+                        </CardTitle>
+                        {fc.gerado_por_ia && (
+                          <Sparkles className="size-4 text-primary flex-shrink-0 ml-2" />
+                        )}
+                      </div>
+                      {fc.disciplinas && (
+                        <p className="text-xs text-muted-foreground">
+                          {fc.disciplinas.nome}
+                        </p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
+                        {fc.verso}
+                      </p>
+                      {fc.revisao && (
+                        <div className="text-xs text-muted-foreground">
+                          Próxima revisão:{" "}
+                          {new Date(
+                            fc.revisao.proxima_revisao
+                          ).toLocaleDateString("pt-BR")}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Botão para iniciar revisão */}
           {flashcardsParaRevisar.length > 0 ? (
             <Card>
               <CardContent className="pt-6 text-center">
@@ -307,7 +361,7 @@ export default function RevisaoPage() {
                 </Button>
               </CardContent>
             </Card>
-          ) : (
+          ) : flashcards.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center">
                 <CheckCircle2 className="size-16 mx-auto mb-4 text-green-500" />
@@ -326,6 +380,21 @@ export default function RevisaoPage() {
                     Gerar com IA
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <CheckCircle2 className="size-16 mx-auto mb-4 text-green-500" />
+                <h2 className="text-2xl font-bold mb-2">Tudo em dia! 🎉</h2>
+                <p className="text-muted-foreground mb-6">
+                  Todos os seus flashcards estão em dia. Nenhum precisa ser
+                  revisado agora.
+                </p>
+                <Button size="lg" onClick={iniciarRevisao} variant="outline">
+                  <RotateCcw className="size-4 mr-2" />
+                  Revisar Todos Mesmo Assim
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -403,6 +472,126 @@ export default function RevisaoPage() {
               <Sparkles className="size-4 mr-2" />
               Gerar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Preview do Flashcard */}
+      <Dialog open={openPreview} onOpenChange={setOpenPreview}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <BookOpen className="size-5" />
+                Prévia do Flashcard
+              </DialogTitle>
+              {flashcardPreview?.gerado_por_ia && (
+                <div className="flex items-center gap-1 text-xs text-primary">
+                  <Sparkles className="size-3" />
+                  Gerado por IA
+                </div>
+              )}
+            </div>
+            {flashcardPreview?.disciplinas && (
+              <DialogDescription>
+                Disciplina: {flashcardPreview.disciplinas.nome}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          {flashcardPreview && (
+            <div className="space-y-6 py-4">
+              {/* Frente */}
+              <div>
+                <div className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                  <Eye className="size-4" />
+                  Pergunta / Frente
+                </div>
+                <div className="p-6 bg-muted rounded-lg text-lg min-h-[120px] flex items-center">
+                  <p className="w-full">{flashcardPreview.frente}</p>
+                </div>
+              </div>
+
+              {/* Verso */}
+              <div>
+                <div className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                  <EyeOff className="size-4" />
+                  Resposta / Verso
+                </div>
+                <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-lg text-lg min-h-[120px] flex items-center">
+                  <p className="w-full">{flashcardPreview.verso}</p>
+                </div>
+              </div>
+
+              {/* Informações adicionais */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Dificuldade
+                  </p>
+                  <p className="text-sm font-medium">
+                    {flashcardPreview.dificuldade === 0
+                      ? "Fácil"
+                      : flashcardPreview.dificuldade === 1
+                      ? "Médio"
+                      : "Difícil"}
+                  </p>
+                </div>
+                {flashcardPreview.revisao && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Próxima Revisão
+                    </p>
+                    <p className="text-sm font-medium">
+                      {new Date(
+                        flashcardPreview.revisao.proxima_revisao
+                      ).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                )}
+                {flashcardPreview.tags && flashcardPreview.tags.length > 0 && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground mb-2">Tags</p>
+                    <div className="flex flex-wrap gap-2">
+                      {flashcardPreview.tags.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-muted rounded-md text-xs"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenPreview(false)}>
+              Fechar
+            </Button>
+            {flashcardPreview && (
+              <Button
+                onClick={() => {
+                  setOpenPreview(false);
+                  setFlashcardAtual(flashcardPreview);
+                  setModoRevisao(true);
+                  setIndiceAtual(
+                    flashcardsParaRevisar.findIndex(
+                      (fc) => fc.id === flashcardPreview.id
+                    ) || 0
+                  );
+                  setMostrarVerso(false);
+                }}
+              >
+                <RotateCcw className="size-4 mr-2" />
+                Revisar Este Flashcard
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

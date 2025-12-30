@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   sendAvaliacaoNotification,
   sendEventoNotification,
+  sendTarefaNotification,
+  sendLembreteNotification,
+  sendConquistaNotification,
 } from "@/lib/email/service";
 import { createSupabaseServer } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
@@ -93,8 +96,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (type === "tarefa") {
+      const result = await sendTarefaNotification({
+        to: data.to,
+        titulo: data.titulo,
+        disciplina: data.disciplina,
+        prazo: data.prazo,
+        prioridade: data.prioridade,
+        diasRestantes: data.diasRestantes,
+      });
+      if (!result.success) {
+        console.error("Erro ao enviar notificação de tarefa:", result.error);
+        return NextResponse.json(
+          { error: result.error || "Erro ao enviar email" },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (type === "lembrete") {
+      const result = await sendLembreteNotification({
+        to: data.to,
+        titulo: data.titulo,
+        descricao: data.descricao,
+        tipo: data.tipo,
+        dataAgendada: data.dataAgendada,
+      });
+      if (!result.success) {
+        console.error("Erro ao enviar notificação de lembrete:", result.error);
+        return NextResponse.json(
+          { error: result.error || "Erro ao enviar email" },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (type === "conquista") {
+      const result = await sendConquistaNotification({
+        to: data.to,
+        nome: data.nome,
+        descricao: data.descricao,
+        icone: data.icone,
+      });
+      if (!result.success) {
+        console.error("Erro ao enviar notificação de conquista:", result.error);
+        return NextResponse.json(
+          { error: result.error || "Erro ao enviar email" },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json(
-      { error: "Tipo de notificação inválido" },
+      { error: "Tipo de notificação inválido. Tipos suportados: avaliacao, evento, tarefa, lembrete, conquista" },
       { status: 400 }
     );
   } catch (error) {

@@ -1563,24 +1563,37 @@ function NovaAvaliacaoModal({
   const [peso, setPeso] = useState<number | null>(null);
   const [loadingResumo, setLoadingResumo] = useState(false);
   async function gerarResumoIA() {
+    if (!disciplinaId) {
+      toast.error("Selecione uma disciplina primeiro");
+      return;
+    }
+
     setLoadingResumo(true);
-    await new Promise((r) => setTimeout(r, 600));
-    const disc =
-      disciplinas.find((d) => d.id === disciplinaId)?.nome ?? "Disciplina";
-    const base = [
-      `📌 **Objetivo da ${tipo}** de ${disc}`,
-      `• Relembrar conceitos-chave.`,
-      `• Focar em exercícios similares ao que cairá.`,
-      "",
-      `📝 **Tópicos sugeridos**`,
-      `1) Definições e propriedades básicas`,
-      `2) Exemplos resolvidos + variações`,
-      `3) Erros comuns e como evitar`,
-      "",
-      `🎯 **Dica**: monte 5 questões rápidas e cronometre.`,
-    ].join("\n");
-    setResumo(base);
-    setLoadingResumo(false);
+    try {
+      const response = await fetch("/api/ai/resumo-estudo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          disciplinaId,
+          tipoAvaliacao: tipo,
+          descricao: descricao || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Erro ao gerar resumo");
+      }
+
+      const data = await response.json();
+      setResumo(data.resumo || "");
+      toast.success("Resumo gerado com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao gerar resumo:", err);
+      toast.error(err.message || "Erro ao gerar resumo com IA");
+    } finally {
+      setLoadingResumo(false);
+    }
   }
   async function salvar() {
     const iso = new Date(dataLocal).toISOString();
@@ -1681,13 +1694,37 @@ function EditarAvaliacaoModal({
     }
   }, [avaliacao]);
   async function gerarResumoIA() {
+    if (!disciplinaId) {
+      toast.error("Selecione uma disciplina primeiro");
+      return;
+    }
+
     setLoadingResumo(true);
-    await new Promise((r) => setTimeout(r, 500));
-    const disc =
-      disciplinas.find((d) => d.id === disciplinaId)?.nome ?? "Disciplina";
-    const txt = `Resumo atualizado para ${disc} (${tipo}). Dica: revise exercícios e teoremas principais.`;
-    setResumo((prev) => (prev ? `${prev}\n\n—\n${txt}` : txt));
-    setLoadingResumo(false);
+    try {
+      const response = await fetch("/api/ai/resumo-estudo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          disciplinaId,
+          tipoAvaliacao: tipo,
+          descricao: descricao || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Erro ao gerar resumo");
+      }
+
+      const data = await response.json();
+      setResumo(data.resumo || "");
+      toast.success("Resumo gerado com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao gerar resumo:", err);
+      toast.error(err.message || "Erro ao gerar resumo com IA");
+    } finally {
+      setLoadingResumo(false);
+    }
   }
   async function salvar() {
     if (!avaliacao) return;

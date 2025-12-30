@@ -3,6 +3,9 @@ import {
   createAvaliacaoProximaEmail,
   createEventoProximoEmail,
   createConfirmacaoEmail,
+  createTarefaEmail,
+  createLembreteEmail,
+  createConquistaEmail,
   EmailTemplate,
 } from "./templates";
 export interface SendEmailOptions {
@@ -172,5 +175,38 @@ export async function sendConfirmacaoEmail(data: {
     email: data.to,
     confirmationLink: data.confirmationLink,
   });
+  return sendEmail({ to: data.to, template });
+}
+
+export async function sendTarefaNotification(data: {
+  to: string;
+  titulo: string;
+  disciplina?: string;
+  prazo: string;
+  prioridade?: "baixa" | "media" | "alta";
+  diasRestantes: number;
+}) {
+  const template = createTarefaEmail(data);
+  return sendEmail({ to: data.to, template });
+}
+
+export async function sendLembreteNotification(data: {
+  to: string;
+  titulo: string;
+  descricao?: string;
+  tipo: string;
+  dataAgendada: string;
+}) {
+  const template = createLembreteEmail(data);
+  return sendEmail({ to: data.to, template });
+}
+
+export async function sendConquistaNotification(data: {
+  to: string;
+  nome: string;
+  descricao: string;
+  icone?: string;
+}) {
+  const template = createConquistaEmail(data);
   return sendEmail({ to: data.to, template });
 }

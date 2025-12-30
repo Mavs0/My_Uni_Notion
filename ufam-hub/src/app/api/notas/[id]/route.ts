@@ -3,10 +3,10 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: notaId } = await params;
   try {
-    const notaId = params.id;
     const body = await request.json();
     const { titulo, content_md } = body;
 
@@ -17,7 +17,7 @@ export async function PUT(
       );
     }
 
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -75,11 +75,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: notaId } = await params;
   try {
-    const notaId = params.id;
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

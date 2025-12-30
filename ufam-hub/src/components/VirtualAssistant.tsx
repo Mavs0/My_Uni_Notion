@@ -41,13 +41,19 @@ export function VirtualAssistant() {
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
-  const [shouldSave, setShouldSave] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Carregar histórico ao abrir
+
+  // Limpar mensagens quando fecha e quando abre novamente
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      loadHistory();
+    if (!isOpen) {
+      // Limpar mensagens quando fecha
+      setMessages([]);
+      setQuickActions([]);
+    } else {
+      // Garantir que está limpo quando abre
+      setMessages([]);
+      setQuickActions([]);
     }
   }, [isOpen]);
 
@@ -60,80 +66,6 @@ export function VirtualAssistant() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
-
-  // Salvar histórico quando houver mudanças nas mensagens (mas não ao fechar)
-  useEffect(() => {
-    if (messages.length > 0 && shouldSave && !loading && !isTyping) {
-      const timer = setTimeout(() => {
-        saveHistory();
-      }, 2000); // Debounce de 2 segundos para evitar salvamentos excessivos
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, shouldSave, loading, isTyping]); // Usar messages.length ao invés de messages
-
-  const loadHistory = async () => {
-    try {
-      const response = await fetch("/api/ai/va/historico", {
-        credentials: "include",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.historico && data.historico.length > 0) {
-          // Usar o ID do banco de dados como chave principal, garantindo unicidade
-          const historicoMessages: Message[] = data.historico.map(
-            (h: any, index: number) => ({
-              id:
-                h.id ||
-                h.metadata?.id ||
-                `hist_${h.created_at}_${h.role}_${index}_${Math.random()
-                  .toString(36)
-                  .substr(2, 9)}`,
-              role: h.role as "user" | "assistant",
-              text: h.conteudo || "",
-              timestamp:
-                h.metadata?.timestamp || new Date(h.created_at).getTime(),
-            })
-          );
-          // Remover duplicatas baseado no ID
-          const uniqueMessages = historicoMessages.filter(
-            (msg, index, self) =>
-              index === self.findIndex((m) => m.id === msg.id)
-          );
-          setMessages(uniqueMessages);
-          // Extrair ações rápidas da última resposta
-          if (uniqueMessages.length > 0) {
-            const lastAssistantMsg = uniqueMessages
-              .filter((m) => m.role === "assistant")
-              .pop();
-            if (lastAssistantMsg) {
-              extractQuickActions(lastAssistantMsg.text);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao carregar histórico:", error);
-    }
-  };
-
-  const saveHistory = async () => {
-    if (!shouldSave) return;
-    // Usar função de callback para pegar o estado mais recente
-    setMessages((currentMessages) => {
-      if (currentMessages.length === 0) return currentMessages;
-      // Salvar de forma assíncrona sem bloquear
-      fetch("/api/ai/va/historico", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ mensagens: currentMessages }),
-      }).catch((error) => {
-        console.error("Erro ao salvar histórico:", error);
-      });
-      return currentMessages;
-    });
-  };
 
   const extractQuickActions = (text: string) => {
     const actions: QuickAction[] = [];
@@ -200,7 +132,6 @@ export function VirtualAssistant() {
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
-    setShouldSave(true); // Permitir salvar quando enviar mensagem
     const userMessage: Message = {
       id: generateUniqueId("msg_user"),
       role: "user",
@@ -372,14 +303,11 @@ export function VirtualAssistant() {
   };
 
   const handleClose = () => {
-    setShouldSave(false); // Não salvar ao fechar
     setIsOpen(false);
     setIsMinimized(false);
-    // Limpar mensagens após um pequeno delay para não salvar
-    setTimeout(() => {
-      setMessages([]);
-      setQuickActions([]);
-    }, 100);
+    // Limpar mensagens imediatamente ao fechar
+    setMessages([]);
+    setQuickActions([]);
   };
   if (!isOpen) {
     return (
