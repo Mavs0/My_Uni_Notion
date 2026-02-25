@@ -3,9 +3,10 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
   try {
+    const { requestId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -15,8 +16,6 @@ export async function PATCH(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-
-    const { requestId } = params;
     const body = await request.json();
     const { action } = body; // "accept" | "reject"
 
@@ -128,9 +127,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
   try {
+    const { requestId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -140,8 +140,6 @@ export async function DELETE(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-
-    const { requestId } = params;
 
     const { data: friendRequest, error: fetchError } = await supabase
       .from("friend_requests")

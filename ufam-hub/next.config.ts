@@ -1,15 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  // Otimizações de performance
   reactStrictMode: true,
-  swcMinify: true,
-  
-  // Compressão e otimização de imagens
   compress: true,
-  
-  // Otimizações de build
+
   experimental: {
     optimizePackageImports: [
       "lucide-react",
@@ -21,8 +15,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
     },
   },
-  
-  // Headers de performance e segurança
+
   async headers() {
     return [
       {

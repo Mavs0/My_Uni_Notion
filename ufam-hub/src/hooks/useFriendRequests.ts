@@ -25,13 +25,15 @@ export function useFriendRequests() {
   const loadRequests = useCallback(async (type: "received" | "sent" | "all" = "received") => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/friends/requests?type=${type}`);
-      
+      const response = await fetch(`/api/friends/requests?type=${type}`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
         setRequests(data.requests || []);
       } else {
-        console.error("Erro ao carregar solicitações");
+        setRequests([]);
+        console.error("Erro ao carregar solicitações:", response.status);
       }
     } catch (error) {
       console.error("Erro ao carregar solicitações:", error);
@@ -44,6 +46,7 @@ export function useFriendRequests() {
     try {
       const response = await fetch("/api/friends/requests", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
@@ -69,6 +72,7 @@ export function useFriendRequests() {
     try {
       const response = await fetch(`/api/friends/requests/${requestId}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "accept" }),
       });
@@ -93,6 +97,7 @@ export function useFriendRequests() {
     try {
       const response = await fetch(`/api/friends/requests/${requestId}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "reject" }),
       });
@@ -117,6 +122,7 @@ export function useFriendRequests() {
     try {
       const response = await fetch(`/api/friends/requests/${requestId}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (response.ok) {
@@ -144,7 +150,9 @@ export function useFriendRequests() {
       const { profile: currentProfile } = await currentUserResponse.json();
       const currentUserId = currentProfile.id;
 
-      const response = await fetch(`/api/friends/requests?type=all`);
+      const response = await fetch(`/api/friends/requests?type=all`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
         const allRequests = data.requests || [];

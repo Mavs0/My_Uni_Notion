@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { userId } = body;
+    const body = (await request.json()) as { userId?: string };
+    const userId = body.userId;
 
     if (!userId) {
       return NextResponse.json(
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: request, error: insertError } = await supabase
+    const { data: createdRequest, error: insertError } = await supabase
       .from("friend_requests")
       .insert({
         requester_id: user.id,
@@ -103,7 +103,6 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error("Erro ao criar solicitação:", insertError);
-      
       if (insertError.code === "42P01") {
         return NextResponse.json(
           {
@@ -113,7 +112,6 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-
       return NextResponse.json(
         { error: "Erro ao criar solicitação de amizade" },
         { status: 500 }
@@ -126,7 +124,7 @@ export async function POST(request: NextRequest) {
         tipo: "solicitacao_amizade",
         titulo: "Nova solicitação de amizade",
         descricao: `${user.user_metadata?.nome || user.email} quer ser seu amigo`,
-        referencia_id: request.id,
+        referencia_id: createdRequest.id,
         referencia_tipo: "friend_request",
         metadata: {
           requester_id: user.id,
@@ -139,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      request,
+      request: createdRequest,
       message: "Solicitação de amizade enviada com sucesso",
     });
   } catch (error: any) {
@@ -185,23 +183,34 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Erro ao buscar solicitações:", error);
-      
       if (error.code === "42P01") {
         return NextResponse.json({ requests: [] });
       }
-
       return NextResponse.json(
         { error: "Erro ao buscar solicitações" },
         { status: 500 }
       );
     }
 
-    const adminClient = createSupabaseAdmin();
+    let adminClient;
+    try {
+      adminClient = createSupabaseAdmin();
+    } catch {
+      adminClient = null;
+    }
+
     const enrichedRequests = await Promise.all(
       (requests || []).map(async (req: any) => {
+        const base = {
+          ...req,
+          user: null as any,
+          isRequester: req.requester_id === user.id,
+        };
+        if (!adminClient) {
+          return base;
+        }
         const userIdToFetch =
           req.requester_id === user.id ? req.receiver_id : req.requester_id;
-
         try {
           const { data: userData } = await adminClient.auth.admin.getUserById(
             userIdToFetch
@@ -215,18 +224,14 @@ export async function GET(request: NextRequest) {
                     userData.user.user_metadata?.nome ||
                     userData.user.user_metadata?.full_name ||
                     "",
-                  email: userData.user.email,
+                  email: userData.user.email || "",
                   avatar_url: userData.user.user_metadata?.avatar_url || "",
                 }
               : null,
             isRequester: req.requester_id === user.id,
           };
         } catch {
-          return {
-            ...req,
-            user: null,
-            isRequester: req.requester_id === user.id,
-          };
+          return base;
         }
       })
     );

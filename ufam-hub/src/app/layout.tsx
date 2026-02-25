@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Providers from "./providers";
 import LayoutContent from "./layout-content";
+
+const Providers = dynamic(() => import("./providers"), {
+  loading: () => (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <span className="text-muted-foreground animate-pulse">Carregando...</span>
+    </div>
+  ),
+});
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
