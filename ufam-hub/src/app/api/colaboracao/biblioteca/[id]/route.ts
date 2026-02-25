@@ -31,7 +31,6 @@ export async function GET(
         .from("biblioteca_materiais")
         .select(
           `
-          *,
           grupo:grupos_estudo(id, nome)
         `
         )
@@ -41,7 +40,6 @@ export async function GET(
       material = data;
       materialError = error;
 
-      // Buscar dados do usuário
       if (material && material.user_id) {
         try {
           const { data: userData } = await adminClient.auth.admin.getUserById(
@@ -59,7 +57,6 @@ export async function GET(
         }
       }
 
-      // Verificar permissão de acesso
       if (material) {
         const { data: membrosData } = await adminClient
           .from("grupo_membros")
@@ -87,7 +84,6 @@ export async function GET(
         }
       }
 
-      // Incrementar visualizações
       if (material) {
         await adminClient
           .from("biblioteca_materiais")
@@ -99,7 +95,6 @@ export async function GET(
         .from("biblioteca_materiais")
         .select(
           `
-          *,
           grupo:grupos_estudo(id, nome)
         `
         )

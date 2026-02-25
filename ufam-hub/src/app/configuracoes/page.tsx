@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AccessibilitySettingsStandalone } from "@/components/AccessibilitySettings";
+import { ThemeCustomizer } from "@/components/ThemeCustomizer";
 import {
   Tooltip,
   TooltipContent,
@@ -265,7 +266,19 @@ export default function ConfiguracoesPage() {
         const data = await response.json();
         setDomains(data.domains || []);
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        let errorData: any = {};
+        try {
+          const text = await response.text();
+          if (text) {
+            errorData = JSON.parse(text);
+          }
+        } catch {
+          errorData = {
+            status: response.status,
+            statusText: response.statusText,
+          };
+        }
+        
         if (errorData.restricted) {
           setModalEmail({
             open: true,
@@ -275,7 +288,7 @@ export default function ConfiguracoesPage() {
               errorData.message ||
               "Sua chave da API está restrita apenas para enviar emails. Para gerenciar domínios, crie uma nova API key com permissões completas no painel do Resend.",
           });
-        } else {
+        } else if (Object.keys(errorData).length > 0) {
           console.error("Erro ao carregar domínios:", errorData);
         }
       }
@@ -1830,6 +1843,9 @@ export default function ConfiguracoesPage() {
               </CardContent>
             </Card>
           )}
+          
+          {/* Temas Personalizados */}
+          <ThemeCustomizer />
         </TabsContent>
 
         <TabsContent value="acessibilidade" className="space-y-6 mt-6">
@@ -1920,17 +1936,6 @@ export default function ConfiguracoesPage() {
                         </div>
                         <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
                           ⌘/Ctrl + Shift + A
-                        </kbd>
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
-                        <div>
-                          <div className="font-medium text-sm">Gamificação</div>
-                          <div className="text-xs text-muted-foreground">
-                            Ir para a página de gamificação
-                          </div>
-                        </div>
-                        <kbd className="px-2.5 py-1.5 rounded border bg-background font-mono text-xs">
-                          ⌘/Ctrl + Shift + G
                         </kbd>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
@@ -2295,7 +2300,6 @@ export default function ConfiguracoesPage() {
             </div>
             <div className="pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                * Personalização de atalhos em breve
               </p>
             </div>
           </div>

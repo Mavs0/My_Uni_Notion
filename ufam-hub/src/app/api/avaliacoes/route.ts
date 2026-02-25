@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { adicionarXP, verificarConquistasEspecificas } from "@/lib/gamificacao";
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -18,7 +17,6 @@ export async function GET(request: NextRequest) {
       .from("avaliacoes")
       .select(
         `
-        *,
         disciplinas (
           id,
           nome
@@ -149,41 +147,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    let conquistasDesbloqueadas: any[] = [];
-    try {
-      const { count: totalAvaliacoes } = await supabase
-        .from("avaliacoes")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-      const resultadoXP = await adicionarXP(
-        user.id,
-        15,
-        "avaliacao",
-        `Avaliação criada: ${tipo}`,
-        avaliacao.id
-      );
-      if (resultadoXP.success && resultadoXP.conquistasDesbloqueadas) {
-        conquistasDesbloqueadas.push(...resultadoXP.conquistasDesbloqueadas);
-      }
-      const resultadoConquista = await verificarConquistasEspecificas(
-        user.id,
-        "primeira_avaliacao",
-        {
-          totalAvaliacoes: (totalAvaliacoes || 0) + 1,
-        }
-      );
-      if (resultadoConquista.conquistasDesbloqueadas) {
-        conquistasDesbloqueadas.push(
-          ...resultadoConquista.conquistasDesbloqueadas
-        );
-      }
-    } catch (gamError) {
-      console.error("Erro ao processar gamificação:", gamError);
-    }
     return NextResponse.json({
       success: true,
       avaliacao: { id: avaliacao.id },
-      conquistasDesbloqueadas,
     });
   } catch (error) {
     console.error("Erro na API de avaliações:", error);

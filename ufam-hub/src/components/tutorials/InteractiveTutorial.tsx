@@ -86,7 +86,6 @@ export function InteractiveTutorial({
       const data = await response.json();
       setTutorial(data.tutorial);
 
-      // Iniciar progresso se não existir
       if (!data.tutorial.progresso) {
         await fetch(`/api/tutorials/${tutorialId}/progress`, {
           method: "POST",
@@ -111,7 +110,6 @@ export function InteractiveTutorial({
       return;
     }
 
-    // Aguardar um pouco para garantir que o elemento existe
     setTimeout(() => {
       try {
         const element = document.querySelector(
@@ -155,7 +153,6 @@ export function InteractiveTutorial({
 
     const step = tutorial.steps[currentStep];
     if (step) {
-      // Marcar passo como completado
       await fetch(`/api/tutorials/${tutorialId}/progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

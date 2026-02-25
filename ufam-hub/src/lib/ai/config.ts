@@ -6,8 +6,6 @@ export function getAIModel() {
     throw new Error("GOOGLE_GENERATIVE_AI_API_KEY não configurada.");
   }
 
-  // Tentar usar modelos disponíveis na API v1 (não v1beta)
-  // Se não funcionar, os arquivos terão fallback para @google/generative-ai direto
   return google("gemini-1.5-flash");
 }
 

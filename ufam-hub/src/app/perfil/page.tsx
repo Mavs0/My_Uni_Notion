@@ -24,8 +24,6 @@ import {
   Key,
   BookOpen,
   TrendingUp,
-  Eye,
-  EyeOff,
   Lock,
   AlertCircle,
   Chrome,
@@ -59,8 +57,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { FriendRequestsManager } from "@/components/FriendRequestsManager";
+import { UserPlus } from "lucide-react";
 interface ProfileData {
   id: string;
   email: string;
@@ -73,7 +74,6 @@ interface ProfileData {
   telefone: string;
   created_at?: string;
   updated_at?: string;
-  perfil_publico?: boolean;
 }
 
 interface ProfileStats {
@@ -116,8 +116,6 @@ export default function PerfilPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [perfilPublico, setPerfilPublico] = useState(false);
-  const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] =
     useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -131,7 +129,6 @@ export default function PerfilPage() {
     periodo: "",
     matricula: "",
     telefone: "",
-    perfil_publico: false,
   });
   const [formData, setFormData] = useState<ProfileData>({
     id: "",
@@ -143,7 +140,6 @@ export default function PerfilPage() {
     periodo: "",
     matricula: "",
     telefone: "",
-    perfil_publico: false,
   });
   useEffect(() => {
     loadProfile();
@@ -293,7 +289,6 @@ export default function PerfilPage() {
       const { profile: profileData } = await response.json();
       setProfile(profileData);
       setFormData(profileData);
-      setPerfilPublico(profileData.perfil_publico || false);
     } catch (err: any) {
       setError(err.message || "Erro ao carregar perfil");
     } finally {
@@ -359,7 +354,6 @@ export default function PerfilPage() {
       setError(null);
       const supabase = createSupabaseBrowser();
 
-      // Verificar senha atual
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: profile.email,
         password: currentPassword,
@@ -370,7 +364,6 @@ export default function PerfilPage() {
         return;
       }
 
-      // Atualizar senha
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -393,34 +386,6 @@ export default function PerfilPage() {
     }
   };
 
-  const handleSavePrivacy = async () => {
-    try {
-      setSavingPrivacy(true);
-      setError(null);
-      const response = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          perfil_publico: perfilPublico,
-        }),
-      });
-
-      if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error || "Erro ao salvar preferências");
-      }
-
-      setProfile((prev) => ({ ...prev, perfil_publico: perfilPublico }));
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.message || "Erro ao salvar preferências");
-    } finally {
-      setSavingPrivacy(false);
-    }
-  };
-
-  // Verificar se há alterações não salvas
   const hasUnsavedChanges = () => {
     if (!isEditing) return false;
     return (
@@ -434,7 +399,6 @@ export default function PerfilPage() {
     );
   };
 
-  // Função para lidar com ações que podem descartar alterações
   const handleActionWithUnsavedCheck = (action: () => void) => {
     if (hasUnsavedChanges()) {
       setPendingAction(() => action);
@@ -444,7 +408,6 @@ export default function PerfilPage() {
     }
   };
 
-  // Confirmar descartar alterações
   const confirmDiscardChanges = () => {
     if (pendingAction) {
       pendingAction();
@@ -457,7 +420,6 @@ export default function PerfilPage() {
     setSuccess(false);
   };
 
-  // Cancelar descartar alterações
   const cancelDiscardChanges = () => {
     setShowUnsavedChangesDialog(false);
     setPendingAction(null);
@@ -544,14 +506,6 @@ export default function PerfilPage() {
               Gerencie suas informações pessoais
             </p>
           </div>
-          {profile.perfil_publico && (
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30">
-              <Eye className="h-4 w-4 text-green-500" />
-              <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                Público
-              </span>
-            </div>
-          )}
         </div>
       </header>
       {}
@@ -636,8 +590,40 @@ export default function PerfilPage() {
           </Card>
         </div>
       )}
-      {}
-      <Card className="animate-in fade-in slide-in-from-bottom-6 duration-700">
+      
+      {/* Tabs de Configurações */}
+      <Tabs defaultValue="informacoes" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsTrigger value="informacoes" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            <span className="hidden sm:inline">Informações</span>
+            <span className="sm:hidden">Info</span>
+          </TabsTrigger>
+          <TabsTrigger value="senha" className="flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            <span className="hidden sm:inline">Alterar Senha</span>
+            <span className="sm:hidden">Senha</span>
+          </TabsTrigger>
+          <TabsTrigger value="seguranca" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            <span className="hidden sm:inline">Segurança</span>
+            <span className="sm:hidden">2FA</span>
+          </TabsTrigger>
+          <TabsTrigger value="amizades" className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            <span className="hidden sm:inline">Solicitações</span>
+            <span className="sm:hidden">Amigos</span>
+          </TabsTrigger>
+          <TabsTrigger value="logins" className="flex items-center gap-2">
+            <Chrome className="h-4 w-4" />
+            <span className="hidden sm:inline">Outros Logins</span>
+            <span className="sm:hidden">Logins</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab: Informações da Conta */}
+        <TabsContent value="informacoes" className="space-y-6">
+          <Card className="animate-in fade-in slide-in-from-bottom-6 duration-700">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -856,41 +842,45 @@ export default function PerfilPage() {
           )}
         </CardContent>
       </Card>
-      {}
-      <Card className="animate-in fade-in slide-in-from-bottom-14 duration-700">
-        <CardHeader>
-          <CardTitle>Informações da Conta</CardTitle>
-          <CardDescription>Dados da sua conta</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-lg border">
-            <div>
-              <div className="text-sm font-medium">Email</div>
-              <div className="text-sm text-zinc-500">{profile.email}</div>
-            </div>
-            <span className="text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-500 border border-blue-500/30">
-              Verificado
-            </span>
-          </div>
-          {profile.created_at && (
-            <div className="flex items-center justify-between p-3 rounded-lg border">
-              <div>
-                <div className="text-sm font-medium">Membro desde</div>
-                <div className="text-sm text-zinc-500">
-                  {new Date(profile.created_at).toLocaleDateString("pt-BR", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Alterar Senha */}
-      <Card className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+          {/* Informações da Conta */}
+          <Card className="animate-in fade-in slide-in-from-bottom-14 duration-700">
+            <CardHeader>
+              <CardTitle>Informações da Conta</CardTitle>
+              <CardDescription>Dados da sua conta</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div>
+                  <div className="text-sm font-medium">Email</div>
+                  <div className="text-sm text-zinc-500">{profile.email}</div>
+                </div>
+                <span className="text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-500 border border-blue-500/30">
+                  Verificado
+                </span>
+              </div>
+              {profile.created_at && (
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <div className="text-sm font-medium">Membro desde</div>
+                    <div className="text-sm text-zinc-500">
+                      {new Date(profile.created_at).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+        </TabsContent>
+
+        {/* Tab: Alterar Senha */}
+        <TabsContent value="senha" className="space-y-6">
+          <Card className="animate-in fade-in slide-in-from-bottom-8 duration-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
@@ -1049,74 +1039,11 @@ export default function PerfilPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Preferências de Privacidade */}
-      <Card className="animate-in fade-in slide-in-from-bottom-10 duration-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {perfilPublico ? (
-              <Eye className="h-5 w-5" />
-            ) : (
-              <EyeOff className="h-5 w-5" />
-            )}
-            Privacidade do Perfil
-          </CardTitle>
-          <CardDescription>
-            Controle quem pode ver suas informações
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-            <div className="flex-1">
-              <p className="font-medium">Perfil Público</p>
-              <p className="text-sm text-muted-foreground">
-                {perfilPublico
-                  ? "Outros usuários podem ver seu perfil e estatísticas"
-                  : "Seu perfil é privado e apenas você pode vê-lo"}
-              </p>
-            </div>
-            <Button
-              variant={perfilPublico ? "default" : "outline"}
-              onClick={() => setPerfilPublico(!perfilPublico)}
-              disabled={savingPrivacy}
-            >
-              {perfilPublico ? (
-                <>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Público
-                </>
-              ) : (
-                <>
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Privado
-                </>
-              )}
-            </Button>
-          </div>
-          <Button
-            onClick={handleSavePrivacy}
-            disabled={
-              savingPrivacy ||
-              perfilPublico === (profile.perfil_publico || false)
-            }
-            className="w-full"
-          >
-            {savingPrivacy ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Salvar Preferências
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
+        {/* Tab: Segurança da Conta */}
+        <TabsContent value="seguranca" className="space-y-6">
+          <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -1290,42 +1217,88 @@ export default function PerfilPage() {
               </div>
             </div>
           )}
-
-          {/* OAuth Providers Section */}
-          <Separator />
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold mb-2">Login Social</h3>
-              <p className="text-sm text-muted-foreground">
-                Conecte suas contas sociais para login rápido e seguro
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => {
-                  window.location.href = "/api/auth/oauth?provider=google";
-                }}
-              >
-                <Chrome className="h-4 w-4 mr-2" />
-                Google
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => {
-                  window.location.href = "/api/auth/oauth?provider=github";
-                }}
-              >
-                <Github className="h-4 w-4 mr-2" />
-                GitHub
-              </Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
-      {}
+        </TabsContent>
+
+        {/* Tab: Solicitações de Amizade */}
+        <TabsContent value="amizades" className="space-y-6">
+          <FriendRequestsManager />
+        </TabsContent>
+
+        {/* Tab: Outros Logins */}
+        <TabsContent value="logins" className="space-y-6">
+          <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Chrome className="h-5 w-5" />
+                Outros Logins
+              </CardTitle>
+              <CardDescription>
+                Conecte suas contas sociais para login rápido e seguro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Login Social</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Conecte suas contas sociais para login rápido e seguro. Você pode usar qualquer um dos métodos conectados para fazer login.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-4"
+                    onClick={() => {
+                      window.location.href = "/api/auth/oauth?provider=google";
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Chrome className="h-5 w-5" />
+                      <div className="text-left">
+                        <div className="font-medium">Google</div>
+                        <div className="text-xs text-muted-foreground">
+                          Conectar com Google
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-4"
+                    onClick={() => {
+                      window.location.href = "/api/auth/oauth?provider=github";
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Github className="h-5 w-5" />
+                      <div className="text-left">
+                        <div className="font-medium">GitHub</div>
+                        <div className="text-xs text-muted-foreground">
+                          Conectar com GitHub
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                </div>
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>Dica:</strong> Conectar contas sociais permite fazer login mais rápido e aumenta a segurança da sua conta.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialogs */}
       <Dialog open={showAvatarModal} onOpenChange={setShowAvatarModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

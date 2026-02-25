@@ -159,7 +159,6 @@ export async function POST(req: NextRequest) {
           .order("data_iso", { ascending: true })
           .limit(5);
 
-        // Buscar materiais da biblioteca do usuário
         const { data: materiais } = await supabase
           .from("biblioteca_materiais")
           .select("titulo, descricao, tipo, categoria, tags")
@@ -225,7 +224,6 @@ export async function POST(req: NextRequest) {
           contextParts.push(`AVALIAÇÕES PRÓXIMAS:\n${avaliacoesText}`);
         }
 
-        // Adicionar materiais da biblioteca ao contexto
         if (materiais && materiais.length > 0) {
           const materiaisText = materiais
             .map((m: any) => {
@@ -268,8 +266,6 @@ export async function POST(req: NextRequest) {
       contextoLength: context.length,
       hasContext: context.length > 0,
     });
-    // Sempre tentar fallback primeiro (como funciona em quiz e mapa mental)
-    // O @ai-sdk/google pode não funcionar corretamente com alguns modelos
     console.log("Tentando usar @google/generative-ai diretamente...");
     try {
       const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -279,7 +275,6 @@ export async function POST(req: NextRequest) {
 
       const genAI = new GoogleGenerativeAI(apiKey);
 
-      // Primeiro, tentar listar modelos disponíveis
       let modelosDisponiveis: string[] = [];
       try {
         const response = await fetch(
@@ -299,7 +294,6 @@ export async function POST(req: NextRequest) {
         console.log("⚠️ Não foi possível listar modelos, usando lista padrão");
       }
 
-      // Tentar modelos diferentes na ordem de preferência
       const modelosParaTentar =
         modelosDisponiveis.length > 0
           ? modelosDisponiveis
@@ -318,7 +312,6 @@ export async function POST(req: NextRequest) {
         try {
           const modelo = genAI.getGenerativeModel({ model: nomeModelo });
 
-          // Criar prompt completo com system e user
           const promptCompleto = `Você é um tutor acadêmico especializado em ajudar estudantes universitários.
 
 ${
@@ -337,7 +330,6 @@ INSTRUÇÕES:
 PERGUNTA DO ESTUDANTE:
 ${perguntaFinal}`;
 
-          // Usar streaming
           const resultadoStream = await modelo.generateContentStream(
             promptCompleto
           );
@@ -362,7 +354,6 @@ ${perguntaFinal}`;
           console.log(`✅ Modelo ${nomeModelo} funcionou!`);
           modeloFuncionou = true;
 
-          // Retornar diretamente o stream do fallback
           return new Response(stream, {
             headers: {
               "Content-Type": "text/plain; charset=utf-8",
@@ -389,7 +380,6 @@ ${perguntaFinal}`;
       console.error("❌ Erro no fallback direto:", fallbackError);
       console.log("⚠️ Tentando usar @ai-sdk/google como último recurso...");
 
-      // Tentar @ai-sdk/google como último recurso
       try {
         const result = await streamText({
           model: model,

@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obter parâmetros de query opcionais
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");
     const cursor = searchParams.get("cursor");

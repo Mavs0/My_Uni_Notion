@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Remover fator MFA
     const { error } = await supabase.auth.mfa.unenroll({ factorId });
 
     if (error) {

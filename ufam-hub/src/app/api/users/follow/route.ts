@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar se já está seguindo
     const { data: existing } = await supabase
       .from("followers")
       .select("id")
@@ -48,8 +47,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar se o usuário existe e tem perfil público
-    let perfilPublico = false;
     try {
       const adminClient = createSupabaseAdmin();
       const { data: targetUser } = await adminClient.auth.admin.getUserById(
@@ -62,14 +59,6 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-
-      perfilPublico = targetUser.user.user_metadata?.perfil_publico || false;
-      if (!perfilPublico) {
-        return NextResponse.json(
-          { error: "Este usuário não tem perfil público" },
-          { status: 403 }
-        );
-      }
     } catch (error) {
       console.error("Erro ao verificar usuário:", error);
       return NextResponse.json(
@@ -78,7 +67,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Seguir usuário
     const { error: followError } = await supabase.from("followers").insert({
       follower_id: user.id,
       following_id: userId,
@@ -90,6 +78,25 @@ export async function POST(request: NextRequest) {
         { error: "Erro ao seguir usuário" },
         { status: 500 }
       );
+    }
+
+    const followerNome =
+      user.user_metadata?.nome || user.user_metadata?.full_name || user.email || "Alguém";
+    try {
+      await supabase.from("notification_history").insert({
+        user_id: userId,
+        tipo: "novo_seguidor",
+        titulo: `${followerNome} começou a seguir você!`,
+        descricao: "Veja o perfil de quem está seguindo você.",
+        referencia_id: user.id,
+        referencia_tipo: "perfil",
+        metadata: {
+          follower_id: user.id,
+          follower_nome: followerNome,
+        },
+      });
+    } catch (notifErr) {
+      console.warn("Erro ao criar notificação de novo seguidor:", notifErr);
     }
 
     return NextResponse.json({ success: true });
@@ -124,7 +131,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Deixar de seguir
     const { error: unfollowError } = await supabase
       .from("followers")
       .delete()
@@ -167,7 +173,6 @@ export async function GET(request: NextRequest) {
 
     let query;
     if (type === "followers") {
-      // Quem segue este usuário
       query = supabase
         .from("followers")
         .select(
@@ -175,7 +180,6 @@ export async function GET(request: NextRequest) {
         )
         .eq("following_id", userId);
     } else {
-      // Quem este usuário segue
       query = supabase
         .from("followers")
         .select(

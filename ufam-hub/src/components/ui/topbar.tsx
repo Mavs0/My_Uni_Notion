@@ -4,11 +4,9 @@ import { Input } from "./input";
 import { Button } from "./button";
 import { Avatar, AvatarImage, AvatarFallback } from "./avatar";
 import { ThemeToggle } from "./theme-toggle";
-import { Search, User, LogOut, Settings, LogIn, Menu } from "lucide-react";
+import { Search, User, LogOut, Settings, LogIn, Menu, Accessibility, Focus } from "lucide-react";
 import * as React from "react";
 import { useCommandPalette, CommandPalette } from "./command-palette";
-import { AccessibilitySettings } from "@/components/AccessibilitySettings";
-import { VoiceAccessibility } from "@/components/VoiceAccessibility";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import {
   DropdownMenu,
@@ -22,6 +20,16 @@ import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import { useMobileMenu } from "./mobile-menu-context";
+import { Logo } from "@/components/Logo";
+import { useFocusMode } from "@/contexts/FocusModeContext";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./tooltip";
+import { FocusModeSettings } from "@/components/FocusModeSettings";
+import { cn } from "@/lib/utils";
 
 function TopBar() {
   const { open, setOpen } = useCommandPalette();
@@ -29,6 +37,13 @@ function TopBar() {
   const router = useRouter();
   const { t } = useI18n();
   const { setMobileMenuOpen } = useMobileMenu();
+  const focusMode = useFocusMode();
+  const { isActive: isFocusModeActive, activate, deactivate } = focusMode || {
+    isActive: false,
+    activate: () => {},
+    deactivate: () => {},
+  };
+  const [showFocusSettings, setShowFocusSettings] = React.useState(false);
   const [userProfile, setUserProfile] = React.useState<{
     nome: string;
     email: string;
@@ -55,7 +70,6 @@ function TopBar() {
         if (user) {
           setIsAuthenticated(true);
 
-          // Tentar carregar perfil completo, mas não bloquear se falhar
           try {
             const response = await fetch("/api/profile");
             if (response.ok && !cancelled) {
@@ -68,7 +82,6 @@ function TopBar() {
                 });
               }
             } else if (!cancelled) {
-              // Fallback para metadata do usuário
               setUserProfile({
                 nome:
                   user.user_metadata?.nome ||
@@ -79,7 +92,6 @@ function TopBar() {
               });
             }
           } catch {
-            // Se falhar, usar metadata do usuário
             if (!cancelled) {
               setUserProfile({
                 nome:
@@ -131,10 +143,9 @@ function TopBar() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur">
-        <div className="flex h-14 items-center justify-between gap-4 px-4">
-          {}
-          <div className="flex items-center gap-4">
-            {}
+        <div className="flex h-14 items-center gap-4 px-4">
+          {/* Lado esquerdo: Menu mobile + Logo */}
+          <div className="flex items-center gap-3 shrink-0">
             <Button
               variant="ghost"
               size="icon"
@@ -143,105 +154,173 @@ function TopBar() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            {}
             <Link
               href="/dashboard"
-              className="text-lg font-semibold hover:text-primary transition-colors shrink-0"
+              className="shrink-0 transition-opacity hover:opacity-80"
             >
-              UFAM Hub
+              <Logo size="sm" showText={true} variant="minimal" />
             </Link>
           </div>
-          {}
-          <div className="flex items-center gap-4 flex-1 justify-end">
-            {}
-            <form
-              onSubmit={handleSubmit}
-              className="relative hidden md:flex items-center flex-1 min-w-[400px] max-w-[600px] group"
-            >
-              <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none transition-colors group-focus-within:text-primary" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onFocus={handleSearchFocus}
-                placeholder="Buscar (⌘K)..."
-                className="pl-9 pr-9 h-10 text-base border-2 focus:border-primary/50 transition-all bg-background/50 backdrop-blur-sm hover:bg-background/70 focus:bg-background w-full"
-              />
-              <kbd className="pointer-events-none absolute right-3 hidden h-5 select-none items-center gap-1 rounded border bg-muted/80 px-1.5 font-mono text-[10px] text-muted-foreground sm:flex opacity-0 group-focus-within:opacity-100 transition-opacity">
-                ⌘K
-              </kbd>
-            </form>
-            <div className="flex items-center gap-2 shrink-0">
-              {}
-              {isAuthenticated && <NotificationCenter />}
-              <VoiceAccessibility />
-              <AccessibilitySettings />
-              <ThemeToggle />
-              {}
-              {isAuthenticated ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage
-                          src={userProfile?.avatar_url}
-                          alt={userProfile?.nome || "Usuário"}
-                        />
-                        <AvatarFallback>
-                          {userProfile
-                            ? getInitials(userProfile.nome, userProfile.email)
-                            : "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      {userProfile?.nome || t.nav.perfil}
-                    </DropdownMenuLabel>
-                    {userProfile?.email && (
-                      <p className="text-xs text-muted-foreground px-2 py-1">
-                        {userProfile.email}
-                      </p>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/perfil"
-                        className="flex items-center cursor-pointer"
-                      >
-                        <User className="mr-2 h-4 w-4" />
-                        <span>{t.nav.perfil}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/configuracoes"
-                        className="flex items-center cursor-pointer"
-                      >
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>{t.nav.configuracoes}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleLogout}
-                      className="cursor-pointer text-destructive focus:text-destructive"
-                      variant="destructive"
+
+          {/* Centro: Barra de busca */}
+          <form
+            onSubmit={handleSubmit}
+            className="relative hidden md:flex items-center flex-1 max-w-[600px] mx-auto group"
+          >
+            <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none transition-colors group-focus-within:text-primary" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onFocus={handleSearchFocus}
+              placeholder="Buscar (⌘K)..."
+              className="pl-9 pr-9 h-9 text-sm border focus:border-primary/50 transition-all bg-background/50 backdrop-blur-sm hover:bg-background/70 focus:bg-background w-full"
+            />
+            <kbd className="pointer-events-none absolute right-3 hidden h-5 select-none items-center gap-1 rounded border bg-muted/80 px-1.5 font-mono text-[10px] text-muted-foreground sm:flex opacity-0 group-focus-within:opacity-100 transition-opacity">
+              ⌘K
+            </kbd>
+          </form>
+
+          {/* Lado direito: Notificações + Modo Foco + Tema + Avatar */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Notificações */}
+            {isAuthenticated && <NotificationCenter />}
+
+            {/* Modo Foco */}
+            {isAuthenticated && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isFocusModeActive ? "default" : "ghost"}
+                      size="icon"
+                      onClick={() => {
+                        if (isFocusModeActive) {
+                          deactivate();
+                        } else {
+                          setShowFocusSettings(true);
+                        }
+                      }}
+                      className="h-9 w-9"
+                      aria-label={
+                        isFocusModeActive
+                          ? "Desativar Modo Foco"
+                          : "Ativar Modo Foco"
+                      }
                     >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>{t.comum.sair}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button asChild variant="default" size="sm">
-                  <Link href="/login" className="flex items-center gap-2">
-                    <LogIn className="h-4 w-4" />
-                    <span className="hidden sm:inline">Entrar</span>
-                  </Link>
-                </Button>
-              )}
-            </div>
+                      <Focus
+                        className={cn(
+                          "h-4 w-4",
+                          isFocusModeActive && "text-primary-foreground"
+                        )}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {isFocusModeActive
+                        ? "Desativar Modo Foco (ESC)"
+                        : "Modo Foco (⌘⇧F)"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
+            {/* Modal de Configurações do Modo Foco */}
+            {isAuthenticated && (
+              <FocusModeSettings
+                open={showFocusSettings}
+                onOpenChange={setShowFocusSettings}
+              />
+            )}
+
+            {/* Toggle de tema */}
+            <ThemeToggle />
+
+            {/* Avatar com menu */}
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={userProfile?.avatar_url}
+                        alt={userProfile?.nome || "Usuário"}
+                      />
+                      <AvatarFallback>
+                        {userProfile
+                          ? getInitials(userProfile.nome, userProfile.email)
+                          : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    {userProfile?.nome || t.nav.perfil}
+                  </DropdownMenuLabel>
+                  {userProfile?.email && (
+                    <p className="text-xs text-muted-foreground px-2 py-1">
+                      {userProfile.email}
+                    </p>
+                  )}
+                  <DropdownMenuSeparator />
+                  
+                  {/* Perfil */}
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/perfil"
+                      className="flex items-center cursor-pointer"
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      <span>{t.nav.perfil}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  
+                  {/* Configurações */}
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/configuracoes"
+                      className="flex items-center cursor-pointer"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>{t.nav.configuracoes}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Acessibilidade */}
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/configuracoes"
+                      className="flex items-center cursor-pointer"
+                    >
+                      <Accessibility className="mr-2 h-4 w-4" />
+                      <span>Acessibilidade</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Sair */}
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>{t.comum.sair}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button asChild variant="default" size="sm">
+                <Link href="/login" className="flex items-center gap-2">
+                  <LogIn className="h-4 w-4" />
+                  <span className="hidden sm:inline">Entrar</span>
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -250,5 +329,4 @@ function TopBar() {
   );
 }
 
-// Memoizar componente para evitar re-renders desnecessários
 export default React.memo(TopBar);

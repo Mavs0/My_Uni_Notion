@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-// GET - Buscar thread com mensagens
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -22,7 +21,6 @@ export async function GET(
       .from("chat_threads")
       .select(
         `
-        *,
         disciplina:disciplinas(id, nome),
         mensagens:chat_mensagens(*)
       `
@@ -38,7 +36,6 @@ export async function GET(
       );
     }
 
-    // Ordenar mensagens por data
     if (thread.mensagens) {
       thread.mensagens.sort(
         (a: any, b: any) =>
@@ -56,7 +53,6 @@ export async function GET(
   }
 }
 
-// PATCH - Atualizar thread (favorito, arquivado, título)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -107,7 +103,6 @@ export async function PATCH(
   }
 }
 
-// DELETE - Excluir thread
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }

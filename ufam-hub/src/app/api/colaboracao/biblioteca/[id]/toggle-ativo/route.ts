@@ -29,7 +29,6 @@ export async function PATCH(
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const adminClient = createSupabaseAdmin();
 
-      // Buscar o material
       const { data, error } = await adminClient
         .from("biblioteca_materiais")
         .select("user_id")
@@ -46,7 +45,6 @@ export async function PATCH(
         );
       }
 
-      // Verificar se o usuário é o dono do material
       if (material.user_id !== user.id) {
         return NextResponse.json(
           { error: "Apenas o autor pode arquivar o material" },
@@ -54,7 +52,6 @@ export async function PATCH(
         );
       }
 
-      // Atualizar o status
       const { data: updated, error: updateError } = await adminClient
         .from("biblioteca_materiais")
         .update({ ativo: ativo !== false })
@@ -75,7 +72,6 @@ export async function PATCH(
         material: updated,
       });
     } else {
-      // Fallback sem admin client
       const { data, error } = await supabase
         .from("biblioteca_materiais")
         .select("user_id")

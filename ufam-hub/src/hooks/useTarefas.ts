@@ -82,18 +82,6 @@ export function useTarefas(filters?: {
           const { error } = await response.json();
           throw new Error(error || "Erro ao criar tarefa");
         }
-        const result = await response.json();
-        if (
-          result.conquistasDesbloqueadas &&
-          result.conquistasDesbloqueadas.length > 0
-        ) {
-          result.conquistasDesbloqueadas.forEach((conquista: any) => {
-            toast.success(`🏆 Conquista desbloqueada: ${conquista.nome}`, {
-              description: conquista.descricao,
-              duration: 5000,
-            });
-          });
-        }
         await fetchTarefas();
         return { success: true };
       } catch (err: any) {
@@ -121,18 +109,6 @@ export function useTarefas(filters?: {
         if (!response.ok) {
           const { error } = await response.json();
           throw new Error(error || "Erro ao atualizar tarefa");
-        }
-        const result = await response.json();
-        if (
-          result.conquistasDesbloqueadas &&
-          result.conquistasDesbloqueadas.length > 0
-        ) {
-          result.conquistasDesbloqueadas.forEach((conquista: any) => {
-            toast.success(`🏆 Conquista desbloqueada: ${conquista.nome}`, {
-              description: conquista.descricao,
-              duration: 5000,
-            });
-          });
         }
         await fetchTarefas();
         return { success: true };

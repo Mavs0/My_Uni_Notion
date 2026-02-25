@@ -4,7 +4,6 @@ import {
   createSupabaseAdmin,
 } from "@/lib/supabase/server";
 
-// GET - Listar threads do usuário
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -27,7 +26,6 @@ export async function GET(request: NextRequest) {
       .from("chat_threads")
       .select(
         `
-        *,
         disciplina:disciplinas(id, nome),
         mensagens:chat_mensagens(count)
       `
@@ -68,7 +66,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Criar nova thread
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();

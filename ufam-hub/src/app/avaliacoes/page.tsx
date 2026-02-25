@@ -20,8 +20,10 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  FileText,
   Grid3x3,
   List,
+  MoreVertical,
   TrendingUp,
   Download,
   Copy,
@@ -52,6 +54,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import {
   useAvaliacoes,
   type Avaliacao as AvaliacaoType,
@@ -200,7 +214,7 @@ function UrgenciaBadge({ dias }: { dias: number }) {
 export default function AvaliacoesPage() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
-  const { disciplinas } = useDisciplinas();
+  const { disciplinas, disciplinasAtivas } = useDisciplinas();
   const [fDisc, setFDisc] = useState<string>("todas");
   const [fTipo, setFTipo] = useState<"tudo" | AvaliacaoTipo>("tudo");
   const [fStatus, setFStatus] = useState<
@@ -216,6 +230,8 @@ export default function AvaliacoesPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showBuscaAvancada, setShowBuscaAvancada] = useState(false);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
   const [buscaAvancada, setBuscaAvancada] = useState({
     notaMin: "",
     notaMax: "",
@@ -311,6 +327,18 @@ export default function AvaliacoesPage() {
     showBuscaAvancada,
     buscaAvancada,
   ]);
+
+  const totalPages = Math.max(1, Math.ceil(list.length / ITEMS_PER_PAGE));
+  const paginatedList = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    return list.slice(start, start + ITEMS_PER_PAGE);
+  }, [list, page]);
+
+  useEffect(() => setPage(1), [fDisc, fTipo, fStatus, q]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const dadosGrafico = useMemo(() => {
     const avaliacoesComNota = avaliacoes
       .filter((a) => a.nota !== undefined && a.nota !== null)
@@ -511,17 +539,16 @@ export default function AvaliacoesPage() {
   }
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
-      <header className="mb-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                <GraduationCap className="h-6 w-6 text-primary" />
-              </div>
+      <header className="mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <GraduationCap className="h-6 w-6 text-primary" />
               {t.avaliacoes.title}
             </h1>
-            <p className="text-muted-foreground ml-[52px]">
-              {t.avaliacoes.subtitle}
+            <p className="text-sm text-muted-foreground mt-1">
+              {list.length} {list.length === 1 ? "avaliação" : "avaliações"}
+              {list.length !== avaliacoes.length && " (filtradas)"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -690,60 +717,73 @@ export default function AvaliacoesPage() {
             )}
           </div>
 
-          {/* Filtros inline */}
-          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-            <Select value={fDisc} onValueChange={setFDisc}>
-              <SelectTrigger className="h-10 min-w-[160px]">
-                <SelectValue placeholder={t.avaliacoes.todasDisciplinas} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">
-                  {t.avaliacoes.todasDisciplinas}
-                </SelectItem>
-                {disciplinas.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={fTipo}
-              onValueChange={(value) => setFTipo(value as any)}
-            >
-              <SelectTrigger className="h-10 min-w-[120px]">
-                <SelectValue placeholder={t.avaliacoes.todosTipos} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tudo">{t.avaliacoes.todosTipos}</SelectItem>
-                <SelectItem value="prova">{t.avaliacoes.tipo.prova}</SelectItem>
-                <SelectItem value="trabalho">
-                  {t.avaliacoes.tipo.trabalho}
-                </SelectItem>
-                <SelectItem value="seminario">
-                  {t.avaliacoes.tipo.seminario}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={fStatus}
-              onValueChange={(value) => setFStatus(value as any)}
-            >
-              <SelectTrigger className="h-10 min-w-[130px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="concluida">Concluída</SelectItem>
-                <SelectItem value="vencida">Vencida</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Separador visual */}
-            <div className="hidden sm:block w-px bg-border" />
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-10 gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtros
+                  {(fDisc !== "todas" || fTipo !== "tudo" || fStatus !== "todos") && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72" align="end">
+                <div className="space-y-3">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs">Disciplina</Label>
+                    <Select value={fDisc} onValueChange={setFDisc}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="todas">{t.avaliacoes.todasDisciplinas}</SelectItem>
+                        {disciplinasAtivas.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={fTipo} onValueChange={(v) => setFTipo(v as any)}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="tudo">{t.avaliacoes.todosTipos}</SelectItem>
+                        <SelectItem value="prova">{t.avaliacoes.tipo.prova}</SelectItem>
+                        <SelectItem value="trabalho">{t.avaliacoes.tipo.trabalho}</SelectItem>
+                        <SelectItem value="seminario">{t.avaliacoes.tipo.seminario}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs">Status</Label>
+                    <Select value={fStatus} onValueChange={(v) => setFStatus(v as any)}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                        <SelectItem value="concluida">Concluída</SelectItem>
+                        <SelectItem value="vencida">Vencida</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => setShowBuscaAvancada(!showBuscaAvancada)}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filtros avançados
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Toggle de visualização */}
             <div className="flex rounded-md border bg-background p-1 gap-1">
@@ -788,28 +828,6 @@ export default function AvaliacoesPage() {
                 </Tooltip>
               </TooltipProvider>
             </div>
-
-            {/* Botão busca avançada */}
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setShowBuscaAvancada(!showBuscaAvancada)}
-                    className={cn(
-                      "h-10 px-3 rounded-md border flex items-center gap-2 text-sm transition-colors",
-                      showBuscaAvancada
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background hover:bg-muted text-muted-foreground"
-                    )}
-                  >
-                    <Filter className="h-4 w-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Filtros avançados</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         </div>
 
@@ -896,7 +914,7 @@ export default function AvaliacoesPage() {
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[100]">
                     <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="sim">Com nota</SelectItem>
                     <SelectItem value="nao">Sem nota</SelectItem>
@@ -982,8 +1000,9 @@ export default function AvaliacoesPage() {
               </CardContent>
             </Card>
           ) : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {list.map((a) => {
+              {paginatedList.map((a) => {
                 const nomeDisc = discMap.get(a.disciplinaId) ?? "Disciplina";
                 const dias = daysUntil(a.dataISO);
                 const isUrgente = dias >= 0 && dias <= 3;
@@ -1020,55 +1039,35 @@ export default function AvaliacoesPage() {
                             {nomeDisc}
                           </h3>
                         </div>
-                        <TooltipProvider delayDuration={300}>
-                          <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => duplicarAvaliacao(a)}
-                                  className="h-8 w-8 hover:bg-primary/10"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Duplicar</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setEditing(a)}
-                                  className="h-8 w-8 hover:bg-primary/10"
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Editar</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeItem(a.id)}
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Excluir</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TooltipProvider>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 md:opacity-0 md:group-hover:opacity-100"
+                              aria-label="Opções"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => duplicarAvaliacao(a)}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Duplicar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEditing(a)}>
+                              <Edit2 className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => removeItem(a.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                       {/* Descrição */}
                       {a.descricao && (
@@ -1152,6 +1151,30 @@ export default function AvaliacoesPage() {
                 );
               })}
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Página {page} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            </>
           )}
         </>
       )}
@@ -1162,7 +1185,7 @@ export default function AvaliacoesPage() {
         open={openNew}
         onClose={() => setOpenNew(false)}
         onCreate={refetch}
-        disciplinas={disciplinas}
+        disciplinas={disciplinasAtivas}
       />
       {}
       <EditarAvaliacaoModal
@@ -1172,7 +1195,7 @@ export default function AvaliacoesPage() {
         onSave={async (upd) => {
           await saveEdited(upd);
         }}
-        disciplinas={disciplinas}
+        disciplinas={disciplinasAtivas}
       />
       {}
       <Dialog
@@ -1550,6 +1573,7 @@ function NovaAvaliacaoModal({
   disciplinas: Array<{ id: string; nome: string }>;
 }) {
   const { createAvaliacao } = useAvaliacoes();
+  const [step, setStep] = useState(1);
   const [disciplinaId, setDisciplinaId] = useState<string>(
     disciplinas[0]?.id ?? ""
   );
@@ -1559,9 +1583,8 @@ function NovaAvaliacaoModal({
   );
   const [descricao, setDescricao] = useState("");
   const [resumo, setResumo] = useState("");
-  const [nota, setNota] = useState<number | null>(null);
-  const [peso, setPeso] = useState<number | null>(null);
   const [loadingResumo, setLoadingResumo] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   async function gerarResumoIA() {
     if (!disciplinaId) {
       toast.error("Selecione uma disciplina primeiro");
@@ -1595,7 +1618,19 @@ function NovaAvaliacaoModal({
       setLoadingResumo(false);
     }
   }
+  function validateStep1() {
+    const newErrors: Record<string, string> = {};
+    if (!disciplinaId) newErrors.disciplinaId = "Selecione uma disciplina";
+    if (!dataLocal) newErrors.dataLocal = "Selecione uma data e hora";
+    else if (isNaN(new Date(dataLocal).getTime())) newErrors.dataLocal = "Data inválida";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
   async function salvar() {
+    if (!validateStep1()) {
+      toast.error("Por favor, corrija os erros no formulário");
+      return;
+    }
     const iso = new Date(dataLocal).toISOString();
     const result = await createAvaliacao({
       disciplinaId,
@@ -1604,55 +1639,217 @@ function NovaAvaliacaoModal({
       descricao: descricao || undefined,
       resumo_assuntos: resumo || undefined,
       gerado_por_ia: !!resumo,
-      nota: nota ?? undefined,
-      peso: peso ?? undefined,
     });
     if (result.success) {
       onClose();
       setDescricao("");
       setResumo("");
-      setNota(null);
-      setPeso(null);
+      setStep(1);
+      setErrors({});
       toast.success("Avaliação criada com sucesso");
       onCreate();
     } else {
       toast.error(result.error || "Erro ao criar avaliação");
     }
   }
+  const handleClose = (open: boolean) => {
+    if (!open) {
+      setStep(1);
+      setErrors({});
+    }
+    onClose();
+  };
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            Nova Avaliação
-          </DialogTitle>
-          <DialogDescription>
-            Preencha os dados da avaliação. Campos marcados com * são
-            obrigatórios.
-          </DialogDescription>
-        </DialogHeader>
-        <FormAvaliacao
-          disciplinaId={disciplinaId}
-          setDisciplinaId={setDisciplinaId}
-          tipo={tipo}
-          setTipo={setTipo}
-          dataLocal={dataLocal}
-          setDataLocal={setDataLocal}
-          descricao={descricao}
-          setDescricao={setDescricao}
-          resumo={resumo}
-          setResumo={setResumo}
-          nota={nota}
-          setNota={setNota}
-          peso={peso}
-          setPeso={setPeso}
-          onGerarResumoIA={gerarResumoIA}
-          loadingResumo={loadingResumo}
-          onCancel={onClose}
-          onSubmit={salvar}
-          submitLabel="Criar Avaliação"
-          disciplinas={disciplinas}
-        />
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+        {/* Stepper */}
+        <div className="flex items-center justify-center gap-1 px-6 pt-6 pb-2 border-b">
+          {[1, 2].map((s) => (
+            <div key={s} className="flex items-center">
+              <button
+                type="button"
+                onClick={() => setStep(s)}
+                className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-colors ${
+                  step === s
+                    ? "bg-primary text-primary-foreground"
+                    : step > s
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {s}
+              </button>
+              {s < 2 && <div className="w-8 h-0.5 bg-muted mx-0.5" />}
+            </div>
+          ))}
+        </div>
+        <div className="px-2 text-center text-xs text-muted-foreground mb-4 mt-2">
+          {step === 1 && "Informações gerais"}
+          {step === 2 && "Resumo para estudar"}
+        </div>
+
+        <div className="px-6 pb-6">
+          {step === 1 && (
+            <div className="grid gap-6">
+              <DialogHeader>
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  <FileText className="h-6 w-6 text-primary" />
+                  Informações da avaliação
+                </DialogTitle>
+                <DialogDescription>
+                  Preencha os dados básicos. Campos marcados com * são obrigatórios.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <Label>
+                    Disciplina <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={disciplinaId}
+                    onValueChange={(v) => {
+                      setDisciplinaId(v);
+                      setErrors((prev) => ({ ...prev, disciplinaId: "" }));
+                    }}
+                  >
+                    <SelectTrigger className={cn("h-10", errors.disciplinaId && "border-destructive")}>
+                      <SelectValue placeholder="Selecione uma disciplina" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      {disciplinas.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.disciplinaId && (
+                    <p className="text-xs text-destructive">{errors.disciplinaId}</p>
+                  )}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>
+                    Tipo <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={tipo} onValueChange={(v) => setTipo(v as AvaliacaoTipo)}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="prova">Prova</SelectItem>
+                      <SelectItem value="trabalho">Trabalho</SelectItem>
+                      <SelectItem value="seminario">Seminário</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label>
+                  Data e hora <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={dataLocal}
+                  onChange={(e) => {
+                    setDataLocal(e.target.value);
+                    setErrors((prev) => ({ ...prev, dataLocal: "" }));
+                  }}
+                  className={cn(errors.dataLocal && "border-destructive")}
+                />
+                {errors.dataLocal && (
+                  <p className="text-xs text-destructive">{errors.dataLocal}</p>
+                )}
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label>Descrição</Label>
+                <textarea
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  placeholder="Ex.: Cap. 1–3; lista 1 e 2; apresentação de tópicos..."
+                  className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="grid gap-6">
+              <DialogHeader>
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  Resumo para estudar
+                </DialogTitle>
+                <DialogDescription>
+                  Adicione um resumo dos assuntos ou gere com IA. Este passo é opcional.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Resumo dos assuntos (opcional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={gerarResumoIA}
+                    disabled={loadingResumo}
+                  >
+                    {loadingResumo ? (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Gerar com IA
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <textarea
+                  value={resumo}
+                  onChange={(e) => setResumo(e.target.value)}
+                  placeholder="Resumo a estudar para esta avaliação..."
+                  className="w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex-row justify-between items-center gap-4 p-4 border-t bg-muted/20">
+          <div>
+            {step > 1 ? (
+              <Button variant="outline" onClick={() => setStep(1)}>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Voltar
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+            )}
+          </div>
+          <div>
+            {step < 2 ? (
+              <Button
+                onClick={() => {
+                  if (validateStep1()) setStep(2);
+                  else toast.error("Preencha os campos obrigatórios antes de continuar");
+                }}
+              >
+                Próximo
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </Button>
+            ) : (
+              <Button onClick={salvar}>
+                Criar Avaliação
+              </Button>
+            )}
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1679,9 +1876,8 @@ function EditarAvaliacaoModal({
   );
   const [descricao, setDescricao] = useState("");
   const [resumo, setResumo] = useState("");
-  const [nota, setNota] = useState<number | null>(null);
-  const [peso, setPeso] = useState<number | null>(null);
   const [loadingResumo, setLoadingResumo] = useState(false);
+  const [horario, setHorario] = useState("");
   useEffect(() => {
     if (avaliacao) {
       setDisciplinaId(avaliacao.disciplinaId);
@@ -1689,8 +1885,7 @@ function EditarAvaliacaoModal({
       setDataLocal(toLocalInputValue(new Date(avaliacao.dataISO)));
       setDescricao(avaliacao.descricao ?? "");
       setResumo(avaliacao.resumo_assuntos ?? "");
-      setNota(avaliacao.nota ?? null);
-      setPeso(avaliacao.peso ?? null);
+      setHorario(avaliacao.horario ?? "");
     }
   }, [avaliacao]);
   async function gerarResumoIA() {
@@ -1735,9 +1930,8 @@ function EditarAvaliacaoModal({
       dataISO: iso,
       descricao: descricao || undefined,
       resumo_assuntos: resumo || undefined,
+      horario: horario.trim() || undefined,
       gerado_por_ia: !!resumo,
-      nota: nota ?? undefined,
-      peso: peso ?? undefined,
     });
     if (result.success) {
       await onSave({
@@ -1748,8 +1942,6 @@ function EditarAvaliacaoModal({
         descricao,
         resumo_assuntos: resumo || undefined,
         gerado_por_ia: !!resumo,
-        nota: nota ?? undefined,
-        peso: peso ?? undefined,
       });
       onClose();
       toast.success("Avaliação atualizada com sucesso");
@@ -1758,13 +1950,15 @@ function EditarAvaliacaoModal({
     }
   }
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            Editar Avaliação
+            Editar avaliação
           </DialogTitle>
-          <DialogDescription>Atualize os dados da avaliação.</DialogDescription>
+          <DialogDescription>
+            As informações já salvas estão preenchidas abaixo. Altere o que precisar e salve.
+          </DialogDescription>
         </DialogHeader>
         {avaliacao && (
           <FormAvaliacao
@@ -1778,15 +1972,13 @@ function EditarAvaliacaoModal({
             setDescricao={setDescricao}
             resumo={resumo}
             setResumo={setResumo}
-            nota={nota}
-            setNota={setNota}
-            peso={peso}
-            setPeso={setPeso}
+            horario={horario}
+            setHorario={setHorario}
             onGerarResumoIA={gerarResumoIA}
             loadingResumo={loadingResumo}
             onCancel={onClose}
             onSubmit={salvar}
-            submitLabel="Salvar Alterações"
+            submitLabel="Salvar alterações"
             disciplinas={disciplinas}
           />
         )}
@@ -1806,10 +1998,8 @@ function FormAvaliacao(props: {
   setDescricao: (v: string) => void;
   resumo: string;
   setResumo: (v: string) => void;
-  nota?: number | null;
-  setNota?: (v: number | null) => void;
-  peso?: number | null;
-  setPeso?: (v: number | null) => void;
+  horario?: string;
+  setHorario?: (v: string) => void;
   onGerarResumoIA: () => Promise<void> | void;
   loadingResumo: boolean;
   onCancel: () => void;
@@ -1828,10 +2018,8 @@ function FormAvaliacao(props: {
     setDescricao,
     resumo,
     setResumo,
-    nota,
-    setNota,
-    peso,
-    setPeso,
+    horario = "",
+    setHorario,
     onGerarResumoIA,
     loadingResumo,
     onCancel,
@@ -1853,12 +2041,6 @@ function FormAvaliacao(props: {
         newErrors.dataLocal = "Data inválida";
       }
     }
-    if (nota !== null && nota !== undefined && (nota < 0 || nota > 10)) {
-      newErrors.nota = "Nota deve estar entre 0 e 10";
-    }
-    if (peso !== null && peso !== undefined && (peso < 0.1 || peso > 10)) {
-      newErrors.peso = "Peso deve estar entre 0.1 e 10";
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1869,133 +2051,119 @@ function FormAvaliacao(props: {
       toast.error("Por favor, corrija os erros no formulário");
     }
   };
+  const showHorario = setHorario !== undefined;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Disciplina e Tipo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className="space-y-2">
-          <span className="text-sm font-medium">
+        <div className="grid gap-2">
+          <Label htmlFor="form-disc" className="block">
             Disciplina <span className="text-destructive">*</span>
-          </span>
-          <select
+          </Label>
+          <Select
             value={disciplinaId}
-            onChange={(e) => {
-              setDisciplinaId(e.target.value);
+            onValueChange={(v) => {
+              setDisciplinaId(v);
               setErrors((prev) => ({ ...prev, disciplinaId: "" }));
             }}
-            className={cn(
-              "w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              errors.disciplinaId && "border-destructive"
-            )}
           >
-            <option value="">Selecione uma disciplina</option>
-            {disciplinas.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nome}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="form-disc"
+              className={cn("h-10", errors.disciplinaId && "border-destructive")}
+            >
+              <SelectValue placeholder="Selecione uma disciplina" />
+            </SelectTrigger>
+            <SelectContent className="z-[100]">
+              {disciplinas.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {errors.disciplinaId && (
             <p className="text-xs text-destructive">{errors.disciplinaId}</p>
           )}
-        </label>
-        <label className="space-y-2">
-          <span className="text-sm font-medium">
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="form-tipo" className="block">
             Tipo <span className="text-destructive">*</span>
-          </span>
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as AvaliacaoTipo)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="prova">Prova</option>
-            <option value="trabalho">Trabalho</option>
-            <option value="seminario">Seminário</option>
-          </select>
-        </label>
+          </Label>
+          <Select value={tipo} onValueChange={(v) => setTipo(v as AvaliacaoTipo)}>
+            <SelectTrigger id="form-tipo" className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="z-[100]">
+              <SelectItem value="prova">Prova</SelectItem>
+              <SelectItem value="trabalho">Trabalho</SelectItem>
+              <SelectItem value="seminario">Seminário</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <label className="space-y-2">
-        <span className="text-sm font-medium">
-          Data e hora <span className="text-destructive">*</span>
-        </span>
-        <Input
-          type="datetime-local"
-          value={dataLocal}
-          onChange={(e) => {
-            setDataLocal(e.target.value);
-            setErrors((prev) => ({ ...prev, dataLocal: "" }));
-          }}
-          className={cn(errors.dataLocal && "border-destructive")}
-        />
-        {errors.dataLocal && (
-          <p className="text-xs text-destructive">{errors.dataLocal}</p>
+
+      {/* Data/hora e Horário (quando em edição) */}
+      <div
+        className={cn(
+          "grid gap-4",
+          showHorario ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
         )}
-      </label>
-      <label className="space-y-2">
-        <span className="text-sm font-medium">Descrição</span>
+      >
+        <div className="grid gap-2">
+          <Label htmlFor="form-data" className="block">
+            Data e hora <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="form-data"
+            type="datetime-local"
+            value={dataLocal}
+            onChange={(e) => {
+              setDataLocal(e.target.value);
+              setErrors((prev) => ({ ...prev, dataLocal: "" }));
+            }}
+            className={cn("h-10", errors.dataLocal && "border-destructive")}
+          />
+          {errors.dataLocal && (
+            <p className="text-xs text-destructive">{errors.dataLocal}</p>
+          )}
+        </div>
+        {showHorario && (
+          <div className="grid gap-2">
+            <Label htmlFor="form-horario" className="block">
+              Horário (opcional)
+            </Label>
+            <Input
+              id="form-horario"
+              value={horario}
+              onChange={(e) => setHorario(e.target.value)}
+              placeholder="Ex.: 14h-16h, 07:30"
+              className="h-10"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Descrição */}
+      <div className="grid gap-2">
+        <Label htmlFor="form-descricao" className="block">
+          Descrição (opcional)
+        </Label>
         <textarea
+          id="form-descricao"
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
           placeholder="Ex.: Cap. 1–3; lista 1 e 2; apresentação de tópicos..."
-          className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full min-h-[88px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
-      </label>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className="space-y-2">
-          <span className="text-sm font-medium">Nota (opcional)</span>
-          <Input
-            type="number"
-            min="0"
-            max="10"
-            step="0.1"
-            value={nota ?? ""}
-            onChange={(e) => {
-              const value =
-                e.target.value === "" ? null : Number(e.target.value);
-              setNota?.(value);
-              setErrors((prev) => ({ ...prev, nota: "" }));
-            }}
-            placeholder="0.0 - 10.0"
-            className={cn("w-full", errors.nota && "border-destructive")}
-          />
-          {errors.nota ? (
-            <p className="text-xs text-destructive">{errors.nota}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Nota obtida na avaliação (0 a 10)
-            </p>
-          )}
-        </label>
-        <label className="space-y-2">
-          <span className="text-sm font-medium">Peso (opcional)</span>
-          <Input
-            type="number"
-            min="0.1"
-            max="10"
-            step="0.1"
-            value={peso ?? ""}
-            onChange={(e) => {
-              const value =
-                e.target.value === "" ? null : Number(e.target.value);
-              setPeso?.(value);
-              setErrors((prev) => ({ ...prev, peso: "" }));
-            }}
-            placeholder="1.0"
-            className={cn("w-full", errors.peso && "border-destructive")}
-          />
-          {errors.peso ? (
-            <p className="text-xs text-destructive">{errors.peso}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Peso para cálculo de média ponderada (padrão: 1.0)
-            </p>
-          )}
-        </label>
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">
+
+      {/* Resumo */}
+      <div className="grid gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label htmlFor="form-resumo" className="block">
             Resumo dos assuntos (opcional)
-          </span>
+          </Label>
           <Button
             type="button"
             variant="outline"
@@ -2017,13 +2185,15 @@ function FormAvaliacao(props: {
           </Button>
         </div>
         <textarea
+          id="form-resumo"
           value={resumo}
           onChange={(e) => setResumo(e.target.value)}
           placeholder="Resumo a estudar para esta avaliação..."
-          className="w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
+          className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
       </div>
-      <DialogFooter>
+
+      <DialogFooter className="pt-4 border-t gap-2 sm:gap-0">
         <Button variant="outline" onClick={onCancel}>
           Cancelar
         </Button>

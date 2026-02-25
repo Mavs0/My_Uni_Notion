@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -11,6 +11,13 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   X,
+  Filter,
+  Calendar,
+  BookOpen,
+  X as XIcon,
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,36 +39,61 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useDisciplinas } from "@/hooks/useDisciplinasOptimized";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function FeedPage() {
   const [type, setType] = useState<
     "all" | "following" | "public" | "personalized"
   >("personalized");
   const [open, setOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    tipoAtividade: "",
+    disciplinaId: "",
+    dataInicio: "",
+    dataFim: "",
+  });
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
-  const [visibilidade, setVisibilidade] = useState<"public" | "private">(
-    "public"
-  );
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { disciplinasAtivas } = useDisciplinas();
+
+  const hasActiveFilters = 
+    filters.tipoAtividade || 
+    filters.disciplinaId || 
+    filters.dataInicio || 
+    filters.dataFim;
+
+  const clearFilters = () => {
+    setFilters({
+      tipoAtividade: "",
+      disciplinaId: "",
+      dataInicio: "",
+      dataFim: "",
+    });
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de arquivo
     if (!file.type.startsWith("image/")) {
       toast.error("Por favor, selecione apenas imagens");
       return;
     }
 
-    // Validar tamanho (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("A imagem deve ter no máximo 5MB");
       return;
@@ -69,7 +101,6 @@ export default function FeedPage() {
 
     setSelectedImage(file);
 
-    // Criar preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
@@ -122,7 +153,6 @@ export default function FeedPage() {
       return;
     }
 
-    // Validar URL do link se fornecido
     if (linkUrl.trim() && !isValidUrl(linkUrl.trim())) {
       toast.error("Por favor, insira uma URL válida");
       return;
@@ -131,7 +161,6 @@ export default function FeedPage() {
     try {
       setLoading(true);
 
-      // Fazer upload da imagem se houver
       let finalImageUrl = imageUrl;
       if (selectedImage && !imageUrl) {
         finalImageUrl = await handleUploadImage();
@@ -148,7 +177,7 @@ export default function FeedPage() {
           titulo: titulo.trim(),
           descricao: descricao.trim() || null,
           tipo: "post_personalizado",
-          visibilidade,
+          visibilidade: "public",
           imagem_url: finalImageUrl || null,
           link_url: linkUrl.trim() || null,
         }),
@@ -162,16 +191,9 @@ export default function FeedPage() {
       }
 
       toast.success("Atividade publicada com sucesso!");
-      setTitulo("");
-      setDescricao("");
-      setLinkUrl("");
-      setVisibilidade("public");
-      setSelectedImage(null);
-      setImagePreview(null);
-      setImageUrl(null);
+      resetForm();
       setOpen(false);
 
-      // Recarregar o feed
       window.location.reload();
     } catch (error: any) {
       console.error("Erro ao publicar:", error);
@@ -190,6 +212,52 @@ export default function FeedPage() {
     }
   };
 
+  const resetForm = useCallback(() => {
+    setTitulo("");
+    setDescricao("");
+    setLinkUrl("");
+    setStep(1);
+    setSelectedImage(null);
+    setImagePreview(null);
+    setImageUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const quickSuggestions = [
+    "Completei meu primeiro pomodoro!",
+    "Finalizei uma prova difícil",
+    "Conquista: terminei todas as tarefas da semana",
+    "Reflexão: aprendi algo novo hoje",
+    "Conquista desbloqueada",
+    "Dica de estudo que funcionou",
+  ];
+
+  const applySuggestion = (text: string) => {
+    setTitulo(text);
+  };
+
+  const [isDragging, setIsDragging] = useState(false);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const handleDragLeave = () => setIsDragging(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("A imagem deve ter no máximo 5MB");
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-4xl p-6 space-y-6">
       <header className="space-y-2">
@@ -203,152 +271,446 @@ export default function FeedPage() {
               Veja o que está acontecendo na comunidade
             </p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Publicar
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Publicar no Feed</DialogTitle>
-                <DialogDescription>
-                  Compartilhe uma atividade ou conquista com a comunidade
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="titulo">Título *</Label>
-                  <Input
-                    id="titulo"
-                    placeholder="Ex: Completei meu primeiro pomodoro!"
-                    value={titulo}
-                    onChange={(e) => setTitulo(e.target.value)}
-                    maxLength={200}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {titulo.length}/200 caracteres
-                  </p>
+          <div className="flex items-center gap-2">
+            <Popover open={showFilters} onOpenChange={setShowFilters}>
+              <PopoverTrigger asChild>
+                <Button variant={hasActiveFilters ? "default" : "outline"}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros
+                  {hasActiveFilters && (
+                    <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Filtros Avançados</h3>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="h-8 text-xs"
+                      >
+                        <XIcon className="h-3 w-3 mr-1" />
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="tipo-atividade">Tipo de Atividade</Label>
+                        {filters.tipoAtividade && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFilters({ ...filters, tipoAtividade: "" })}
+                            className="h-6 text-xs"
+                          >
+                            <XIcon className="h-3 w-3 mr-1" />
+                            Limpar
+                          </Button>
+                        )}
+                      </div>
+                      <Select
+                        value={filters.tipoAtividade || undefined}
+                        onValueChange={(value) =>
+                          setFilters({ ...filters, tipoAtividade: value || "" })
+                        }
+                      >
+                        <SelectTrigger id="tipo-atividade">
+                          <SelectValue placeholder="Todos os tipos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="criou_disciplina">Criou Disciplina</SelectItem>
+                          <SelectItem value="criou_avaliacao">Criou Avaliação</SelectItem>
+                          <SelectItem value="adicionou_nota">Adicionou Nota</SelectItem>
+                          <SelectItem value="completou_tarefa">Completou Tarefa</SelectItem>
+                          <SelectItem value="conquista_desbloqueada">Conquista</SelectItem>
+                          <SelectItem value="post_personalizado">Post Personalizado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="disciplina">Disciplina</Label>
+                        {filters.disciplinaId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFilters({ ...filters, disciplinaId: "" })}
+                            className="h-6 text-xs"
+                          >
+                            <XIcon className="h-3 w-3 mr-1" />
+                            Limpar
+                          </Button>
+                        )}
+                      </div>
+                      <Select
+                        value={filters.disciplinaId || undefined}
+                        onValueChange={(value) =>
+                          setFilters({ ...filters, disciplinaId: value || "" })
+                        }
+                      >
+                        <SelectTrigger id="disciplina">
+                          <SelectValue placeholder="Todas as disciplinas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {disciplinasAtivas.map((disc) => (
+                            <SelectItem key={disc.id} value={disc.id}>
+                              {disc.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="data-inicio">Data Início</Label>
+                      <Input
+                        id="data-inicio"
+                        type="date"
+                        value={filters.dataInicio}
+                        onChange={(e) =>
+                          setFilters({ ...filters, dataInicio: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="data-fim">Data Fim</Label>
+                      <Input
+                        id="data-fim"
+                        type="date"
+                        value={filters.dataFim}
+                        onChange={(e) =>
+                          setFilters({ ...filters, dataFim: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="descricao">Descrição (opcional)</Label>
-                  <Textarea
-                    id="descricao"
-                    placeholder="Adicione mais detalhes sobre sua atividade..."
-                    value={descricao}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                      setDescricao(e.target.value)
+              </PopoverContent>
+            </Popover>
+            <Dialog
+              open={open}
+              onOpenChange={(o) => {
+                setOpen(o);
+                if (!o) resetForm();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Publicar
+                </Button>
+              </DialogTrigger>
+              <DialogContent
+                className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    if (step === 3 && titulo.trim() && !loading && !uploadingImage) {
+                      handlePublish();
+                    } else if (step < 3) {
+                      setStep((s) => s + 1);
                     }
-                    maxLength={1000}
-                    rows={4}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {descricao.length}/1000 caracteres
-                  </p>
+                  }
+                }}
+              >
+                {/* Stepper */}
+                <div className="flex items-center justify-center gap-1 px-6 pt-6 pb-2 border-b">
+                  {[1, 2, 3].map((s) => (
+                    <div key={s} className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => setStep(s)}
+                        className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-colors ${
+                          step === s
+                            ? "bg-primary text-primary-foreground"
+                            : step > s
+                              ? "bg-primary/20 text-primary"
+                              : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                      {s < 3 && (
+                        <div className="w-8 h-0.5 bg-muted mx-0.5" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="px-2 text-center text-xs text-muted-foreground mb-4">
+                  {step === 1 && "Conteúdo"}
+                  {step === 2 && "Mídia"}
+                  {step === 3 && "Prévia"}
                 </div>
 
-                {/* Upload de Imagem */}
-                <div className="space-y-2">
-                  <Label htmlFor="imagem">Imagem (opcional)</Label>
-                  <div className="space-y-2">
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-full h-48 object-cover rounded-lg border"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-2 right-2"
-                          onClick={handleRemoveImage}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr,300px] min-h-[320px]">
+                  {/* Coluna principal */}
+                  <div className="p-6">
+                    {step === 1 && (
+                      <div className="space-y-6">
+                        <DialogHeader>
+                          <DialogTitle className="text-xl flex items-center gap-2">
+                            <Activity className="h-6 w-6 text-primary" />
+                            O que compartilhar?
+                          </DialogTitle>
+                          <DialogDescription>
+                            Compartilhe conquistas, reflexões ou dicas com a comunidade
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wider block mb-4">
+                            Sugestões rápidas
+                          </Label>
+                          <div className="flex flex-wrap gap-3">
+                            {quickSuggestions.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => applySuggestion(s)}
+                                className="text-sm px-4 py-2.5 rounded-xl border bg-muted/50 hover:bg-muted hover:border-primary/50 transition-colors text-left"
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="titulo" className="block mb-4">Título *</Label>
+                            <Input
+                              id="titulo"
+                              placeholder="O que você quer compartilhar?"
+                              value={titulo}
+                              onChange={(e) => setTitulo(e.target.value)}
+                              maxLength={200}
+                              className="h-11"
+                            />
+                            <div className="flex justify-between mt-2">
+                              <span className="text-xs text-muted-foreground">
+                                {titulo.length}/200
+                              </span>
+                              {titulo.length > 180 && (
+                                <span className="text-xs text-amber-600">Quase no limite</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="descricao" className="block mb-4">Descrição (opcional)</Label>
+                            <Textarea
+                              id="descricao"
+                              placeholder="Conte mais detalhes, compartilhe o que aprendeu..."
+                              value={descricao}
+                              onChange={(e) => setDescricao(e.target.value)}
+                              maxLength={1000}
+                              rows={4}
+                              className="resize-none"
+                            />
+                            <div className="flex justify-between mt-2">
+                              <span className="text-xs text-muted-foreground">
+                                {descricao.length}/1000
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          id="imagem"
-                          accept="image/*"
-                          onChange={handleImageSelect}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadingImage}
-                        >
-                          <ImageIcon className="h-4 w-4 mr-2" />
-                          {uploadingImage ? "Enviando..." : "Adicionar Imagem"}
-                        </Button>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Máximo 5MB (JPG, PNG, GIF)
-                        </p>
+                    )}
+
+                    {step === 2 && (
+                      <div className="space-y-6">
+                        <DialogHeader>
+                          <DialogTitle className="text-xl">Adicionar mídia</DialogTitle>
+                          <DialogDescription>
+                            Imagem e link são opcionais
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          <div>
+                            <Label className="block mb-4">Imagem</Label>
+                            {imagePreview ? (
+                              <div className="relative rounded-xl overflow-hidden border group">
+                                <img
+                                  src={imagePreview}
+                                  alt="Preview"
+                                  className="w-full h-36 object-cover"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={handleRemoveImage}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
+                                  isDragging ? "border-primary bg-primary/5" : "hover:border-primary/50 hover:bg-muted/30"
+                                }`}
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <input
+                                  ref={fileInputRef}
+                                  type="file"
+                                  id="imagem"
+                                  accept="image/*"
+                                  onChange={handleImageSelect}
+                                  className="hidden"
+                                />
+                                <ImageIcon className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+                                <p className="text-sm font-medium">
+                                  {uploadingImage ? "Enviando..." : "Arraste ou clique"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  JPG, PNG • máx. 5MB
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <Label htmlFor="link" className="block mb-4">Link (opcional)</Label>
+                            <div className="relative">
+                              <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                id="link"
+                                type="url"
+                                placeholder="https://..."
+                                value={linkUrl}
+                                onChange={(e) => setLinkUrl(e.target.value)}
+                                className="pl-9 h-11"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 3 && (
+                      <div className="space-y-6">
+                        <DialogHeader>
+                          <DialogTitle className="text-xl">Prévia da publicação</DialogTitle>
+                          <DialogDescription>
+                            Revise antes de publicar
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="rounded-xl border bg-muted/30 p-4 lg:hidden">
+                          <p className="font-medium text-sm">{titulo || "Título da publicação..."}</p>
+                          {descricao && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{descricao}</p>
+                          )}
+                          {imagePreview && (
+                            <img src={imagePreview} alt="" className="mt-2 rounded-lg w-full h-24 object-cover" />
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
-                </div>
 
-                {/* Campo de Link */}
-                <div className="space-y-2">
-                  <Label htmlFor="link">Link (opcional)</Label>
-                  <div className="flex gap-2">
-                    <LinkIcon className="h-4 w-4 mt-2.5 text-muted-foreground" />
-                    <Input
-                      id="link"
-                      type="url"
-                      placeholder="https://exemplo.com"
-                      value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
-                    />
+                  {/* Preview lateral (sempre visível no desktop, step 3 no mobile) */}
+                  <div className="border-t lg:border-t-0 lg:border-l bg-muted/30 p-6 hidden lg:block">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider block mb-4">
+                      Prévia
+                    </Label>
+                    <div className="rounded-xl border bg-card p-4 shadow-sm">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                          <Activity className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Você</p>
+                          <p className="text-xs text-muted-foreground">Público</p>
+                        </div>
+                      </div>
+                      {titulo ? (
+                        <p className="text-sm font-medium">{titulo}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Título da publicação...</p>
+                      )}
+                      {descricao && (
+                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-3">{descricao}</p>
+                      )}
+                      {imagePreview && (
+                        <img src={imagePreview} alt="" className="mt-3 rounded-lg w-full h-24 object-cover" />
+                      )}
+                      {linkUrl && (
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <LinkIcon className="h-3 w-3" />
+                          <span className="truncate">{linkUrl}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Compartilhe um link relacionado ao seu post
-                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="visibilidade">Visibilidade</Label>
-                  <Select
-                    value={visibilidade}
-                    onValueChange={(v) =>
-                      setVisibilidade(v as "public" | "private")
-                    }
-                  >
-                    <SelectTrigger id="visibilidade">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">Público</SelectItem>
-                      <SelectItem value="private">Privado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-4 p-4 border-t bg-muted/20">
+                  <div className="flex gap-2">
+                    {step > 1 ? (
+                      <Button variant="outline" onClick={() => setStep((s) => s - 1)} disabled={loading}>
+                        <ChevronLeft className="h-4 w-4 mr-2" />
+                        Voltar
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setOpen(false);
+                          resetForm();
+                        }}
+                        disabled={loading}
+                      >
+                        Cancelar
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {step < 3 ? (
+                      <Button
+                        onClick={() => setStep((s) => s + 1)}
+                        disabled={!titulo.trim()}
+                      >
+                        Próximo
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handlePublish}
+                        disabled={loading || uploadingImage || !titulo.trim()}
+                      >
+                        {loading || uploadingImage ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Publicando...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Publicar
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setOpen(false)}
-                    disabled={loading}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handlePublish}
-                    disabled={loading || uploadingImage}
-                  >
-                    {loading || uploadingImage ? "Publicando..." : "Publicar"}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
@@ -373,16 +735,16 @@ export default function FeedPage() {
         </TabsList>
 
         <TabsContent value="personalized">
-          <ActivityFeed type="personalized" />
+          <ActivityFeed type="personalized" filters={filters} />
         </TabsContent>
         <TabsContent value="all">
-          <ActivityFeed type="all" />
+          <ActivityFeed type="all" filters={filters} />
         </TabsContent>
         <TabsContent value="following">
-          <ActivityFeed type="following" />
+          <ActivityFeed type="following" filters={filters} />
         </TabsContent>
         <TabsContent value="public">
-          <ActivityFeed type="public" />
+          <ActivityFeed type="public" filters={filters} />
         </TabsContent>
       </Tabs>
     </main>

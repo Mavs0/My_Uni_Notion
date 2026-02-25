@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { adicionarXP, verificarConquistasEspecificas } from "@/lib/gamificacao";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,8 +13,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Se disciplina_id fornecido, buscar apenas notas dessa disciplina
-    // Caso contrário, buscar todas as notas do usuário
     let query = supabase
       .from("notas")
       .select("id, disciplina_id, titulo, content_md, created_at, updated_at")
@@ -36,7 +33,6 @@ export async function GET(request: NextRequest) {
         JSON.stringify(error, null, 2)
       );
 
-      // Verificar se a tabela não existe
       if (error.code === "42P01") {
         return NextResponse.json(
           {
@@ -49,7 +45,6 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Verificar se algum campo não existe
       if (error.code === "42703" || error.message?.includes("column")) {
         return NextResponse.json(
           {
@@ -72,7 +67,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Formatar dados para o formato esperado pelo hook
     const notas = (data || []).map((nota) => ({
       id: nota.id,
       disciplinaId: nota.disciplina_id,
@@ -146,7 +140,6 @@ export async function POST(request: NextRequest) {
         hint: error.hint,
       });
 
-      // Se o erro for relacionado ao campo titulo não existir
       if (
         error.message?.includes("titulo") ||
         error.message?.includes("column") ||
@@ -165,7 +158,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Se o erro for constraint única (duplicate key)
       if (error.code === "23505" || error.message?.includes("duplicate key")) {
         return NextResponse.json(
           {
@@ -188,26 +180,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let conquistasDesbloqueadas: any[] = [];
-    try {
-      const { count: totalAnotacoes } = await supabase
-        .from("notas")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-      const resultadoXP = await adicionarXP(
-        user.id,
-        3,
-        "anotacao",
-        `Anotação criada: ${titulo}`,
-        data.id
-      );
-      if (resultadoXP.success && resultadoXP.conquistasDesbloqueadas) {
-        conquistasDesbloqueadas.push(...resultadoXP.conquistasDesbloqueadas);
-      }
-    } catch (gamError) {
-      console.error("Erro ao processar gamificação:", gamError);
-    }
-
     const nota = {
       id: data.id,
       disciplinaId: data.disciplina_id,
@@ -220,7 +192,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       nota,
-      conquistasDesbloqueadas,
     });
   } catch (error: any) {
     console.error("Erro na API de notas (POST):", error);

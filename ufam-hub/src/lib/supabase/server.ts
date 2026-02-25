@@ -32,7 +32,27 @@ export async function createSupabaseServer(request?: NextRequest) {
         set(name: string, value: string, options: CookieOptions) {
           if (canModifyCookies) {
             try {
-              // Aplicar configurações de segurança para cookies de sessão
+              const MAX_COOKIE_SIZE = 4096;
+              if (value.length > MAX_COOKIE_SIZE) {
+                console.warn(
+                  `Cookie ${name} muito grande (${value.length} bytes). Tentando truncar ou limpar cookies antigos.`
+                );
+                try {
+                  const allCookies = cookieStore.getAll();
+                  for (const cookie of allCookies) {
+                    if (
+                      cookie.name.startsWith(name.split("-")[0]) &&
+                      cookie.name !== name &&
+                      cookie.value.length > 1024
+                    ) {
+                      cookieStore.delete(cookie.name);
+                    }
+                  }
+                } catch (cleanupError) {
+                  console.warn("Erro ao limpar cookies antigos:", cleanupError);
+                }
+              }
+
               const secureOptions: CookieOptions =
                 name.includes("auth-token") || name.includes("session")
                   ? { ...SESSION_COOKIE_OPTIONS, ...options }

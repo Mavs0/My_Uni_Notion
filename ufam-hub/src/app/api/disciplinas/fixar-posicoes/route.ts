@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Buscar todas as disciplinas do usuário
     const { data: disciplinas, error: discError } = await supabase
       .from("disciplinas")
       .select("id, nome, favorito, ordem, ativo")
@@ -34,35 +33,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Ordenar disciplinas da mesma forma que a página ordena:
-    // 1. Favoritos primeiro
-    // 2. Depois por ordem existente
-    // 3. Por último, alfabética
     const disciplinasOrdenadas = [...disciplinas].sort((a, b) => {
-      // Favoritos primeiro
       const aFavorito = a.favorito === true;
       const bFavorito = b.favorito === true;
       if (aFavorito && !bFavorito) return -1;
       if (!aFavorito && bFavorito) return 1;
 
-      // Depois por ordem customizada
       const aOrdem = a.ordem ?? 999999;
       const bOrdem = b.ordem ?? 999999;
       if (aOrdem !== bOrdem) {
         return aOrdem - bOrdem;
       }
 
-      // Por último, alfabética
       return a.nome.localeCompare(b.nome, "pt-BR");
     });
 
-    // Atribuir ordem sequencial (0, 1, 2, ...)
     const updates = disciplinasOrdenadas.map((disc, index) => ({
       id: disc.id,
       ordem: index,
     }));
 
-    // Atualizar ordem de cada disciplina
     const updatePromises = updates.map((d) =>
       supabase
         .from("disciplinas")

@@ -17,9 +17,12 @@ const nextConfig: NextConfig = {
       "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-slider",
     ],
+    serverActions: {
+      bodySizeLimit: "2mb",
+    },
   },
   
-  // Headers de performance
+  // Headers de performance e segurança
   async headers() {
     return [
       {

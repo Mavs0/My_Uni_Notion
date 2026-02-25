@@ -95,67 +95,6 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    const horasEstudadas = (blocosAssistidos || 0) * (horasPorBloco || 2);
-    if (horasEstudadas > 0) {
-      try {
-        const hoje = new Date().toISOString().split("T")[0];
-        const { data: gamificacao } = await supabase
-          .from("gamificacao_usuario")
-          .select("streak_atual, ultimo_dia_estudo")
-          .eq("user_id", user.id)
-          .single();
-        if (gamificacao) {
-          let novoStreak = gamificacao.streak_atual || 0;
-          const ultimoDia = gamificacao.ultimo_dia_estudo
-            ? new Date(gamificacao.ultimo_dia_estudo)
-                .toISOString()
-                .split("T")[0]
-            : null;
-          if (ultimoDia === hoje) {
-          } else if (ultimoDia) {
-            const ontem = new Date();
-            ontem.setDate(ontem.getDate() - 1);
-            const ontemStr = ontem.toISOString().split("T")[0];
-            if (ultimoDia === ontemStr) {
-              novoStreak += 1;
-            } else {
-              novoStreak = 1;
-            }
-          } else {
-            novoStreak = 1;
-          }
-          const streakMaximo = Math.max(
-            novoStreak,
-            gamificacao.streak_atual || 0
-          );
-          await supabase
-            .from("gamificacao_usuario")
-            .update({
-              streak_atual: novoStreak,
-              streak_maximo: streakMaximo,
-              ultimo_dia_estudo: hoje,
-            })
-            .eq("user_id", user.id);
-          await fetch(
-            `${
-              process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-            }/api/gamificacao`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                xp: Math.floor(horasEstudadas),
-                tipoAtividade: "estudo",
-                descricao: `${horasEstudadas.toFixed(1)}h de estudo`,
-                referenciaId: disciplinaId,
-              }),
-            }
-          );
-        }
-      } catch (error) {
-        console.error("Erro ao adicionar XP:", error);
-      }
-    }
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Erro na API de progresso:", error);

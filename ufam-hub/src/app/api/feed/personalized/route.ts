@@ -4,7 +4,6 @@ import {
   createSupabaseAdmin,
 } from "@/lib/supabase/server";
 
-// GET - Feed personalizado baseado em interesses
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -20,8 +19,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
+    
+    const tipoAtividade = searchParams.get("tipo_atividade");
+    const disciplinaId = searchParams.get("disciplina_id");
+    const dataInicio = searchParams.get("data_inicio");
+    const dataFim = searchParams.get("data_fim");
 
-    // 1. Buscar disciplinas que o usuário segue/está inscrito
     const { data: userDisciplinas } = await supabase
       .from("disciplinas")
       .select("id")
@@ -29,7 +32,6 @@ export async function GET(request: NextRequest) {
 
     const userDisciplinaIds = userDisciplinas?.map((d) => d.id) || [];
 
-    // 2. Buscar usuários que o usuário segue
     const { data: followingData } = await supabase
       .from("followers")
       .select("following_id")
@@ -37,10 +39,6 @@ export async function GET(request: NextRequest) {
 
     const followingIds = followingData?.map((f) => f.following_id) || [];
 
-    // 3. Buscar atividades com priorização:
-    //    - Atividades de usuários seguidos
-    //    - Atividades relacionadas às disciplinas do usuário
-    //    - Atividades públicas recentes
 
     let query = supabase
       .from("user_activities")
@@ -48,6 +46,22 @@ export async function GET(request: NextRequest) {
       .eq("visibilidade", "public")
       .order("created_at", { ascending: false })
       .limit(limit * 2); // Buscar mais para poder ordenar
+
+    if (tipoAtividade) {
+      query = query.eq("tipo", tipoAtividade);
+    }
+
+    if (disciplinaId) {
+      query = query.eq("disciplina_id", disciplinaId);
+    }
+
+    if (dataInicio) {
+      query = query.gte("created_at", dataInicio);
+    }
+
+    if (dataFim) {
+      query = query.lte("created_at", dataFim);
+    }
 
     const { data: allActivities, error } = await query;
 
@@ -66,16 +80,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ activities: [] });
     }
 
-    // 4. Calcular score de relevância para cada atividade
     const activitiesWithScore = allActivities.map((activity: any) => {
       let score = 0;
 
-      // Priorizar atividades de usuários seguidos
       if (followingIds.includes(activity.user_id)) {
         score += 100;
       }
 
-      // Priorizar atividades relacionadas às disciplinas do usuário
       if (
         activity.referencia_tipo === "disciplina" &&
         userDisciplinaIds.includes(activity.referencia_id)
@@ -83,7 +94,6 @@ export async function GET(request: NextRequest) {
         score += 50;
       }
 
-      // Priorizar tipos de atividade mais relevantes
       const tipoScores: Record<string, number> = {
         nota_criada: 30,
         avaliacao_adicionada: 25,
@@ -93,7 +103,6 @@ export async function GET(request: NextRequest) {
       };
       score += tipoScores[activity.tipo] || 5;
 
-      // Priorizar atividades mais recentes (decai com o tempo)
       const daysSince = Math.floor(
         (Date.now() - new Date(activity.created_at).getTime()) /
           (1000 * 60 * 60 * 24)
@@ -103,12 +112,10 @@ export async function GET(request: NextRequest) {
       return { ...activity, score };
     });
 
-    // 5. Ordenar por score e pegar apenas o limite necessário
     const sortedActivities = activitiesWithScore
       .sort((a, b) => b.score - a.score)
       .slice(offset, offset + limit);
 
-    // 6. Buscar dados dos usuários
     const adminClient = createSupabaseAdmin();
     const userIds = [...new Set(sortedActivities.map((a: any) => a.user_id))];
     const userDataMap: Record<string, any> = {};
@@ -140,7 +147,6 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // 7. Buscar informações de disciplinas
     const disciplinaIds = [
       ...new Set(
         sortedActivities
@@ -168,7 +174,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 8. Formatar atividades
     const formattedActivities = sortedActivities.map((activity: any) => {
       const disciplinaInfo =
         activity.referencia_tipo === "disciplina" && activity.referencia_id

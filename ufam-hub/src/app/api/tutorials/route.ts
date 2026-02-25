@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
     const funcionalidade = searchParams.get("funcionalidade");
     const concluido = searchParams.get("concluido");
 
-    // Buscar tutoriais
     let query = supabase
       .from("tutorials")
       .select("*")
@@ -38,7 +37,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar progresso do usuário
     const { data: progressData } = await supabase
       .from("user_tutorial_progress")
       .select("*")
@@ -48,7 +46,6 @@ export async function GET(request: NextRequest) {
       progressData?.map((p) => [p.tutorial_id, p]) || []
     );
 
-    // Buscar número de passos para cada tutorial
     const tutorialIds = tutorials?.map((t) => t.id) || [];
     const { data: stepsData } = await supabase
       .from("tutorial_steps")
@@ -63,7 +60,6 @@ export async function GET(request: NextRequest) {
       );
     });
 
-    // Combinar dados
     const tutorialsWithProgress = tutorials?.map((tutorial) => {
       const progress = progressMap.get(tutorial.id);
       const totalSteps = stepsCountMap.get(tutorial.id) || 0;
@@ -90,7 +86,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Filtrar por status de conclusão se solicitado
     let filteredTutorials = tutorialsWithProgress;
     if (concluido === "true") {
       filteredTutorials = tutorialsWithProgress?.filter(

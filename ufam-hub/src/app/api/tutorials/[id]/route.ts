@@ -18,7 +18,6 @@ export async function GET(
 
     const { id: tutorialId } = await params;
 
-    // Buscar tutorial
     const { data: tutorial, error: tutorialError } = await supabase
       .from("tutorials")
       .select("*")
@@ -33,7 +32,6 @@ export async function GET(
       );
     }
 
-    // Buscar passos do tutorial
     const { data: steps, error: stepsError } = await supabase
       .from("tutorial_steps")
       .select("*")
@@ -48,7 +46,6 @@ export async function GET(
       );
     }
 
-    // Buscar progresso do usuário
     const { data: progress } = await supabase
       .from("user_tutorial_progress")
       .select("*")

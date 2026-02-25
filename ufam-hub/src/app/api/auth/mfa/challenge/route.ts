@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Criar challenge MFA
     const { data, error } = await supabase.auth.mfa.challenge({ factorId });
 
     if (error) {

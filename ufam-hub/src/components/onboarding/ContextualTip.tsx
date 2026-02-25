@@ -31,7 +31,6 @@ export function ContextualTip({ tip, onDismiss }: ContextualTipProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    // Verificar se já foi mostrado
     if (tip.showOnce) {
       const shown = localStorage.getItem(`tip_${tip.id}_shown`);
       if (shown === "true") {
@@ -40,13 +39,11 @@ export function ContextualTip({ tip, onDismiss }: ContextualTipProps) {
       }
     }
 
-    // Encontrar elemento alvo
     if (tip.target) {
       const element = document.querySelector(tip.target) as HTMLElement;
       if (element) {
         targetRef.current = element;
 
-        // Adicionar delay se especificado
         const timeout = setTimeout(() => {
           setOpen(true);
           if (tip.showOnce) {
@@ -57,7 +54,6 @@ export function ContextualTip({ tip, onDismiss }: ContextualTipProps) {
         return () => clearTimeout(timeout);
       }
     } else {
-      // Mostrar imediatamente se não há target
       const timeout = setTimeout(() => {
         setOpen(true);
         if (tip.showOnce) {

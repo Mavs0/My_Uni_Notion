@@ -96,7 +96,6 @@ export async function POST(
     const body = await request.json();
     const { passo_atual, passo_completado_id, acao } = body;
 
-    // Buscar progresso existente
     const { data: existingProgress } = await supabase
       .from("user_tutorial_progress")
       .select("*")
@@ -112,7 +111,6 @@ export async function POST(
       passosCompletados = [...passosCompletados, passo_completado_id];
     }
 
-    // Buscar total de passos
     const { data: steps } = await supabase
       .from("tutorial_steps")
       .select("id")
@@ -133,7 +131,6 @@ export async function POST(
       progressData.concluido_em = new Date().toISOString();
     }
 
-    // Salvar ou atualizar progresso
     let result;
     if (existingProgress) {
       result = await supabase
@@ -158,7 +155,6 @@ export async function POST(
       );
     }
 
-    // Registrar ação se fornecida
     if (acao && passo_completado_id) {
       await supabase.from("tutorial_actions").insert({
         user_id: user.id,

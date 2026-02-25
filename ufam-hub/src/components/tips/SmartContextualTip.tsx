@@ -43,7 +43,6 @@ export function SmartContextualTip({
   const router = useRouter();
 
   useEffect(() => {
-    // Verificar se já foi mostrada recentemente
     const shownKey = `tip_${tip.id}_shown`;
     const lastShown = localStorage.getItem(shownKey);
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
@@ -53,7 +52,6 @@ export function SmartContextualTip({
       return;
     }
 
-    // Encontrar elemento alvo
     if (tip.elemento_alvo) {
       const checkElement = () => {
         try {
@@ -62,14 +60,12 @@ export function SmartContextualTip({
           ) as HTMLElement;
           if (element) {
             targetRef.current = element;
-            // Mostrar após delay
             setTimeout(() => {
               setOpen(true);
               localStorage.setItem(shownKey, Date.now().toString());
             }, 2000);
           }
         } catch (e) {
-          // Elemento não encontrado, mostrar mesmo assim após delay
           setTimeout(() => {
             setOpen(true);
             localStorage.setItem(shownKey, Date.now().toString());
@@ -77,10 +73,8 @@ export function SmartContextualTip({
         }
       };
 
-      // Aguardar um pouco para garantir que elementos estão carregados
       setTimeout(checkElement, 1000);
     } else {
-      // Sem elemento alvo, mostrar após delay
       setTimeout(() => {
         setOpen(true);
         localStorage.setItem(`tip_${tip.id}_shown`, Date.now().toString());
@@ -92,7 +86,6 @@ export function SmartContextualTip({
     setOpen(false);
     setDismissed(true);
 
-    // Registrar interação
     await fetch("/api/tips/interact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -111,7 +104,6 @@ export function SmartContextualTip({
       router.push(tip.acao_sugerida.url);
     }
 
-    // Registrar interação
     await fetch("/api/tips/interact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -128,7 +120,6 @@ export function SmartContextualTip({
   };
 
   const handleShow = async () => {
-    // Registrar que foi mostrada
     await fetch("/api/tips/interact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

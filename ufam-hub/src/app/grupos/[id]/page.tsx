@@ -29,14 +29,23 @@ import {
   UserPlus,
   Library,
   Plus,
+  Edit,
+  Trash2,
+  X,
+  Check,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useGrupoMensagensRealtime } from "@/hooks/useGrupoMensagensRealtime";
 interface Mensagem {
   id: string;
   mensagem: string;
   created_at: string;
+  updated_at?: string;
+  user_id?: string;
+  mencionados?: string[];
   usuario?: {
     id: string;
     raw_user_meta_data?: {
@@ -83,18 +92,44 @@ export default function GrupoDetailPage() {
   const [showAprovacaoDialog, setShowAprovacaoDialog] = useState(false);
   const [solicitacaoAprovar, setSolicitacaoAprovar] =
     useState<Solicitacao | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [mensagemToDelete, setMensagemToDelete] = useState<Mensagem | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionPosition, setMentionPosition] = useState({ start: 0, end: 0 });
   const mensagensEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const loadMensagensRef = useRef<() => void>(() => {});
+
+  useGrupoMensagensRealtime(grupoId, () => loadMensagensRef.current());
+
   useEffect(() => {
+    loadCurrentUser();
     loadGrupoInfo();
     loadMensagens();
     loadMembros();
     loadSolicitacoes();
     const interval = setInterval(() => {
-      loadMensagens();
       loadSolicitacoes();
-    }, 5000);
+      loadMensagens();
+    }, 30000);
     return () => clearInterval(interval);
   }, [grupoId]);
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await fetch("/api/profile");
+      if (response.ok) {
+        const { profile } = await response.json();
+        setCurrentUserId(profile.id);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar usuário atual:", error);
+    }
+  };
 
   useEffect(() => {
     mensagensEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -127,6 +162,7 @@ export default function GrupoDetailPage() {
       setLoading(false);
     }
   };
+  loadMensagensRef.current = loadMensagens;
 
   const loadMembros = async () => {
     try {
@@ -223,6 +259,148 @@ export default function GrupoDetailPage() {
     }
     return "U";
   };
+
+  const renderMessageWithMentions = (text: string) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("@")) {
+        return (
+          <span
+            key={index}
+            className="font-semibold text-primary bg-primary/10 px-1 rounded"
+          >
+            {part}
+          </span>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  const getMentionSuggestions = (query: string) => {
+    if (!query || query.length < 1) return [];
+    const queryLower = query.toLowerCase();
+    return membros
+      .filter((membro) => {
+        const nome =
+          membro.usuario?.raw_user_meta_data?.nome ||
+          membro.usuario?.raw_user_meta_data?.email ||
+          "";
+        return nome.toLowerCase().includes(queryLower);
+      })
+      .slice(0, 5);
+  };
+
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setShowMentionSuggestions(true);
+      setMentionPosition({
+        start: cursorPos - mentionMatch[1].length - 1,
+        end: cursorPos,
+      });
+    } else {
+      setShowMentionSuggestions(false);
+    }
+    
+    setNovaMensagem(value);
+  };
+
+  const insertMention = (membro: Membro) => {
+    const nome =
+      membro.usuario?.raw_user_meta_data?.nome ||
+      membro.usuario?.raw_user_meta_data?.email ||
+      "";
+    const nomeSemEspacos = nome.replace(/\s+/g, "");
+    const beforeMention = novaMensagem.substring(0, mentionPosition.start);
+    const afterMention = novaMensagem.substring(mentionPosition.end);
+    const newText = `${beforeMention}@${nomeSemEspacos} ${afterMention}`;
+    setNovaMensagem(newText);
+    setShowMentionSuggestions(false);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      const newCursorPos = beforeMention.length + nomeSemEspacos.length + 2;
+      inputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  const handleEditMessage = (mensagem: Mensagem) => {
+    setEditingMessageId(mensagem.id);
+    setEditingText(mensagem.mensagem);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId || !editingText.trim()) return;
+    
+    try {
+      const response = await fetch(
+        `/api/colaboracao/grupos/${grupoId}/mensagens/${editingMessageId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mensagem: editingText }),
+        }
+      );
+      
+      if (response.ok) {
+        toast.success("Mensagem editada com sucesso!");
+        setEditingMessageId(null);
+        setEditingText("");
+        await loadMensagens();
+      } else {
+        const { error } = await response.json();
+        toast.error(error || "Erro ao editar mensagem");
+      }
+    } catch (error) {
+      console.error("Erro ao editar mensagem:", error);
+      toast.error("Erro ao editar mensagem");
+    }
+  };
+
+  const handleDeleteClick = (mensagem: Mensagem) => {
+    setMensagemToDelete(mensagem);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteMessage = async () => {
+    if (!mensagemToDelete) return;
+    
+    try {
+      const response = await fetch(
+        `/api/colaboracao/grupos/${grupoId}/mensagens/${mensagemToDelete.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+      
+      if (response.ok) {
+        toast.success("Mensagem deletada com sucesso!");
+        setShowDeleteDialog(false);
+        setMensagemToDelete(null);
+        await loadMensagens();
+      } else {
+        const { error } = await response.json();
+        toast.error(error || "Erro ao deletar mensagem");
+      }
+    } catch (error) {
+      console.error("Erro ao deletar mensagem:", error);
+      toast.error("Erro ao deletar mensagem");
+    }
+  };
+
+  const canEditMessage = (mensagem: Mensagem) => {
+    if (!mensagem.created_at) return false;
+    const createdAt = new Date(mensagem.created_at);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+    return diffMinutes <= 5;
+  };
   return (
     <main className="mx-auto max-w-6xl p-4 space-y-6">
       <div className="flex items-center gap-4">
@@ -270,6 +448,9 @@ export default function GrupoDetailPage() {
                           "Usuário";
                         const emailUsuario =
                           msg.usuario?.raw_user_meta_data?.email || "";
+                        const isOwnMessage = msg.user_id === currentUserId;
+                        const isEditing = editingMessageId === msg.id;
+                        
                         return (
                           <div key={msg.id} className="flex gap-3 group">
                             <Avatar className="h-8 w-8 shrink-0">
@@ -291,11 +472,68 @@ export default function GrupoDetailPage() {
                                     }
                                   )}
                                 </span>
+                                {msg.updated_at && (
+                                  <span className="text-xs text-muted-foreground italic">
+                                    (editado)
+                                  </span>
+                                )}
+                                {isOwnMessage && !isEditing && (
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {canEditMessage(msg) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => handleEditMessage(msg)}
+                                      >
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-destructive"
+                                      onClick={() => handleDeleteClick(msg)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                               <div className="rounded-lg bg-background border p-3 shadow-sm">
-                                <p className="text-sm whitespace-pre-wrap break-words">
-                                  {msg.mensagem}
-                                </p>
+                                {isEditing ? (
+                                  <div className="space-y-2">
+                                    <Textarea
+                                      value={editingText}
+                                      onChange={(e) => setEditingText(e.target.value)}
+                                      className="min-h-[60px]"
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingMessageId(null);
+                                          setEditingText("");
+                                        }}
+                                      >
+                                        <X className="h-4 w-4 mr-1" />
+                                        Cancelar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={handleSaveEdit}
+                                      >
+                                        <Check className="h-4 w-4 mr-1" />
+                                        Salvar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm whitespace-pre-wrap break-words">
+                                    {renderMessageWithMentions(msg.mensagem)}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -305,22 +543,65 @@ export default function GrupoDetailPage() {
                   </>
                 )}
               </div>
-              <div className="flex gap-2 pt-2 border-t">
-                <Input
-                  value={novaMensagem}
-                  onChange={(e) => setNovaMensagem(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleEnviarMensagem();
-                    }
-                  }}
-                  placeholder="Digite sua mensagem..."
-                  className="flex-1"
-                />
+              <div className="flex gap-2 pt-2 border-t relative">
+                <div className="flex-1 relative">
+                  <Textarea
+                    ref={inputRef}
+                    value={novaMensagem}
+                    onChange={handleMessageInputChange}
+                    onKeyDown={(e) => {
+                      if (showMentionSuggestions && e.key === "ArrowDown") {
+                        e.preventDefault();
+                      } else if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleEnviarMensagem();
+                      } else if (e.key === "Escape") {
+                        setShowMentionSuggestions(false);
+                      }
+                    }}
+                    placeholder="Digite sua mensagem... Use @ para mencionar alguém"
+                    className="min-h-[60px] resize-none"
+                    rows={2}
+                  />
+                  {showMentionSuggestions && (
+                    <div className="absolute bottom-full left-0 right-0 mb-2 bg-popover border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                      {getMentionSuggestions(mentionQuery).length > 0 ? (
+                        getMentionSuggestions(mentionQuery).map((membro) => {
+                          const nome =
+                            membro.usuario?.raw_user_meta_data?.nome ||
+                            membro.usuario?.raw_user_meta_data?.email ||
+                            "Usuário";
+                          return (
+                            <button
+                              key={membro.id}
+                              type="button"
+                              onClick={() => insertMention(membro)}
+                              className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                            >
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(
+                                    membro.usuario?.raw_user_meta_data?.nome,
+                                    membro.usuario?.raw_user_meta_data?.email
+                                  )}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{nome}</span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          Nenhum membro encontrado
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <Button
                   onClick={handleEnviarMensagem}
                   disabled={!novaMensagem.trim()}
+                  className="self-end"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -512,6 +793,63 @@ export default function GrupoDetailPage() {
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Aprovar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmação para deletar mensagem */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Deletar Mensagem
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar esta mensagem?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {mensagemToDelete && (
+              <div className="rounded-lg border bg-muted/50 p-4 text-sm">
+                <p className="text-muted-foreground mb-2">
+                  <strong>Mensagem:</strong>
+                </p>
+                <p className="whitespace-pre-wrap break-words">
+                  {mensagemToDelete.mensagem.length > 200
+                    ? `${mensagemToDelete.mensagem.substring(0, 200)}...`
+                    : mensagemToDelete.mensagem}
+                </p>
+              </div>
+            )}
+            <div className="mt-4 rounded-lg border bg-destructive/10 border-destructive/30 p-4 text-sm">
+              <p className="text-destructive dark:text-destructive">
+                <strong>⚠️ Atenção:</strong>
+              </p>
+              <ul className="mt-2 space-y-1 text-muted-foreground list-disc list-inside">
+                <li>Esta ação não pode ser desfeita</li>
+                <li>A mensagem será permanentemente removida</li>
+                <li>Outros membros do grupo não poderão mais vê-la</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setMensagemToDelete(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMessage}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Deletar
             </Button>
           </div>
         </DialogContent>

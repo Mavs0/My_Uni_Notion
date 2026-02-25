@@ -7,15 +7,18 @@ import { MobileMenuProvider } from "../components/ui/mobile-menu-context";
 import { SkipLink } from "../components/SkipLink";
 import { useGlobalShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { VoiceCommandsProvider } from "@/components/VoiceCommandsProvider";
+import { FocusMode } from "@/components/FocusMode";
+import { PomodoroFloatingWidget } from "@/components/PomodoroFloatingWidget";
+import { useFocusMode } from "@/contexts/FocusModeContext";
+import { cn } from "@/lib/utils";
 
-// Lazy load do VirtualAssistant - só carrega quando necessário
 const VirtualAssistant = lazy(() =>
   import("../components/VirtualAssistant").then((mod) => ({
     default: mod.VirtualAssistant,
   }))
 );
 
-export default function LayoutContent({
+function LayoutContentInner({
   children,
 }: {
   children: React.ReactNode;
@@ -26,35 +29,78 @@ export default function LayoutContent({
   const isAuthPage = authPages.includes(pathname);
   const isErrorPage = pathname === "/404" || pathname === "/500";
 
-  // Ativa atalhos de teclado globais
   useGlobalShortcuts();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
   if (isAuthPage || isErrorPage) {
     return <>{children}</>;
   }
+
   return (
     <MobileMenuProvider>
       <VoiceCommandsProvider>
-        <SkipLink />
-        <TopBar />
-        <div className="flex">
-          <Sidebar />
-          <main
-            id="main-content"
-            className="flex-1 p-4 max-w-6xl mx-auto w-full"
-            role="main"
-            aria-label="Conteúdo principal"
-          >
-            {children}
-          </main>
-        </div>
-        <Suspense fallback={null}>
-          <VirtualAssistant />
-        </Suspense>
+        <FocusModeWrapper>{children}</FocusModeWrapper>
       </VoiceCommandsProvider>
     </MobileMenuProvider>
   );
+}
+
+function FocusModeWrapper({ children }: { children: React.ReactNode }) {
+  const { isActive: isFocusModeActive, settings } = useFocusMode();
+
+  return (
+    <>
+      <FocusMode />
+      {!isFocusModeActive && (
+        <>
+          <SkipLink />
+          <TopBar />
+        </>
+      )}
+      <div className={cn("flex", isFocusModeActive && "h-screen overflow-hidden")}>
+        {!isFocusModeActive && <Sidebar />}
+        <main
+          id="main-content"
+          className={cn(
+            "flex-1 w-full",
+            !isFocusModeActive && "p-4 max-w-6xl mx-auto",
+            isFocusModeActive && "h-full overflow-auto pt-12"
+          )}
+          role="main"
+          aria-label="Conteúdo principal"
+        >
+          {isFocusModeActive ? (
+            <div
+              className={cn(
+                "focus-mode-content-wrapper max-w-4xl mx-auto p-8",
+                settings.fontSize === "large" && "text-lg",
+                settings.fontSize === "extra-large" && "text-xl"
+              )}
+            >
+              {children}
+            </div>
+          ) : (
+            children
+          )}
+        </main>
+      </div>
+      {!isFocusModeActive && (
+        <Suspense fallback={null}>
+          <VirtualAssistant />
+        </Suspense>
+      )}
+      <PomodoroFloatingWidget />
+    </>
+  );
+}
+
+export default function LayoutContent({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <LayoutContentInner>{children}</LayoutContentInner>;
 }

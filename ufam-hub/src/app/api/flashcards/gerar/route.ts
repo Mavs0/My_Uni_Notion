@@ -85,7 +85,6 @@ IMPORTANTE:
     let resultText = "";
 
     try {
-      // Tentar primeiro com @ai-sdk/google
       try {
         const model = getAIModel();
         const result = await generateText({
@@ -100,7 +99,6 @@ IMPORTANTE:
           sdkError.message
         );
 
-        // Fallback: usar @google/generative-ai diretamente
         const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
         if (!apiKey) {
           throw new Error("GOOGLE_GENERATIVE_AI_API_KEY não configurada");
@@ -108,7 +106,6 @@ IMPORTANTE:
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
-        // Primeiro, listar modelos disponíveis
         let modelosDisponiveis: string[] = [];
         try {
           const response = await fetch(
@@ -119,7 +116,6 @@ IMPORTANTE:
             modelosDisponiveis = (data.models || [])
               .map((m: any) => m.name?.replace("models/", "") || "")
               .filter((n: string) => {
-                // Filtrar apenas modelos Gemini que suportam generateContent
                 const model = data.models.find(
                   (mod: any) => mod.name?.replace("models/", "") === n
                 );
@@ -140,8 +136,6 @@ IMPORTANTE:
           );
         }
 
-        // Tentar modelos diferentes na ordem de preferência
-        // Usar modelos disponíveis se encontrados, senão usar lista padrão atualizada
         const modelosParaTentar =
           modelosDisponiveis.length > 0
             ? modelosDisponiveis
@@ -182,12 +176,10 @@ IMPORTANTE:
       }
       let flashcardsData;
       try {
-        // Tentar extrair JSON da resposta
         const jsonMatch = resultText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           flashcardsData = JSON.parse(jsonMatch[0]);
         } else {
-          // Tentar parsear diretamente
           flashcardsData = JSON.parse(resultText);
         }
       } catch (parseError: any) {
@@ -226,7 +218,6 @@ IMPORTANTE:
         .insert(flashcardsParaCriar)
         .select(
           `
-          *,
           disciplinas (
             id,
             nome

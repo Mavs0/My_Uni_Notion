@@ -13,7 +13,6 @@ import {
   GraduationCap,
   FileText,
   MessageSquare,
-  Trophy,
   Clock,
   Users,
   X,
@@ -86,17 +85,6 @@ const TOUR_STEPS: TourStep[] = [
     },
   },
   {
-    id: "gamificacao",
-    title: "Gamificação",
-    description:
-      "Ganhe XP, suba de nível, mantenha streaks e desbloqueie conquistas enquanto estuda!",
-    icon: Trophy,
-    action: {
-      label: "Ver Gamificação",
-      href: "/gamificacao",
-    },
-  },
-  {
     id: "pomodoro",
     title: "Pomodoro Timer",
     description:
@@ -138,7 +126,6 @@ export function OnboardingTour({ open, onComplete, onSkip }: OnboardingTourProps
   useEffect(() => {
     if (!open) return;
 
-    // Destacar elemento alvo
     if (currentStepData.target) {
       const element = document.querySelector(currentStepData.target) as HTMLElement;
       if (element) {
@@ -151,7 +138,6 @@ export function OnboardingTour({ open, onComplete, onSkip }: OnboardingTourProps
       setHighlightedElement(null);
     }
 
-    // Criar overlay de destaque
     if (highlightedElement && overlayRef.current) {
       const rect = highlightedElement.getBoundingClientRect();
       const overlay = overlayRef.current;
@@ -188,7 +174,6 @@ export function OnboardingTour({ open, onComplete, onSkip }: OnboardingTourProps
   };
 
   const handleComplete = async () => {
-    // Marcar onboarding como completo
     await fetch("/api/onboarding/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -6,16 +6,16 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params;
+
     const supabase = await createSupabaseServer();
     const {
       data: { user: currentUser },
       error: authError,
     } = await supabase.auth.getUser();
-
-    const { userId } = params;
 
     if (!userId) {
       return NextResponse.json(
@@ -24,7 +24,6 @@ export async function GET(
       );
     }
 
-    // Buscar dados do usuário
     let user;
     try {
       const adminClient = createSupabaseAdmin();
@@ -46,14 +45,6 @@ export async function GET(
         { status: 500 }
       );
     }
-    const perfilPublico = user.user_metadata?.perfil_publico || false;
-
-    // Se não for público e não for o próprio usuário, retornar erro
-    if (!perfilPublico && (!currentUser || currentUser.id !== userId)) {
-      return NextResponse.json({ error: "Perfil privado" }, { status: 403 });
-    }
-
-    // Buscar estatísticas públicas
     const [disciplinasResult, followersResult, followingResult] =
       await Promise.all([
         supabase
@@ -70,7 +61,6 @@ export async function GET(
           .eq("follower_id", userId),
       ]);
 
-    // Verificar se o usuário atual está seguindo este usuário
     let isFollowing = false;
     if (currentUser && currentUser.id !== userId) {
       const { data: followCheck } = await supabase
@@ -84,13 +74,13 @@ export async function GET(
 
     const profile = {
       id: user.id,
-      email: perfilPublico ? user.email : undefined,
+      email: user.email,
       nome: user.user_metadata?.nome || user.user_metadata?.full_name || "",
       avatar_url: user.user_metadata?.avatar_url || "",
       bio: user.user_metadata?.bio || "",
       curso: user.user_metadata?.curso || "",
       periodo: user.user_metadata?.periodo || "",
-      perfil_publico: perfilPublico,
+      perfil_publico: true,
       created_at: user.created_at,
       stats: {
         totalDisciplinas: disciplinasResult.count || 0,

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-// POST - Criar lembretes automáticos para avaliações e tarefas
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
     let result;
 
     if (tipo === "avaliacao") {
-      // Criar lembretes para avaliação (3 dias, 1 dia, 1 hora antes)
       const { error } = await supabase.rpc("criar_lembrete_avaliacao", {
         p_user_id: user.id,
         p_avaliacao_id: referencia_id,
@@ -44,7 +42,6 @@ export async function POST(request: NextRequest) {
 
       result = { success: true, tipo: "avaliacao", lembretes_criados: 2 };
     } else if (tipo === "tarefa") {
-      // Criar lembretes para tarefa (24h, 12h, 1h antes)
       const { error } = await supabase.rpc("criar_lembrete_tarefa", {
         p_user_id: user.id,
         p_tarefa_id: referencia_id,

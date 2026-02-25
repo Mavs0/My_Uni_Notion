@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar nome da disciplina
     let disciplinaNome = "";
     if (disciplinaId) {
       const { data: disciplina } = await supabase
@@ -131,7 +130,6 @@ REGRAS:
 
           const genAI = new GoogleGenerativeAI(apiKey);
 
-          // Primeiro, tentar listar modelos disponíveis
           let modelosDisponiveis: string[] = [];
           try {
             const response = await fetch(
@@ -153,7 +151,6 @@ REGRAS:
             );
           }
 
-          // Tentar modelos diferentes na ordem de preferência
           const modelosParaTentar =
             modelosDisponiveis.length > 0
               ? modelosDisponiveis
@@ -200,14 +197,11 @@ REGRAS:
       }
     }
 
-    // Tentar extrair JSON da resposta
     let mapaMental;
     try {
-      // Remover markdown se presente
       const jsonStr = text.replace(/```json\n?|\n?```/g, "").trim();
       mapaMental = JSON.parse(jsonStr);
     } catch {
-      // Se falhar, retornar o texto como está
       return NextResponse.json({
         mapaMental: null,
         rawResponse: text,

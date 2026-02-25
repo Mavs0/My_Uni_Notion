@@ -6,11 +6,10 @@ import {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; solicitacaoId: string } }
+  { params }: { params: Promise<{ id: string; solicitacaoId: string }> }
 ) {
   try {
-    const grupo_id = params.id;
-    const solicitacao_id = params.solicitacaoId;
+    const { id: grupo_id, solicitacaoId: solicitacao_id } = await params;
     const body = await request.json();
     const { aprovado } = body;
 

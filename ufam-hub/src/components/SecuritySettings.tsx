@@ -79,17 +79,38 @@ export function SecuritySettings() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Erro ao criar fator MFA");
+        const errorData = await response.json();
+        console.error("Erro na resposta da API:", errorData);
+        
+        let errorMessage = errorData.error || "Erro ao criar fator MFA";
+        if (errorData.details) {
+          errorMessage += `: ${errorData.details}`;
+        }
+        
+        if (errorMessage.includes("MFA is not enabled")) {
+          errorMessage = "MFA não está habilitado no projeto Supabase. Por favor, habilite nas configurações do Supabase Dashboard → Authentication → Multi-Factor Authentication.";
+        } else if (errorMessage.includes("already enrolled")) {
+          errorMessage = "Você já possui um fator MFA ativo. Remova o existente antes de criar um novo.";
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      
+      if (!data.qr_code && !data.secret) {
+        throw new Error("Resposta inválida: QR code e secret não foram retornados");
+      }
+      
       setQrCode(data.qr_code || "");
       setSecret(data.secret || "");
       setShowEnrollDialog(true);
     } catch (error: any) {
       console.error("Erro ao criar fator MFA:", error);
-      toast.error(error.message || "Erro ao ativar 2FA");
+      toast.error(error.message || "Erro ao ativar 2FA", {
+        description: "Verifique o console para mais detalhes",
+        duration: 5000,
+      });
     } finally {
       setEnrolling(false);
     }
@@ -112,7 +133,6 @@ export function SecuritySettings() {
         throw new Error("Fator MFA não encontrado");
       }
 
-      // Criar challenge
       const challengeResponse = await fetch("/api/auth/mfa/challenge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -125,7 +145,6 @@ export function SecuritySettings() {
 
       const { id: challengeId } = await challengeResponse.json();
 
-      // Verificar código
       const verifyResponse = await fetch("/api/auth/mfa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

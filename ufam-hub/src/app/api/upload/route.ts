@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     const fileName = `${user.id}/${timestamp}-${randomStr}.${fileExt}`;
     const filePath = `${folder}/${fileName}`;
 
-    // Determinar o bucket baseado na pasta (feed usa biblioteca)
     const bucketName = folder === "feed" ? "biblioteca" : folder;
 
     console.log("📤 Iniciando upload:", {
@@ -46,7 +45,6 @@ export async function POST(request: NextRequest) {
 
     let uploadData, uploadError;
 
-    // Usar adminClient se disponível para evitar problemas de RLS no storage
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const adminClient = createSupabaseAdmin();
       const { data: uploadDataResult, error: uploadErrorResult } =
@@ -108,7 +106,6 @@ export async function POST(request: NextRequest) {
 
             console.log("✅ Bucket 'biblioteca' criado com sucesso!");
 
-            // Usar adminClient para fazer upload (evita problemas de RLS)
             const { data: retryUpload, error: retryError } =
               await adminClient.storage
                 .from(bucketName)

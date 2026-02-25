@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { sendPushNotification } from "@/lib/push/notifications";
 
-// POST - Processar lembretes pendentes (chamado por cron job ou manualmente)
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticação (opcional - pode ser chamado por cron job)
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
@@ -15,7 +13,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createSupabaseServer();
 
-    // Buscar lembretes pendentes usando a função SQL
     const { data: reminders, error } = await supabase.rpc(
       "processar_lembretes"
     );
@@ -32,11 +29,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ processed: 0, reminders: [] });
     }
 
-    // Enviar notificações push e salvar no histórico
     const results = await Promise.allSettled(
       reminders.map(async (reminder: any) => {
         try {
-          // Enviar notificação push
           await sendPushNotification(reminder.user_id, {
             title: reminder.titulo,
             body: reminder.descricao || "",
@@ -48,7 +43,6 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          // Salvar no histórico
           await supabase.from("notification_history").insert({
             user_id: reminder.user_id,
             tipo: reminder.tipo,

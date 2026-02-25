@@ -24,6 +24,8 @@ import {
   Sparkles,
   BookOpen,
   Brain,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useDisciplinas } from "@/hooks/useDisciplinas";
@@ -41,7 +43,9 @@ export default function RevisaoPage() {
   );
   const [disciplinaGerar, setDisciplinaGerar] = useState("");
   const [quantidadeGerar, setQuantidadeGerar] = useState(5);
-  const { disciplinas } = useDisciplinas();
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 9; // 3 colunas x 3 linhas
+  const { disciplinasAtivas } = useDisciplinas();
   const {
     flashcards,
     loading,
@@ -57,6 +61,15 @@ export default function RevisaoPage() {
     const proximaRevisao = new Date(fc.revisao.proxima_revisao);
     return proximaRevisao <= new Date(); // Se a próxima revisão já passou, precisa revisar
   });
+
+  const totalPaginas = Math.ceil(flashcards.length / itensPorPagina);
+  const indiceInicio = (paginaAtual - 1) * itensPorPagina;
+  const indiceFim = indiceInicio + itensPorPagina;
+  const flashcardsPaginados = flashcards.slice(indiceInicio, indiceFim);
+
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [flashcards.length]);
   useEffect(() => {
     if (flashcardsParaRevisar.length > 0 && !flashcardAtual) {
       setFlashcardAtual(flashcardsParaRevisar[0]);
@@ -104,15 +117,26 @@ export default function RevisaoPage() {
       return;
     }
     try {
-      toast.loading("Gerando flashcards com IA...");
+      const loadingToast = toast.loading("Gerando flashcards com IA...");
       await gerarFlashcards(disciplinaGerar, quantidadeGerar);
+      toast.dismiss(loadingToast);
       toast.success(`${quantidadeGerar} flashcards gerados com sucesso!`);
       setOpenGerar(false);
       setDisciplinaGerar("");
       setQuantidadeGerar(5);
       refetch();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao gerar flashcards");
+      const errorMessage =
+        err instanceof Error ? err.message : "Erro ao gerar flashcards";
+      toast.error(errorMessage);
+      if (
+        errorMessage.includes("Não autorizado") ||
+        errorMessage.includes("401")
+      ) {
+        toast.info(
+          "Sua sessão pode ter expirado. Tente fazer login novamente."
+        );
+      }
     }
   };
   if (loading) {
@@ -299,7 +323,7 @@ export default function RevisaoPage() {
                 Todos os Flashcards ({flashcards.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {flashcards.map((fc) => (
+                {flashcardsPaginados.map((fc) => (
                   <Card
                     key={fc.id}
                     className="hover:shadow-md transition-shadow cursor-pointer"
@@ -339,6 +363,41 @@ export default function RevisaoPage() {
                   </Card>
                 ))}
               </div>
+
+              {/* Controles de Paginação */}
+              {totalPaginas > 1 && (
+                <div className="flex items-center justify-center gap-4 mt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPaginaAtual((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={paginaAtual === 1}
+                  >
+                    <ChevronLeft className="size-4 mr-1" />
+                    Anterior
+                  </Button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Página {paginaAtual} de {totalPaginas}
+                    </span>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPaginaAtual((prev) => Math.min(totalPaginas, prev + 1))
+                    }
+                    disabled={paginaAtual === totalPaginas}
+                  >
+                    Próxima
+                    <ChevronRight className="size-4 ml-1" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -410,7 +469,7 @@ export default function RevisaoPage() {
             </DialogDescription>
           </DialogHeader>
           <CriarFlashcardForm
-            disciplinas={disciplinas}
+            disciplinas={disciplinasAtivas}
             onClose={() => setOpenCriar(false)}
             onCreate={async () => {
               await refetch();
@@ -440,7 +499,7 @@ export default function RevisaoPage() {
                 className="w-full mt-1 px-3 py-2 border rounded-md bg-background"
               >
                 <option value="">Selecione uma disciplina</option>
-                {disciplinas.map((d) => (
+                {disciplinasAtivas.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.nome}
                   </option>
@@ -645,7 +704,7 @@ function CriarFlashcardForm({
           className="w-full mt-1 px-3 py-2 border rounded-md bg-background"
         >
           <option value="">Nenhuma</option>
-          {disciplinas.map((d) => (
+          {disciplinas.map((d: { id: string; nome: string }) => (
             <option key={d.id} value={d.id}>
               {d.nome}
             </option>

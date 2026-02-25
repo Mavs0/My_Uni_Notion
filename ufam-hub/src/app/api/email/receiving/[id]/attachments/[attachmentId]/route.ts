@@ -87,9 +87,7 @@ export async function GET(
       );
     }
 
-    // Se o anexo tiver dados binários, retornar como blob
     if (data && "content" in data) {
-      // Retornar o anexo com os metadados
       return NextResponse.json({ attachment: data });
     }
 

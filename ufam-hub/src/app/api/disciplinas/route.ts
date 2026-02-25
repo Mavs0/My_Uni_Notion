@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { adicionarXP, verificarConquistasEspecificas } from "@/lib/gamificacao";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +15,6 @@ export async function GET(request: NextRequest) {
       .from("disciplinas")
       .select(
         `
-        *,
         horarios (
           id,
           dia_semana,
@@ -137,41 +135,9 @@ export async function POST(request: NextRequest) {
         console.error("Erro ao criar horários:", horError);
       }
     }
-    let conquistasDesbloqueadas: any[] = [];
-    try {
-      const { count: totalDisciplinas } = await supabase
-        .from("disciplinas")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-      const resultadoXP = await adicionarXP(
-        user.id,
-        10,
-        "disciplina",
-        `Disciplina criada: ${nome}`,
-        disciplina.id
-      );
-      if (resultadoXP.success && resultadoXP.conquistasDesbloqueadas) {
-        conquistasDesbloqueadas.push(...resultadoXP.conquistasDesbloqueadas);
-      }
-      const resultadoConquista = await verificarConquistasEspecificas(
-        user.id,
-        "primeira_disciplina",
-        {
-          totalDisciplinas: (totalDisciplinas || 0) + 1,
-        }
-      );
-      if (resultadoConquista.conquistasDesbloqueadas) {
-        conquistasDesbloqueadas.push(
-          ...resultadoConquista.conquistasDesbloqueadas
-        );
-      }
-    } catch (gamError) {
-      console.error("Erro ao processar gamificação:", gamError);
-    }
     return NextResponse.json({
       success: true,
       disciplina: { id: disciplina.id },
-      conquistasDesbloqueadas,
     });
   } catch (error) {
     console.error("Erro na API de disciplinas:", error);

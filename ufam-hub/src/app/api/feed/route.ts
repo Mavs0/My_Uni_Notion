@@ -20,6 +20,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
     const type = searchParams.get("type") || "all"; // 'all', 'following', 'public'
+    
+    const tipoAtividade = searchParams.get("tipo_atividade"); // Tipo específico de atividade
+    const disciplinaId = searchParams.get("disciplina_id"); // Filtrar por disciplina
+    const dataInicio = searchParams.get("data_inicio"); // Data início do período
+    const dataFim = searchParams.get("data_fim"); // Data fim do período
 
     let query = supabase
       .from("user_activities")
@@ -28,7 +33,6 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (type === "following") {
-      // Apenas atividades de usuários que o usuário segue
       const { data: followingData } = await supabase
         .from("followers")
         .select("following_id")
@@ -38,20 +42,32 @@ export async function GET(request: NextRequest) {
         const followingIds = followingData.map((f) => f.following_id);
         query = query.in("user_id", followingIds);
       } else {
-        // Não segue ninguém, retornar array vazio
         return NextResponse.json({ activities: [] });
       }
     } else if (type === "public") {
-      // Apenas atividades públicas
       query = query.eq("visibilidade", "public");
     }
-    // 'all' mostra tudo que o usuário tem permissão para ver (via RLS)
+
+    if (tipoAtividade) {
+      query = query.eq("tipo", tipoAtividade);
+    }
+
+    if (disciplinaId) {
+      query = query.eq("disciplina_id", disciplinaId);
+    }
+
+    if (dataInicio) {
+      query = query.gte("created_at", dataInicio);
+    }
+
+    if (dataFim) {
+      query = query.lte("created_at", dataFim);
+    }
 
     const { data: activities, error } = await query;
 
     if (error) {
       console.error("Erro ao buscar feed:", error);
-      // Se a tabela não existir, retornar array vazio ao invés de erro
       if (error.code === "42P01") {
         return NextResponse.json({ activities: [] });
       }
@@ -65,12 +81,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ activities: [] });
     }
 
-    // Buscar dados dos usuários usando admin client
     const adminClient = createSupabaseAdmin();
     const userIds = [...new Set(activities.map((a: any) => a.user_id))];
     const userDataMap: Record<string, any> = {};
 
-    // Buscar dados de cada usuário
     await Promise.all(
       userIds.map(async (userId: string) => {
         try {
@@ -98,7 +112,6 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Buscar informações de disciplinas quando houver referencia_id
     const disciplinaIds = [
       ...new Set(
         activities
@@ -126,7 +139,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Formatar atividades
     const formattedActivities = activities.map((activity: any) => {
       const disciplinaInfo =
         activity.referencia_tipo === "disciplina" && activity.referencia_id
@@ -186,7 +198,6 @@ export async function POST(request: NextRequest) {
       link_url,
     } = body;
 
-    // Validação
     if (!titulo || titulo.trim().length === 0) {
       return NextResponse.json(
         { error: "Título é obrigatório" },
@@ -208,7 +219,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar URL do link se fornecido
     if (link_url && link_url.trim()) {
       try {
         const url = new URL(link_url.trim());
@@ -223,7 +233,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Verificar se a tabela existe primeiro
     const { error: tableCheckError } = await supabase
       .from("user_activities")
       .select("id")
@@ -241,7 +250,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Inserir atividade
     const { data: activity, error: insertError } = await supabase
       .from("user_activities")
       .insert({
@@ -262,7 +270,6 @@ export async function POST(request: NextRequest) {
       console.error("Erro ao criar atividade:", insertError);
       console.error("Detalhes do erro:", JSON.stringify(insertError, null, 2));
 
-      // Se a tabela não existir, retornar erro informativo
       if (insertError.code === "42P01") {
         return NextResponse.json(
           {
@@ -274,7 +281,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Erro de permissão (RLS)
       if (
         insertError.code === "42501" ||
         insertError.message?.includes("permission")
@@ -289,7 +295,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Erro de coluna não encontrada ou tipo incorreto
       if (insertError.code === "42703" || insertError.code === "42804") {
         return NextResponse.json(
           {
@@ -301,11 +306,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Erro de constraint (valores inválidos)
       if (insertError.code === "23514" || insertError.code === "23505") {
         let errorMessage = "Dados inválidos. Verifique os valores informados.";
 
-        // Se for erro de constraint do tipo, dar mensagem mais específica
         if (insertError.message?.includes("tipo_check")) {
           errorMessage =
             "Tipo de atividade inválido. Execute o SQL sql/fix_user_activities_tipo.sql no Supabase para atualizar a constraint.";
@@ -341,7 +344,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Editar atividade
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -364,7 +366,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Verificar se a atividade pertence ao usuário
     const { data: activity, error: fetchError } = await supabase
       .from("user_activities")
       .select("user_id")
@@ -385,7 +386,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validação
     const updateData: any = { updated_at: new Date().toISOString() };
 
     if (titulo !== undefined) {
@@ -449,7 +449,6 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Deletar atividade
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -472,7 +471,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verificar se a atividade pertence ao usuário
     const { data: activity, error: fetchError } = await supabase
       .from("user_activities")
       .select("user_id")

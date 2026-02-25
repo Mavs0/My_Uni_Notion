@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-// GET - Listar reações de uma atividade
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -30,7 +29,6 @@ export async function GET(request: NextRequest) {
       .eq("activity_id", activityId);
 
     if (error) {
-      // Se a tabela não existir, retornar estrutura vazia
       if (error.code === "42P01") {
         return NextResponse.json({
           reactions: { like: 0, util: 0, inspirador: 0 },
@@ -44,7 +42,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Contar reações por tipo
     const reactionsCount = {
       like: 0,
       util: 0,
@@ -77,7 +74,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Adicionar/remover reação
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -108,7 +104,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "remove") {
-      // Remover reação
       const { error: deleteError } = await supabase
         .from("activity_reactions")
         .delete()
@@ -135,7 +130,6 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ success: true, action: "removed" });
     } else {
-      // Adicionar reação (usar upsert para evitar duplicatas)
       const { error: insertError } = await supabase
         .from("activity_reactions")
         .upsert(
@@ -164,6 +158,33 @@ export async function POST(request: NextRequest) {
           { error: "Erro ao adicionar reação" },
           { status: 500 }
         );
+      }
+
+      const { data: activity } = await supabase
+        .from("user_activities")
+        .select("user_id, titulo")
+        .eq("id", activity_id)
+        .single();
+
+      if (activity && activity.user_id !== user.id) {
+        try {
+          const { sendSocialInteractionNotification } = await import(
+            "@/lib/push/notifications"
+          );
+          const userName =
+            user.user_metadata?.nome ||
+            user.user_metadata?.full_name ||
+            "Alguém";
+          await sendSocialInteractionNotification(activity.user_id, {
+            tipo: "reaction",
+            activityId: activity_id,
+            activityTitle: activity.titulo || "Atividade",
+            userName,
+            reactionType: tipo as "like" | "util" | "inspirador",
+          });
+        } catch (notifError) {
+          console.error("Erro ao enviar notificação de reação:", notifError);
+        }
       }
 
       return NextResponse.json({ success: true, action: "added" });

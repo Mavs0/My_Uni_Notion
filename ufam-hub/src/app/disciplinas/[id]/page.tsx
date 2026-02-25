@@ -222,7 +222,6 @@ export default function DisciplinaDetailPage() {
   const [blocosAssistidos, setBlocosAssistidos] = useState<number>(0);
   const [notaToDelete, setNotaToDelete] = useState<string | null>(null);
 
-  // Carregar materiais do localStorage ao montar o componente
   useEffect(() => {
     const saved = localStorage.getItem(storeKey("materials"));
     if (saved) {
@@ -237,7 +236,6 @@ export default function DisciplinaDetailPage() {
     }
   }, [id]);
 
-  // Carregar blocos assistidos do localStorage
   useEffect(() => {
     const saved = localStorage.getItem(storeKey("blocks"));
     if (saved) {

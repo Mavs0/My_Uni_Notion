@@ -4,7 +4,6 @@ import {
   createSupabaseAdmin,
 } from "@/lib/supabase/server";
 
-// GET - Listar comentários de uma atividade
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -34,7 +33,6 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: true });
 
     if (error) {
-      // Se a tabela não existir, retornar array vazio
       if (error.code === "42P01") {
         return NextResponse.json({ comments: [] });
       }
@@ -49,7 +47,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ comments: [] });
     }
 
-    // Buscar dados dos usuários
     const adminClient = createSupabaseAdmin();
     const userIds = [...new Set(comments.map((c: any) => c.user_id))];
     const userDataMap: Record<string, any> = {};
@@ -81,7 +78,6 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Formatar comentários
     const formattedComments = comments.map((comment: any) => ({
       id: comment.id,
       activity_id: comment.activity_id,
@@ -106,7 +102,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Criar comentário
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -165,7 +160,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar dados do usuário
     const adminClient = createSupabaseAdmin();
     let userData = {
       id: user.id,
@@ -192,6 +186,28 @@ export async function POST(request: NextRequest) {
       console.error("Erro ao buscar dados do usuário:", err);
     }
 
+    const { data: activity } = await supabase
+      .from("user_activities")
+      .select("user_id, titulo")
+      .eq("id", activity_id)
+      .single();
+
+    if (activity && activity.user_id !== user.id) {
+      try {
+        const { sendSocialInteractionNotification } = await import(
+          "@/lib/push/notifications"
+        );
+        await sendSocialInteractionNotification(activity.user_id, {
+          tipo: "comment",
+          activityId: activity_id,
+          activityTitle: activity.titulo || "Atividade",
+          userName: userData.nome,
+        });
+      } catch (notifError) {
+        console.error("Erro ao enviar notificação de comentário:", notifError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       comment: {
@@ -209,7 +225,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Deletar comentário
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -232,7 +247,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verificar se o comentário pertence ao usuário
     const { data: comment, error: fetchError } = await supabase
       .from("activity_comments")
       .select("user_id")

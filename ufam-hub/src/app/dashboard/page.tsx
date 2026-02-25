@@ -1,11 +1,13 @@
 "use client";
-import { useMemo, useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import { useMemo, useState, useEffect, memo, useCallback } from "react";
 import {
   BookOpen,
   Calendar,
   Clock,
   GraduationCap,
   Grid3x3,
+  HelpCircle,
   MapPin,
   MessageSquare,
   Plus,
@@ -21,13 +23,21 @@ import {
   FileText,
   Users,
   Library,
-  Trophy,
 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
-import { HelpCenter } from "@/components/onboarding/HelpCenter";
-import { TutorialList } from "@/components/tutorials/TutorialList";
 import { TipManager } from "@/components/tips/SmartContextualTip";
+import { NotificationCard } from "@/components/dashboard/NotificationCard";
+import {
+  StatsSkeleton,
+  GradeSemanalSkeleton,
+  AvaliacoesSkeleton,
+  EventosSemanaSkeleton,
+  MetasSkeleton,
+  EstatisticasSkeleton,
+} from "@/components/dashboard/DashboardSkeletons";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -45,12 +55,33 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+const GoogleCalendarIntegration = dynamic(
+  () => import("@/components/GoogleCalendarIntegration").then((m) => m.GoogleCalendarIntegration),
+  { ssr: false, loading: () => <div className="rounded-lg border p-6 animate-pulse"><div className="h-32 bg-muted rounded" /></div> }
+);
+const SyncDisciplinasWithCalendar = dynamic(
+  () => import("@/components/GoogleCalendarIntegration").then((m) => m.SyncDisciplinasWithCalendar),
+  { ssr: false }
+);
 import {
-  GoogleCalendarIntegration,
-  SyncDisciplinasWithCalendar,
-} from "@/components/GoogleCalendarIntegration";
-import { useDisciplinas, type Disciplina } from "@/hooks/useDisciplinas";
-import { useAvaliacoes, type Avaliacao } from "@/hooks/useAvaliacoes";
+  useDisciplinas,
+  type Disciplina,
+} from "@/hooks/useDisciplinasOptimized";
+import { useAvaliacoes, type Avaliacao } from "@/hooks/useAvaliacoesOptimized";
+const WidgetGrid = dynamic(
+  () => import("@/components/dashboard/WidgetGrid").then((m) => m.WidgetGrid),
+  { ssr: false, loading: () => <div className="rounded-lg border p-6 animate-pulse"><div className="h-48 bg-muted rounded" /></div> }
+);
+import { Widget } from "@/components/dashboard/DashboardWidget";
+const RecommendationsWidget = dynamic(
+  () => import("@/components/RecommendationsWidget").then((m) => m.RecommendationsWidget),
+  { ssr: false }
+);
+const WidgetSelector = dynamic(
+  () => import("@/components/dashboard/WidgetSelector").then((m) => m.WidgetSelector),
+  { ssr: false }
+);
+
 
 type TTipo = "obrigatoria" | "eletiva" | "optativa";
 
@@ -132,7 +163,11 @@ function Progress({ value }: { value: number }) {
   );
 }
 
-function GradeSemanalCompacta({ disciplinas }: { disciplinas: Disciplina[] }) {
+const GradeSemanalCompacta = memo(function GradeSemanalCompacta({
+  disciplinas,
+}: {
+  disciplinas: Disciplina[];
+}) {
   const aulas = useMemo(() => {
     const aulasList: Array<{
       id: string;
@@ -200,18 +235,16 @@ function GradeSemanalCompacta({ disciplinas }: { disciplinas: Disciplina[] }) {
   }
   if (aulas.length === 0) {
     return (
-      <div className="text-center py-8">
-        <Grid3x3 className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-        <p className="text-sm text-muted-foreground">
-          Nenhuma disciplina com horários cadastrada
-        </p>
-        <Link
-          href="/disciplinas"
-          className="text-xs text-primary hover:underline mt-2 inline-block"
-        >
-          Adicionar disciplinas →
-        </Link>
-      </div>
+      <EmptyState
+        icon={Grid3x3}
+        title="Nenhuma disciplina com horários cadastrada"
+        description="Adicione disciplinas e configure seus horários para visualizar sua grade semanal aqui."
+        action={{
+          label: "Adicionar Disciplinas",
+          href: "/disciplinas",
+          icon: Plus,
+        }}
+      />
     );
   }
   return (
@@ -289,9 +322,9 @@ function GradeSemanalCompacta({ disciplinas }: { disciplinas: Disciplina[] }) {
       </div>
     </div>
   );
-}
+});
 
-function EventosSemana({
+const EventosSemana = memo(function EventosSemana({
   avaliacoes,
   hojeNaGrade,
   disciplinasMap,
@@ -395,14 +428,28 @@ function EventosSemana({
   );
   if (todosEventos.length === 0) {
     return (
-      <div className="text-center py-4">
-        <Calendar className="h-8 w-8 text-zinc-500 mx-auto mb-2" />
-        <p className="text-sm text-zinc-500">Nenhum evento esta semana</p>
-      </div>
+      <EmptyState
+        icon={Calendar}
+        title="Nenhum evento esta semana"
+        description="Não há avaliações ou aulas programadas para os próximos 7 dias. Aproveite para revisar o conteúdo ou planejar seus estudos!"
+        action={{
+          label: "Ver Calendário Completo",
+          href: "/calendar",
+          icon: Calendar,
+        }}
+        secondaryAction={{
+          label: "Adicionar Avaliação",
+          href: "/avaliacoes",
+        }}
+      />
     );
   }
   return (
-    <div className="space-y-2 max-h-96 overflow-y-auto">
+    <div
+      className="space-y-2 max-h-96 overflow-y-auto"
+      role="list"
+      aria-label="Eventos da semana"
+    >
       {todosEventos.slice(0, 6).map((evento) => {
         const data = new Date(evento.dataISO);
         const hoje = new Date();
@@ -422,9 +469,14 @@ function EventosSemana({
         return (
           <div
             key={evento.id}
+            role="listitem"
             className={`rounded-lg border p-3 ${
               corMap[evento.cor] || corMap.zinc
-            } transition-all hover:shadow-sm`}
+            } transition-all hover:shadow-sm focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2`}
+            tabIndex={0}
+            aria-label={`${
+              evento.tipo === "avaliacao" ? "Avaliação" : "Aula"
+            }: ${evento.titulo} em ${fmtDate(evento.dataISO)}`}
           >
             <div className="flex items-start gap-2">
               <div className="mt-0.5">
@@ -487,7 +539,7 @@ function EventosSemana({
       )}
     </div>
   );
-}
+});
 interface EstatisticasData {
   horasPorDisciplina: Array<{
     disciplinaId: string;
@@ -531,92 +583,125 @@ const COLORS = [
   "#06b6d4",
 ];
 export default function DashboardPage() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [periodoEstatisticas, setPeriodoEstatisticas] = useState(30);
-  const [estatisticas, setEstatisticas] = useState<EstatisticasData | null>(
-    null
-  );
-  const [loadingEstatisticas, setLoadingEstatisticas] = useState(false);
   const [showEstatisticas, setShowEstatisticas] = useState(false);
-  const [metas, setMetas] = useState<any[]>([]);
-  const [loadingMetas, setLoadingMetas] = useState(false);
-  const [notificacoes, setNotificacoes] = useState<any[]>([]);
-  const [loadingNotificacoes, setLoadingNotificacoes] = useState(false);
   const [showTour, setShowTour] = useState(false);
-  const [isNewUser, setIsNewUser] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
+  const [showWidgetSelector, setShowWidgetSelector] = useState(false);
+
   const {
     disciplinas,
     loading: loadingDisc,
     error: errorDisc,
   } = useDisciplinas();
   const { avaliacoes, loading: loadingAv, error: errorAv } = useAvaliacoes();
-  useEffect(() => {
-    // Paralelizar todas as chamadas de API para melhor performance
-    const loadAllData = async () => {
+
+  const { data: estatisticas, isLoading: loadingEstatisticas } = useQuery({
+    queryKey: ["estatisticas", periodoEstatisticas],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/estatisticas?periodo=${periodoEstatisticas}`
+      );
+      if (!res.ok) throw new Error("Erro ao buscar estatísticas");
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutos
+    enabled: showEstatisticas, // Só buscar quando necessário
+  });
+
+  const { data: metasData, isLoading: loadingMetas } = useQuery({
+    queryKey: ["metas"],
+    queryFn: async () => {
+      const res = await fetch("/api/metas");
+      if (!res.ok) throw new Error("Erro ao buscar metas");
+      const data = await res.json();
+      return data.metas || [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutos
+  });
+
+  const { data: notificacoesData, isLoading: loadingNotificacoes } = useQuery({
+    queryKey: ["notificacoes", "recentes"],
+    queryFn: async () => {
+      const res = await fetch("/api/notificacoes/recentes?limit=5");
+      if (!res.ok) throw new Error("Erro ao buscar notificações");
+      const data = await res.json();
+      return data.notificacoes || [];
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutos - notificações mudam mais frequentemente
+  });
+
+  const { data: onboardingData } = useQuery({
+    queryKey: ["onboarding", "status"],
+    queryFn: async () => {
+      const res = await fetch("/api/onboarding/status");
+      if (!res.ok) return { isNewUser: false };
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 60, // 1 hora - status de onboarding não muda frequentemente
+  });
+
+  const metas = metasData || [];
+  const notificacoes = notificacoesData || [];
+  const isNewUser = onboardingData?.isNewUser || false;
+
+  const { data: widgetsConfig } = useQuery({
+    queryKey: ["dashboard-widgets"],
+    queryFn: async () => {
       try {
-        // Carregar dados em paralelo usando Promise.all
-        const [estatisticasRes, metasRes, notificacoesRes, onboardingRes] =
-          await Promise.allSettled([
-            fetch(`/api/estatisticas?periodo=${periodoEstatisticas}`),
-            fetch("/api/metas"),
-            fetch("/api/notificacoes/recentes?limit=5"),
-            fetch("/api/onboarding/status"),
-          ]);
+        const res = await fetch("/api/dashboard/widgets");
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data.widgets || data.widgets.length === 0) return null;
+        return data;
+      } catch (error) {
+        console.error("Erro ao carregar widgets:", error);
+        return null;
+      }
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutos
+    retry: 1,
+  });
 
-        // Processar estatísticas
-        if (
-          estatisticasRes.status === "fulfilled" &&
-          estatisticasRes.value.ok
-        ) {
-          const data = await estatisticasRes.value.json();
-          setEstatisticas(data);
-        }
-        setLoadingEstatisticas(false);
+  const saveWidgetsMutation = useMutation({
+    mutationFn: async (widgets: Widget[]) => {
+      const res = await fetch("/api/dashboard/widgets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          widgets: widgets.map((w, index) => ({
+            id: w.id,
+            type: w.type,
+            position: index,
+            size: w.size || "medium",
+            visible: w.visible !== false,
+            config: w.config || {},
+          })),
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+        console.error("Erro ao salvar widgets:", error);
+        throw new Error(error.details || error.error || "Erro ao salvar widgets");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] });
+    },
+  });
 
-        // Processar metas
-        if (metasRes.status === "fulfilled" && metasRes.value.ok) {
-          const { metas: metasData } = await metasRes.value.json();
-          setMetas(metasData || []);
-        }
-        setLoadingMetas(false);
-
-        // Processar notificações
-        if (
-          notificacoesRes.status === "fulfilled" &&
-          notificacoesRes.value.ok
-        ) {
-          const { notificacoes: notifData } =
-            await notificacoesRes.value.json();
-          setNotificacoes(notifData || []);
-        }
-        setLoadingNotificacoes(false);
-
-        // Processar onboarding
-        if (onboardingRes.status === "fulfilled" && onboardingRes.value.ok) {
-          const data = await onboardingRes.value.json();
-          setIsNewUser(data.isNewUser);
-          setShowChecklist(data.isNewUser);
-          if (data.isNewUser) {
-            setTimeout(() => {
+  useEffect(() => {
+    if (isNewUser) {
+      setShowChecklist(true);
+      const timer = setTimeout(() => {
               setShowTour(true);
             }, 2000);
-          }
-        }
-      } catch (err) {
-        console.error("Erro ao carregar dados:", err);
-        setLoadingEstatisticas(false);
-        setLoadingMetas(false);
-        setLoadingNotificacoes(false);
-      }
-    };
-
-    // Iniciar carregamento
-    setLoadingEstatisticas(true);
-    setLoadingMetas(true);
-    setLoadingNotificacoes(true);
-    loadAllData();
-  }, [periodoEstatisticas]);
+      return () => clearTimeout(timer);
+    }
+  }, [isNewUser]);
 
   const hoje = weekdayIndex();
   const disciplinasMap = useMemo(
@@ -684,11 +769,769 @@ export default function DashboardPage() {
       pct: (h.horasCumpridas / Math.max(1, h.horasNecessarias)) * 100,
     }));
   }, [disciplinas]);
+
+  const widgets = useMemo<Widget[]>(() => {
+    const defaultWidgets: Widget[] = [
+      {
+        id: "notificacoes",
+        type: "notificacoes",
+        title: "Notificações Recentes",
+        size: "medium",
+        visible: true,
+        content: (
+          <NotificationCard
+            notificacoes={notificacoes}
+            loading={loadingNotificacoes}
+            disciplinasMap={disciplinasMap}
+          />
+        ),
+      },
+      {
+        id: "proximas-avaliacoes",
+        type: "avaliacoes",
+        title: "Próximas Avaliações",
+        size: "small",
+        visible: true,
+        content: loadingAv ? (
+          <AvaliacoesSkeleton />
+        ) : proximasAvaliacoes.length === 0 ? (
+          <EmptyState
+            icon={GraduationCap}
+            title="Nenhuma avaliação próxima"
+            description="Você não tem avaliações agendadas no momento."
+            action={{
+              label: "Adicionar Avaliação",
+              href: "/avaliacoes",
+              icon: Plus,
+            }}
+          />
+        ) : (
+          <div className="space-y-2">
+            {proximasAvaliacoes.slice(0, 3).map((a) => {
+              const dname =
+                disciplinasMap.get(a.disciplinaId)?.nome ?? "Disciplina";
+              const dias = daysUntil(a.dataISO);
+              return (
+                <div
+                  key={a.id}
+                  className="flex items-start justify-between gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={tipoBadgeAvaliacao(a.tipo)}>
+                        {a.tipo}
+                      </span>
+                      <span className="text-sm font-medium truncate">
+                        {dname}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {dias > 0
+                        ? `Em ${dias} ${dias === 1 ? "dia" : "dias"}`
+                        : dias === 0
+                        ? "Hoje"
+                        : "Passou"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ),
+      },
+      {
+        id: "grade-semanal",
+        type: "grade",
+        title: "Grade Semanal",
+        size: "large",
+        visible: true,
+        content: loadingDisc ? (
+          <GradeSemanalSkeleton />
+        ) : (
+          <GradeSemanalCompacta disciplinas={disciplinas} />
+        ),
+      },
+      {
+        id: "eventos-semana",
+        type: "eventos",
+        title: "Esta Semana",
+        size: "small",
+        visible: true,
+        content:
+          loadingAv || loadingDisc ? (
+            <EventosSemanaSkeleton />
+          ) : (
+            <EventosSemana
+              avaliacoes={proximasAvaliacoes}
+              hojeNaGrade={hojeNaGrade}
+              disciplinasMap={disciplinasMap}
+              disciplinas={disciplinas}
+            />
+          ),
+      },
+      {
+        id: "metas",
+        type: "metas",
+        title: "Metas de Estudo",
+        size: "small",
+        visible: metas.length > 0,
+        content: loadingMetas ? (
+          <MetasSkeleton />
+        ) : metas.length > 0 ? (
+          <div className="space-y-3">
+            {metas
+              .slice(0, 3)
+              .map(
+                (meta: {
+                  id: string;
+                  descricao?: string;
+                  tipo: string;
+                  valor_atual: number;
+                  valor_alvo: number;
+                }) => {
+                  const progresso =
+                    meta.valor_alvo > 0
+                      ? (meta.valor_atual / meta.valor_alvo) * 100
+                      : 0;
+                  return (
+                    <div key={meta.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium truncate">
+                          {meta.descricao || meta.tipo.replace("_", " ")}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {progresso.toFixed(0)}%
+                        </span>
+                      </div>
+                      <Progress value={Math.min(100, progresso)} />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {meta.valor_atual.toFixed(1)} / {meta.valor_alvo}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+              )}
+          </div>
+        ) : null,
+      },
+      {
+        id: "grafico-horas",
+        type: "grafico-horas",
+        title: "Horas Estudadas por Semana",
+        size: "medium",
+        visible: !!estatisticas,
+        content: estatisticas && estatisticas.horasPorSemana ? (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={estatisticas.horasPorSemana}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                <XAxis 
+                  dataKey="semana" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="horas" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : loadingEstatisticas ? (
+          <div className="h-64 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <EmptyState
+            icon={BarChart3}
+            title="Sem dados de horas estudadas"
+            description="Comece a registrar suas horas de estudo para ver gráficos aqui."
+          />
+        ),
+      },
+      {
+        id: "distribuicao-carga",
+        type: "distribuicao-carga",
+        title: "Distribuição de Carga",
+        size: "small",
+        visible: !!estatisticas && estatisticas.distribuicaoCarga?.length > 0,
+        content: estatisticas && estatisticas.distribuicaoCarga?.length > 0 ? (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={estatisticas.distribuicaoCarga}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={(entry: any) => {
+                    const percent = entry.percent || 0;
+                    const nome = entry.nome || entry.name || "";
+                    return `${nome}: ${(percent * 100).toFixed(0)}%`;
+                  }}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="horasSemana"
+                >
+                  {estatisticas.distribuicaoCarga.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        ) : null,
+      },
+      {
+        id: "produtividade",
+        type: "produtividade",
+        title: "Produtividade",
+        size: "small",
+        visible: !!estatisticas && estatisticas.produtividade,
+        content: estatisticas && estatisticas.produtividade ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Taxa de Conclusão</span>
+                <span className="font-semibold">
+                  {estatisticas.produtividade.taxaConclusao.toFixed(0)}%
+                </span>
+              </div>
+              <Progress value={estatisticas.produtividade.taxaConclusao} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+              <div>
+                <div className="text-2xl font-bold">
+                  {estatisticas.produtividade.tarefasConcluidas}
+                </div>
+                <div className="text-xs text-muted-foreground">Concluídas</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">
+                  {estatisticas.produtividade.tarefasTotal}
+                </div>
+                <div className="text-xs text-muted-foreground">Total</div>
+              </div>
+            </div>
+          </div>
+        ) : null,
+      },
+      {
+        id: "comparativo-desempenho",
+        type: "comparativo-desempenho",
+        title: "Comparativo de Desempenho",
+        size: "medium",
+        visible: !!estatisticas && estatisticas.comparativoDesempenho?.length > 0,
+        content: estatisticas && estatisticas.comparativoDesempenho?.length > 0 ? (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={estatisticas.comparativoDesempenho.slice(0, 5)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                <XAxis 
+                  dataKey="disciplinaNome" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={10}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Bar 
+                  dataKey="media" 
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
+                >
+                  {estatisticas.comparativoDesempenho.slice(0, 5).map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : null,
+      },
+      {
+        id: "evolucao-medias",
+        type: "evolucao-medias",
+        title: "Evolução de Médias",
+        size: "large",
+        visible: !!estatisticas && estatisticas.evolucaoMedias?.length > 0,
+        content: estatisticas && estatisticas.evolucaoMedias?.length > 0 ? (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                <XAxis 
+                  dataKey="mes" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  domain={[0, 10]}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Legend />
+                {estatisticas.evolucaoMedias.slice(0, 3).map((disciplina: any, index: number) => (
+                  <Line
+                    key={disciplina.disciplinaId}
+                    type="monotone"
+                    dataKey="media"
+                    data={disciplina.medias}
+                    name={disciplina.disciplinaNome}
+                    stroke={COLORS[index % COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : null,
+      },
+      {
+        id: "calendario-mensal",
+        type: "calendario-mensal",
+        title: "Calendário do Mês",
+        size: "medium",
+        visible: true,
+        content: (
+          <div className="space-y-3">
+            <div className="grid grid-cols-7 gap-1 text-xs">
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((dia) => (
+                <div key={dia} className="text-center font-medium text-muted-foreground py-1">
+                  {dia}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: 35 }, (_, i) => {
+                const date = new Date();
+                const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+                const day = i - firstDay + 1;
+                const isCurrentMonth = day > 0 && day <= new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+                const isToday = isCurrentMonth && day === date.getDate();
+                const hasEvent = isCurrentMonth && avaliacoes.some((a) => {
+                  const avalDate = new Date(a.dataISO);
+                  return avalDate.getDate() === day && avalDate.getMonth() === date.getMonth();
+                });
+                
+                return (
+                  <div
+                    key={i}
+                    className={`
+                      aspect-square flex items-center justify-center text-xs rounded
+                      ${isCurrentMonth ? "text-foreground" : "text-muted-foreground opacity-30"}
+                      ${isToday ? "bg-primary text-primary-foreground font-semibold" : ""}
+                      ${hasEvent && !isToday ? "bg-primary/10 border border-primary/20" : ""}
+                    `}
+                  >
+                    {isCurrentMonth ? day : ""}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-primary"></div>
+                <span>Hoje</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-primary/10 border border-primary/20"></div>
+                <span>Avaliação</span>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "insights",
+        type: "insights",
+        title: "Insights",
+        size: "small",
+        visible: true,
+        content: (
+          <div className="space-y-3">
+            {proximasAvaliacoes.length > 0 && (
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-3">
+                <div className="flex items-start gap-2">
+                  <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Você tem {proximasAvaliacoes.length} avaliação{proximasAvaliacoes.length > 1 ? "ões" : ""} próxima{proximasAvaliacoes.length > 1 ? "s" : ""}
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      Revise seus materiais de estudo
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {hojeNaGrade.length > 0 && (
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 p-3">
+                <div className="flex items-start gap-2">
+                  <Calendar className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                      {hojeNaGrade.length} aula{hojeNaGrade.length > 1 ? "s" : ""} hoje
+                    </p>
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                      Não se esqueça de levar seus materiais
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {metas.length > 0 && metas.some((m: any) => {
+              const progresso = m.valor_alvo > 0 ? (m.valor_atual / m.valor_alvo) * 100 : 0;
+              return progresso >= 80 && progresso < 100;
+            }) && (
+              <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 p-3">
+                <div className="flex items-start gap-2">
+                  <Target className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                      Você está próximo de alcançar suas metas!
+                    </p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                      Continue assim para completá-las
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {(!proximasAvaliacoes.length && !hojeNaGrade.length && metas.length === 0) && (
+              <div className="text-center py-4 text-muted-foreground text-sm">
+                <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>Nenhum insight no momento</p>
+              </div>
+            )}
+          </div>
+        ),
+      },
+    ];
+
+    if (widgetsConfig?.widgets && widgetsConfig.widgets.length > 0) {
+      const savedOrder = [...widgetsConfig.widgets].sort(
+        (a: { position: number }, b: { position: number }) =>
+          a.position - b.position
+      );
+
+      const defaultWidgetsMapById = new Map(
+        defaultWidgets.map((w) => [w.id, w])
+      );
+      const defaultWidgetsMapByType = new Map(
+        defaultWidgets.map((w) => [w.type, w])
+      );
+      
+      const shouldAddDefaults = !isNewUser;
+
+      interface SavedWidget {
+        id?: string;
+        widget_type?: string;
+        size?: string;
+        visible?: boolean;
+        widget_config?: Record<string, any>;
+        config?: Record<string, any>;
+        position?: number;
+      }
+
+      const mappedWidgetIds = new Set<string>();
+      const mappedWidgetTypes = new Set<string>();
+
+      const mappedWidgets = savedOrder
+        .map((saved: SavedWidget) => {
+          const defaultWidget = 
+            (saved.id && defaultWidgetsMapById.get(saved.id)) ||
+            (saved.widget_type && defaultWidgetsMapByType.get(saved.widget_type));
+          
+          if (defaultWidget) {
+            mappedWidgetIds.add(defaultWidget.id);
+            mappedWidgetTypes.add(defaultWidget.type);
+            
+            return {
+              ...defaultWidget,
+              size: (saved.size || defaultWidget.size || "medium") as
+                | "small"
+                | "medium"
+                | "large",
+              visible: saved.visible !== false,
+              config: saved.widget_config || saved.config || {},
+            };
+          }
+          return null;
+        })
+        .filter((w): w is NonNullable<typeof w> => w !== null && w.id !== undefined)
+        .map((w) => ({
+          ...w,
+          size: (w.size || "medium") as "small" | "medium" | "large",
+        })) as Widget[];
+
+      const newWidgets = shouldAddDefaults 
+        ? defaultWidgets.filter(
+            (w) => !mappedWidgetIds.has(w.id) && !mappedWidgetTypes.has(w.type)
+          )
+        : [];
+      
+      const allWidgetsMap = new Map<string, Widget>();
+      
+      mappedWidgets.forEach((w) => {
+        if (!allWidgetsMap.has(w.id)) {
+          allWidgetsMap.set(w.id, w);
+        }
+      });
+      
+      newWidgets.forEach((w) => {
+        if (!allWidgetsMap.has(w.id)) {
+          allWidgetsMap.set(w.id, {
+            ...w,
+            size: (w.size || "medium") as "small" | "medium" | "large",
+          });
+        }
+      });
+      
+      return Array.from(allWidgetsMap.values());
+    }
+
+    if (isNewUser) {
+      return [];
+    }
+    
+    return defaultWidgets.map((w) => ({
+      ...w,
+      size: (w.size || "medium") as "small" | "medium" | "large",
+    }));
+  }, [
+    notificacoes,
+    loadingNotificacoes,
+    disciplinasMap,
+    loadingAv,
+    proximasAvaliacoes,
+    loadingDisc,
+    disciplinas,
+    loadingMetas,
+    metas,
+    hojeNaGrade,
+    avaliacoes,
+    widgetsConfig,
+    estatisticas,
+    loadingEstatisticas,
+    isNewUser,
+  ]);
+
+  const handleReorder = useCallback(
+    async (newWidgets: Widget[]) => {
+      await saveWidgetsMutation.mutateAsync(newWidgets);
+    },
+    [saveWidgetsMutation]
+  );
+
+  const allAvailableWidgets = useMemo(() => {
+    return [
+      {
+        id: "notificacoes",
+        type: "notificacoes",
+        title: "Notificações Recentes",
+        description: "Veja suas notificações recentes e importantes",
+        icon: <Bell className="h-5 w-5" />,
+        size: "medium" as const,
+        category: "Notificações",
+      },
+      {
+        id: "proximas-avaliacoes",
+        type: "avaliacoes",
+        title: "Próximas Avaliações",
+        description: "Acompanhe suas próximas avaliações e prazos",
+        icon: <GraduationCap className="h-5 w-5" />,
+        size: "small" as const,
+        category: "Avaliações",
+      },
+      {
+        id: "grade-semanal",
+        type: "grade",
+        title: "Grade Semanal",
+        description: "Visualize sua grade horária semanal completa",
+        icon: <Calendar className="h-5 w-5" />,
+        size: "large" as const,
+        category: "Horários",
+      },
+      {
+        id: "eventos-semana",
+        type: "eventos",
+        title: "Esta Semana",
+        description: "Veja os eventos e compromissos desta semana",
+        icon: <Clock className="h-5 w-5" />,
+        size: "small" as const,
+        category: "Eventos",
+      },
+      {
+        id: "metas",
+        type: "metas",
+        title: "Metas de Estudo",
+        description: "Acompanhe o progresso das suas metas de estudo",
+        icon: <Target className="h-5 w-5" />,
+        size: "small" as const,
+        category: "Metas",
+      },
+      {
+        id: "grafico-horas",
+        type: "grafico-horas",
+        title: "Horas Estudadas por Semana",
+        description: "Gráfico de horas estudadas ao longo das semanas",
+        icon: <BarChart3 className="h-5 w-5" />,
+        size: "medium" as const,
+        category: "Estatísticas",
+      },
+      {
+        id: "distribuicao-carga",
+        type: "distribuicao-carga",
+        title: "Distribuição de Carga",
+        description: "Distribuição de carga horária por disciplina",
+        icon: <BarChart3 className="h-5 w-5" />,
+        size: "small" as const,
+        category: "Estatísticas",
+      },
+      {
+        id: "produtividade",
+        type: "produtividade",
+        title: "Produtividade",
+        description: "Estatísticas de produtividade e conclusão de tarefas",
+        icon: <TrendingUp className="h-5 w-5" />,
+        size: "small" as const,
+        category: "Estatísticas",
+      },
+      {
+        id: "comparativo-desempenho",
+        type: "comparativo-desempenho",
+        title: "Comparativo de Desempenho",
+        description: "Compare seu desempenho entre disciplinas",
+        icon: <BarChart3 className="h-5 w-5" />,
+        size: "medium" as const,
+        category: "Estatísticas",
+      },
+      {
+        id: "evolucao-medias",
+        type: "evolucao-medias",
+        title: "Evolução de Médias",
+        description: "Acompanhe a evolução das suas médias ao longo do tempo",
+        icon: <TrendingUp className="h-5 w-5" />,
+        size: "large" as const,
+        category: "Estatísticas",
+      },
+      {
+        id: "calendario-mensal",
+        type: "calendario-mensal",
+        title: "Calendário do Mês",
+        description: "Calendário mensal com suas avaliações marcadas",
+        icon: <Calendar className="h-5 w-5" />,
+        size: "medium" as const,
+        category: "Calendário",
+      },
+      {
+        id: "insights",
+        type: "insights",
+        title: "Insights",
+        description: "Insights e recomendações personalizadas",
+        icon: <Sparkles className="h-5 w-5" />,
+        size: "small" as const,
+        category: "Insights",
+      },
+    ];
+  }, []);
+
+  const createWidgetFromType = useCallback(
+    (widgetType: string): Widget | null => {
+      const widgetOption = allAvailableWidgets.find((w) => w.type === widgetType);
+      if (!widgetOption) return null;
+
+      const baseWidget: Widget = {
+        id: `${widgetType}_${Date.now()}`,
+        type: widgetType,
+        title: widgetOption.title,
+        size: widgetOption.size,
+        visible: true,
+        content: <div>Widget {widgetOption.title}</div>, // Placeholder - será substituído pelo conteúdo real
+      };
+
+      return baseWidget;
+    },
+    [allAvailableWidgets]
+  );
+
+  const handleAddWidget = useCallback(
+    async (widgetType: string) => {
+      const exists = widgets.some((w) => w.type === widgetType);
+      if (exists) {
+        return; // Widget já existe
+      }
+
+      const widgetOption = allAvailableWidgets.find((w) => w.type === widgetType);
+      if (!widgetOption) return;
+
+      const newWidget: Widget = {
+        id: widgetType,
+        type: widgetType,
+        title: widgetOption.title,
+        size: widgetOption.size,
+        visible: true,
+        content: <div className="p-4 text-center text-muted-foreground">Carregando widget...</div>, // Placeholder temporário
+      };
+
+      const updatedWidgets = [...widgets, newWidget];
+      await handleReorder(updatedWidgets);
+      setShowWidgetSelector(false);
+      
+      queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] });
+    },
+    [widgets, handleReorder, allAvailableWidgets, queryClient]
+  );
   if (loadingDisc || loadingAv) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div
+        className="flex items-center justify-center min-h-[60vh]"
+        role="status"
+        aria-live="polite"
+        aria-label="Carregando dashboard"
+      >
         <div className="text-center">
-          <LayoutDashboard className="size-12 animate-pulse mx-auto mb-4 text-primary" />
+          <LayoutDashboard
+            className="size-12 animate-pulse mx-auto mb-4 text-primary"
+            aria-hidden="true"
+          />
           <p className="text-muted-foreground">Carregando dashboard...</p>
         </div>
       </div>
@@ -696,27 +1539,48 @@ export default function DashboardPage() {
   }
   if (errorDisc || errorAv) {
     return (
-      <main className="mx-auto max-w-6xl space-y-6 p-6">
-        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-red-500">
+      <main
+        className="mx-auto max-w-6xl space-y-6 p-6"
+        role="main"
+        aria-label="Dashboard principal"
+      >
+        <div
+          className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-red-500"
+          role="alert"
+          aria-live="assertive"
+        >
           {errorDisc || errorAv || "Erro ao carregar dados"}
         </div>
       </main>
     );
   }
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6" data-tour="dashboard">
-      <header className="mb-6 flex items-center justify-between">
+    <main
+      className="mx-auto max-w-6xl space-y-6 p-6"
+      data-tour="dashboard"
+      role="main"
+      aria-label="Dashboard principal"
+    >
+      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do seu semestre</p>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {totalDisciplinas} disciplinas · {totalAvaliacoesSemana} avaliações esta semana
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <HelpCenter />
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/ajuda">
+              <HelpCircle className="h-4 w-4 mr-2" />
+              Ajuda
+            </Link>
+          </Button>
           {isNewUser && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowTour(true)}
+              aria-label="Iniciar tour guiado do dashboard"
             >
               Iniciar Tour
             </Button>
@@ -741,236 +1605,84 @@ export default function DashboardPage() {
 
       {/* Dicas Contextuais Inteligentes */}
       <TipManager pagina="/dashboard" maxTips={1} />
-      {}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-2xl font-bold">{totalDisciplinas}</div>
-          <div className="text-xs text-muted-foreground mt-1">Disciplinas</div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-2xl font-bold">{totalAvaliacoesSemana}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Avaliações (7d)
-          </div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-2xl font-bold">{hojeNaGrade.length}</div>
-          <div className="text-xs text-muted-foreground mt-1">Aulas hoje</div>
-        </div>
-        {estatisticas && (
-          <div className="rounded-lg border bg-card p-4">
-            <div className="text-2xl font-bold">
-              {estatisticas.horasPorDisciplina
-                .reduce((acc, item) => acc + item.horasEstudadas, 0)
-                .toFixed(0)}
-              h
+
+      {/* Estatísticas rápidas */}
+      {loadingDisc || loadingAv ? (
+        <StatsSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
-            <div className="text-xs text-muted-foreground mt-1">Estudadas</div>
+            <div>
+              <div className="text-xl font-bold">{totalDisciplinas}</div>
+              <div className="text-xs text-muted-foreground">Disciplinas</div>
+            </div>
           </div>
-        )}
-      </div>
-      {}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card title="Notificações Recentes">
-            {loadingNotificacoes ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+              <GraduationCap className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <div className="text-xl font-bold">{totalAvaliacoesSemana}</div>
+              <div className="text-xs text-muted-foreground">Avaliações (7d)</div>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+              <Clock className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <div className="text-xl font-bold">{hojeNaGrade.length}</div>
+              <div className="text-xs text-muted-foreground">Aulas hoje</div>
+            </div>
+          </div>
+          {estatisticas && (
+            <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5 text-emerald-500" />
               </div>
-            ) : notificacoes.length === 0 ? (
-              <div className="text-center py-8">
-                <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma notificação recente
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {notificacoes.map((notif) => {
-                  const dias = Math.ceil(
-                    (new Date(notif.data).getTime() - new Date().getTime()) /
-                      (1000 * 60 * 60 * 24)
-                  );
-                  const disciplinaNome =
-                    notif.disciplina_id &&
-                    disciplinasMap.get(notif.disciplina_id)?.nome;
-                  return (
-                    <div
-                      key={notif.id}
-                      className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
-                        notif.urgente
-                          ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/20"
-                          : "hover:bg-accent/50"
-                      }`}
-                    >
-                      <div
-                        className={`mt-0.5 ${
-                          notif.tipo === "avaliacao"
-                            ? "text-blue-500"
-                            : "text-emerald-500"
-                        }`}
-                      >
-                        {notif.tipo === "avaliacao" ? (
-                          <GraduationCap className="h-4 w-4" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {notif.titulo}
-                        </div>
-                        {disciplinaNome && (
-                          <div className="text-xs text-muted-foreground">
-                            {disciplinaNome}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {dias === 0
-                            ? "Hoje"
-                            : dias === 1
-                            ? "Amanhã"
-                            : dias < 0
-                            ? `Há ${Math.abs(dias)} dias`
-                            : `Em ${dias} dias`}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="pt-2 text-center">
-                  <Link
-                    href="/avaliacoes"
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Ver todas →
-                  </Link>
+              <div>
+                <div className="text-xl font-bold">
+                  {estatisticas.horasPorDisciplina
+                    .reduce(
+                      (acc: number, item: { horasEstudadas: number }) =>
+                        acc + item.horasEstudadas,
+                      0
+                    )
+                    .toFixed(0)}
+                  h
                 </div>
+                <div className="text-xs text-muted-foreground">Estudadas</div>
               </div>
-            )}
-          </Card>
+            </div>
+          )}
         </div>
-        <div>
-          <Card title="Próximas Avaliações">
-            {proximasAvaliacoes.length === 0 ? (
-              <div className="text-center py-8">
-                <GraduationCap className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma avaliação próxima
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {proximasAvaliacoes.slice(0, 3).map((a) => {
-                  const dname =
-                    disciplinasMap.get(a.disciplinaId)?.nome ?? "Disciplina";
-                  const dias = daysUntil(a.dataISO);
-                  return (
-                    <div
-                      key={a.id}
-                      className="flex items-start justify-between gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={tipoBadgeAvaliacao(a.tipo)}>
-                            {a.tipo}
-                          </span>
-                          <span className="text-sm font-medium truncate">
-                            {dname}
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {dias > 0
-                            ? `Em ${dias} ${dias === 1 ? "dia" : "dias"}`
-                            : dias === 0
-                            ? "Hoje"
-                            : "Passou"}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {proximasAvaliacoes.length > 3 && (
-                  <div className="pt-2 text-center">
-                    <a
-                      href="/avaliacoes"
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Ver todas ({proximasAvaliacoes.length}) →
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        </div>
-      </div>
-      {}
-      <Card
-        title="Grade Semanal"
-        right={
-          <Link
-            href="/grade"
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            Ver completa
-            <LinkIcon className="h-3 w-3" />
-          </Link>
-        }
-      >
-        <GradeSemanalCompacta disciplinas={disciplinas} />
-      </Card>
-      {}
-      <Card title="Ações Rápidas">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <a
-            href="/disciplinas"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
-          >
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Disciplinas</span>
-          </a>
-          <a
-            href="/avaliacoes"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
-          >
-            <GraduationCap className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Avaliações</span>
-          </a>
-          <a
-            href="/calendar"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
-          >
-            <Calendar className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Calendário</span>
-          </a>
-          <a
-            href="/chat"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
-          >
-            <MessageSquare className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Chat IA</span>
-          </a>
-          <a
-            href="/revisao"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
-          >
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Revisão</span>
-          </a>
-          <a
-            href="/gamificacao"
-            className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-all hover:bg-accent/50 hover:scale-105"
-          >
-            <Target className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Gamificação</span>
-          </a>
-        </div>
-      </Card>
-      {}
-      <Card title="Tutoriais Interativos">
-        <TutorialList />
-      </Card>
+      )}
+
+      {/* Widgets arrastáveis */}
+      <WidgetGrid
+        widgets={widgets}
+        onReorder={handleReorder}
+        onToggleVisibility={async (id) => {
+          const updated = widgets.map((w) =>
+            w.id === id ? { ...w, visible: !w.visible } : w
+          );
+          await handleReorder(updated);
+        }}
+        onAddWidget={() => setShowWidgetSelector(true)}
+        availableWidgets={allAvailableWidgets}
+      />
+
+      {/* Dialog de seleção de widgets */}
+      <WidgetSelector
+        availableWidgets={allAvailableWidgets}
+        currentWidgets={widgets}
+        onAddWidget={handleAddWidget}
+        open={showWidgetSelector}
+        onOpenChange={setShowWidgetSelector}
+      />
       {}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -979,17 +1691,23 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <SyncDisciplinasWithCalendar />
           <Card title="Esta Semana">
-            <EventosSemana
-              avaliacoes={proximasAvaliacoes}
-              hojeNaGrade={hojeNaGrade}
-              disciplinasMap={disciplinasMap}
-              disciplinas={disciplinas}
-            />
+            {loadingAv || loadingDisc ? (
+              <EventosSemanaSkeleton />
+            ) : (
+              <EventosSemana
+                avaliacoes={proximasAvaliacoes}
+                hojeNaGrade={hojeNaGrade}
+                disciplinasMap={disciplinasMap}
+                disciplinas={disciplinas}
+              />
+            )}
           </Card>
         </div>
       </div>
       {}
-      {estatisticas && (
+      {loadingEstatisticas ? (
+        <EstatisticasSkeleton />
+      ) : estatisticas ? (
         <Card title="Estatísticas de Estudo">
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
@@ -997,56 +1715,68 @@ export default function DashboardPage() {
             </p>
             <button
               onClick={() => setShowEstatisticas(!showEstatisticas)}
-              className="text-sm text-primary hover:underline"
+              className="text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+              aria-label={
+                showEstatisticas
+                  ? "Ocultar estatísticas"
+                  : "Mostrar estatísticas"
+              }
+              aria-expanded={showEstatisticas}
             >
               {showEstatisticas ? "Ocultar" : "Mostrar"} estatísticas
             </button>
           </div>
           {showEstatisticas && (
             <div className="space-y-6 pt-4 border-t">
-              <div className="flex gap-2">
-                <button
+              <div
+                className="flex gap-2"
+                role="group"
+                aria-label="Selecionar período das estatísticas"
+              >
+                <Button
+                  variant={periodoEstatisticas === 7 ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setPeriodoEstatisticas(7)}
-                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                    periodoEstatisticas === 7
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent"
-                  }`}
+                  aria-pressed={periodoEstatisticas === 7}
+                  aria-label="Estatísticas dos últimos 7 dias"
                 >
                   7 dias
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant={periodoEstatisticas === 30 ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setPeriodoEstatisticas(30)}
-                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                    periodoEstatisticas === 30
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent"
-                  }`}
+                  aria-pressed={periodoEstatisticas === 30}
+                  aria-label="Estatísticas dos últimos 30 dias"
                 >
                   30 dias
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant={periodoEstatisticas === 90 ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setPeriodoEstatisticas(90)}
-                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                    periodoEstatisticas === 90
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent"
-                  }`}
+                  aria-pressed={periodoEstatisticas === 90}
+                  aria-label="Estatísticas dos últimos 90 dias"
                 >
                   90 dias
-                </button>
+                </Button>
               </div>
-              {}
+              {loadingEstatisticas ? (
+                <EstatisticasSkeleton />
+              ) : estatisticas ? (
+                <>
               <div className="grid grid-cols-3 gap-3">
                 {(() => {
                   const mediasComNota =
                     estatisticas.comparativoDesempenho.filter(
-                      (item) => item.media !== null
+                          (item: { media: number | null }) =>
+                            item.media !== null
                     );
                   const mediaGeral =
                     mediasComNota.length > 0
                       ? mediasComNota.reduce(
-                          (acc, item) => acc + (item.media || 0),
+                              (acc: number, item: { media: number | null }) =>
+                                acc + (item.media || 0),
                           0
                         ) / mediasComNota.length
                       : null;
@@ -1054,7 +1784,9 @@ export default function DashboardPage() {
                     <>
                       <div className="rounded-lg border p-3 text-center">
                         <div className="text-xl font-bold">
-                          {mediaGeral !== null ? mediaGeral.toFixed(1) : "—"}
+                              {mediaGeral !== null
+                                ? mediaGeral.toFixed(1)
+                                : "—"}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           Média Geral
@@ -1073,7 +1805,8 @@ export default function DashboardPage() {
                         <div className="text-xl font-bold">
                           {
                             estatisticas.horasPorDisciplina.filter(
-                              (d) => d.horasEstudadas > 0
+                                  (d: { horasEstudadas: number }) =>
+                                    d.horasEstudadas > 0
                             ).length
                           }
                         </div>
@@ -1085,7 +1818,6 @@ export default function DashboardPage() {
                   );
                 })()}
               </div>
-              {}
               {estatisticas.horasPorDisciplina.length > 0 && (
                 <div className="space-y-4">
                   <div>
@@ -1094,12 +1826,20 @@ export default function DashboardPage() {
                     </h3>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart
-                        data={estatisticas.horasPorDisciplina.map((item) => ({
+                            data={estatisticas.horasPorDisciplina.map(
+                              (item: {
+                                disciplinaNome: string;
+                                horasEstudadas: number;
+                              }) => ({
                           nome: item.disciplinaNome,
                           horas: item.horasEstudadas,
-                        }))}
+                              })
+                            )}
                       >
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              opacity={0.3}
+                            />
                         <XAxis
                           dataKey="nome"
                           angle={-45}
@@ -1118,23 +1858,45 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                   </div>
                   {estatisticas.comparativoDesempenho.filter(
-                    (item) => item.media !== null
+                        (item: { media: number | null }) => item.media !== null
                   ).length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium mb-3">Desempenho</h3>
+                          <h3 className="text-sm font-medium mb-3">
+                            Desempenho
+                          </h3>
                       <ResponsiveContainer width="100%" height={200}>
                         <BarChart
                           data={estatisticas.comparativoDesempenho
-                            .filter((item) => item.media !== null)
-                            .map((item) => ({
+                                .filter(
+                                  (item: { media: number | null }) =>
+                                    item.media !== null
+                                )
+                                .map(
+                                  (item: {
+                                    disciplinaNome: string;
+                                    media: number | null;
+                                  }) => ({
                               nome: item.disciplinaNome,
                               media: item.media || 0,
-                            }))
-                            .sort((a, b) => b.media - a.media)}
+                                  })
+                                )
+                                .sort(
+                                  (
+                                    a: { media: number },
+                                    b: { media: number }
+                                  ) => b.media - a.media
+                                )}
                           layout="vertical"
                         >
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                          <XAxis type="number" domain={[0, 10]} fontSize={11} />
+                              <CartesianGrid
+                                strokeDasharray="3 3"
+                                opacity={0.3}
+                              />
+                              <XAxis
+                                type="number"
+                                domain={[0, 10]}
+                                fontSize={11}
+                              />
                           <YAxis
                             dataKey="nome"
                             type="category"
@@ -1153,110 +1915,29 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
+                </>
+              ) : null}
             </div>
           )}
         </Card>
-      )}
+      ) : null}
       {}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card title="Progresso por Disciplina">
-            {estatisticas && estatisticas.horasPorDisciplina.length > 0 ? (
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart
-                    data={estatisticas.horasPorDisciplina
-                      .map((item) => ({
-                        nome: item.disciplinaNome,
-                        horas: item.horasEstudadas,
-                        meta: item.horasSemana * 4,
-                        progresso:
-                          item.horasSemana > 0
-                            ? (item.horasEstudadas / (item.horasSemana * 4)) *
-                              100
-                            : 0,
-                      }))
-                      .sort((a, b) => b.horas - a.horas)}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis
-                      dataKey="nome"
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      fontSize={11}
-                    />
-                    <YAxis fontSize={11} />
-                    <Tooltip
-                      formatter={(value: any, name?: string) => {
-                        if (name === "horas") return [`${value}h`, "Estudadas"];
-                        if (name === "meta")
-                          return [`${value}h`, "Meta Mensal"];
-                        return [value, name || ""];
-                      }}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="horas"
-                      fill="#3b82f6"
-                      name="Horas Estudadas"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="meta"
-                      fill="#94a3b8"
-                      name="Meta Mensal"
-                      radius={[4, 4, 0, 0]}
-                      opacity={0.5}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="grid grid-cols-2 gap-3">
-                  {estatisticas.horasPorDisciplina.slice(0, 4).map((item) => {
-                    const progresso =
-                      item.horasSemana > 0
-                        ? (item.horasEstudadas / (item.horasSemana * 4)) * 100
-                        : 0;
-                    return (
-                      <div
-                        key={item.disciplinaId}
-                        className="rounded-lg border p-3 space-y-2"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium truncate">
-                            {item.disciplinaNome}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {progresso.toFixed(0)}%
-                          </span>
-                        </div>
-                        <Progress value={Math.min(100, progresso)} />
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{item.horasEstudadas.toFixed(1)}h</span>
-                          <span>
-                            Meta: {(item.horasSemana * 4).toFixed(0)}h
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhum dado de progresso disponível
-                </p>
-              </div>
-            )}
-          </Card>
-        </div>
-        <div className="space-y-4">
-          {metas.length > 0 && (
+      <div className="space-y-4">
+          {loadingMetas ? (
+            <MetasSkeleton />
+          ) : metas.length > 0 ? (
             <Card title="Metas de Estudo">
               <div className="space-y-3">
-                {metas.slice(0, 3).map((meta) => {
+                {metas
+                  .slice(0, 3)
+                  .map(
+                    (meta: {
+                      id: string;
+                      descricao?: string;
+                      tipo: string;
+                      valor_atual: number;
+                      valor_alvo: number;
+                    }) => {
                   const progresso =
                     meta.valor_alvo > 0
                       ? (meta.valor_atual / meta.valor_alvo) * 100
@@ -1279,7 +1960,8 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   );
-                })}
+                    }
+                  )}
                 <Link
                   href="/metas"
                   className="text-xs text-primary hover:underline flex items-center gap-1"
@@ -1289,85 +1971,8 @@ export default function DashboardPage() {
                 </Link>
               </div>
             </Card>
-          )}
-          <Card title="Notificações Recentes">
-            {loadingNotificacoes ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-              </div>
-            ) : notificacoes.length === 0 ? (
-              <div className="text-center py-8">
-                <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma notificação recente
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {notificacoes.map((notif) => {
-                  const dias = Math.ceil(
-                    (new Date(notif.data).getTime() - new Date().getTime()) /
-                      (1000 * 60 * 60 * 24)
-                  );
-                  const disciplinaNome =
-                    notif.disciplina_id &&
-                    disciplinasMap.get(notif.disciplina_id)?.nome;
-                  return (
-                    <div
-                      key={notif.id}
-                      className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
-                        notif.urgente
-                          ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/20"
-                          : "hover:bg-accent/50"
-                      }`}
-                    >
-                      <div
-                        className={`mt-0.5 ${
-                          notif.tipo === "avaliacao"
-                            ? "text-blue-500"
-                            : "text-emerald-500"
-                        }`}
-                      >
-                        {notif.tipo === "avaliacao" ? (
-                          <GraduationCap className="h-4 w-4" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {notif.titulo}
-                        </div>
-                        {disciplinaNome && (
-                          <div className="text-xs text-muted-foreground">
-                            {disciplinaNome}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {dias === 0
-                            ? "Hoje"
-                            : dias === 1
-                            ? "Amanhã"
-                            : dias < 0
-                            ? `Há ${Math.abs(dias)} dias`
-                            : `Em ${dias} dias`}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="pt-2 text-center">
-                  <Link
-                    href="/avaliacoes"
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Ver todas →
-                  </Link>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
+          ) : null}
+          <RecommendationsWidget limit={5} />
       </div>
       {}
     </main>

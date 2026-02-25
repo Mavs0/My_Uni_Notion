@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-// GET - Carregar histórico do VirtualAssistant
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createSupabaseServer(req);
@@ -14,7 +13,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Buscar histórico mais recente do VA (últimas 50 mensagens)
     const { data: historico, error } = await supabase
       .from("va_historico")
       .select("*")
@@ -34,7 +32,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST - Salvar mensagens do VirtualAssistant
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createSupabaseServer(req);
@@ -56,10 +53,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Limpar histórico antigo antes de salvar novo
     await supabase.from("va_historico").delete().eq("user_id", user.id);
 
-    // Inserir novas mensagens
     const mensagensParaSalvar = mensagens.map((msg: any) => ({
       user_id: user.id,
       role: msg.role,
@@ -89,7 +84,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE - Limpar histórico
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createSupabaseServer(req);

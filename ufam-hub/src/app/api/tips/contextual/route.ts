@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
     const pagina = searchParams.get("pagina") || "";
     const limite = parseInt(searchParams.get("limite") || "3");
 
-    // Buscar todas as dicas ativas
     const { data: allTips, error: tipsError } = await supabase
       .from("contextual_tips")
       .select("*")
@@ -32,7 +31,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar interações do usuário (últimas 7 dias)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -48,23 +46,18 @@ export async function GET(request: NextRequest) {
         .map((i) => i.tip_id) || []
     );
 
-    // Buscar padrões de comportamento do usuário
     const { data: behaviorPatterns } = await supabase
       .from("user_behavior_patterns")
       .select("*")
       .eq("user_id", user.id);
 
-    // Filtrar e priorizar dicas
     const eligibleTips = allTips
       ?.filter((tip) => {
-        // Não mostrar dicas já descartadas recentemente
         if (dismissedTips.has(tip.id)) return false;
 
-        // Verificar condições básicas
         const condicoes = tip.condicoes || [];
         if (condicoes.length === 0) return true;
 
-        // Verificar condições (implementação simplificada)
         return checkConditions(tip, pagina, behaviorPatterns || []);
       })
       .map((tip) => ({
@@ -96,7 +89,6 @@ function checkConditions(
   const condicoes = tip.condicoes || [];
   if (condicoes.length === 0) return true;
 
-  // Implementação simplificada - verificar condições básicas
   for (const condicao of condicoes) {
     switch (condicao.tipo) {
       case "page":
@@ -104,7 +96,6 @@ function checkConditions(
           return false;
         }
         break;
-      // Adicionar mais verificações conforme necessário
     }
   }
 
@@ -118,13 +109,11 @@ function calculateTipScore(
 ): number {
   let score = tip.prioridade * 10;
 
-  // Reduzir score se já foi mostrada muitas vezes
   const timesShown = interactions.filter(
     (i) => i.tip_id === tip.id && i.acao === "shown"
   ).length;
   score -= timesShown * 5;
 
-  // Reduzir score se sempre é descartada
   const dismissCount = interactions.filter(
     (i) => i.tip_id === tip.id && i.acao === "dismissed"
   ).length;

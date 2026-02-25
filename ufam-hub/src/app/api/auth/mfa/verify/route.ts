@@ -23,10 +23,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar código MFA
     let verifyData;
     if (challengeId) {
-      // Verificar challenge existente
       const { data, error } = await supabase.auth.mfa.verify({
         factorId,
         challengeId,
@@ -43,7 +41,6 @@ export async function POST(request: NextRequest) {
 
       verifyData = data;
     } else {
-      // Criar challenge e verificar
       const challengeResult = await supabase.auth.mfa.challenge({ factorId });
 
       if (challengeResult.error) {

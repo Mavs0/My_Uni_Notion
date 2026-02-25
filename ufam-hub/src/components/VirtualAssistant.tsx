@@ -44,14 +44,11 @@ export function VirtualAssistant() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Limpar mensagens quando fecha e quando abre novamente
   useEffect(() => {
     if (!isOpen) {
-      // Limpar mensagens quando fecha
       setMessages([]);
       setQuickActions([]);
     } else {
-      // Garantir que está limpo quando abre
       setMessages([]);
       setQuickActions([]);
     }
@@ -71,7 +68,6 @@ export function VirtualAssistant() {
     const actions: QuickAction[] = [];
     const lowerText = text.toLowerCase();
 
-    // Detectar menções a avaliações/provas
     if (
       lowerText.includes("avaliação") ||
       lowerText.includes("prova") ||
@@ -84,7 +80,6 @@ export function VirtualAssistant() {
       });
     }
 
-    // Detectar menções a disciplinas
     if (lowerText.includes("disciplina") || lowerText.includes("matéria")) {
       actions.push({
         label: "Ver Disciplinas",
@@ -93,7 +88,6 @@ export function VirtualAssistant() {
       });
     }
 
-    // Detectar menções a horários
     if (lowerText.includes("horário") || lowerText.includes("aula")) {
       actions.push({
         label: "Ver Horários",
@@ -102,7 +96,6 @@ export function VirtualAssistant() {
       });
     }
 
-    // Detectar menções a notas/anotações
     if (lowerText.includes("nota") || lowerText.includes("anotação")) {
       actions.push({
         label: "Ver Anotações",
@@ -113,12 +106,10 @@ export function VirtualAssistant() {
 
     setQuickActions(actions);
   };
-  // Função auxiliar para gerar IDs únicos
   const generateUniqueId = (prefix: string) => {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Função auxiliar para remover duplicatas de mensagens
   const removeDuplicateMessages = (messages: Message[]): Message[] => {
     const seen = new Set<string>();
     return messages.filter((msg) => {
@@ -245,7 +236,6 @@ export function VirtualAssistant() {
         `✅ [VA] Stream processado: ${chunkCount} chunks, ${accumulatedText.length} caracteres`
       );
       setIsTyping(false);
-      // Extrair ações rápidas da resposta
       if (accumulatedText.trim()) {
         extractQuickActions(accumulatedText);
       }
@@ -305,7 +295,6 @@ export function VirtualAssistant() {
   const handleClose = () => {
     setIsOpen(false);
     setIsMinimized(false);
-    // Limpar mensagens imediatamente ao fechar
     setMessages([]);
     setQuickActions([]);
   };

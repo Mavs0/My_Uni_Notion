@@ -42,11 +42,11 @@ function minutesToLabel(minutes: number): string {
   return `${hours}h`;
 }
 export default function GradePage() {
-  const { disciplinas, loading, error } = useDisciplinas();
+  const { disciplinasAtivas, loading, error } = useDisciplinas();
   const [filtroTipo, setFiltroTipo] = useState<"todas" | TTipo>("todas");
   const aulas = useMemo(() => {
     const aulasList: Aula[] = [];
-    disciplinas.forEach((disciplina) => {
+    disciplinasAtivas.forEach((disciplina) => {
       if (disciplina.horarios && disciplina.horarios.length > 0) {
         disciplina.horarios.forEach((horario) => {
           aulasList.push({
@@ -63,7 +63,7 @@ export default function GradePage() {
       }
     });
     return aulasList;
-  }, [disciplinas]);
+  }, [disciplinasAtivas]);
   const timeslots = useMemo(() => {
     const slots = new Set<string>();
     aulas.forEach((aula) => {
@@ -124,10 +124,10 @@ export default function GradePage() {
         <div>
           <h1 className="text-2xl font-semibold">Grade Horária</h1>
           <p className="text-zinc-500">
-            {disciplinas.length > 0
-              ? `${disciplinas.length} disciplina${
-                  disciplinas.length > 1 ? "s" : ""
-                } cadastrada${disciplinas.length > 1 ? "s" : ""}`
+            {disciplinasAtivas.length > 0
+              ? `${disciplinasAtivas.length} disciplina${
+                  disciplinasAtivas.length > 1 ? "s" : ""
+                } cadastrada${disciplinasAtivas.length > 1 ? "s" : ""}`
               : "Nenhuma disciplina cadastrada"}
           </p>
         </div>

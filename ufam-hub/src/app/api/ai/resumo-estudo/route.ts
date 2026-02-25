@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Buscar disciplina
     const { data: disciplina, error: discError } = await supabase
       .from("disciplinas")
       .select("id, nome")
@@ -41,7 +40,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar anotações da disciplina
     const { data: notas, error: notasError } = await supabase
       .from("notas")
       .select("titulo, content_md")
@@ -54,7 +52,6 @@ export async function POST(request: NextRequest) {
       console.error("Erro ao buscar notas:", notasError);
     }
 
-    // Buscar avaliações anteriores da disciplina
     const { data: avaliacoesAnteriores, error: avalError } = await supabase
       .from("avaliacoes")
       .select("tipo, descricao, resumo_assuntos")
@@ -103,7 +100,6 @@ Retorne APENAS o texto do resumo, sem formatação adicional, sem markdown, sem 
     let resultText = "";
 
     try {
-      // Tentar primeiro com @ai-sdk/google
       try {
         const model = getAIModel();
         const result = await generateText({
@@ -118,7 +114,6 @@ Retorne APENAS o texto do resumo, sem formatação adicional, sem markdown, sem 
           sdkError.message
         );
 
-        // Fallback: usar @google/generative-ai diretamente
         const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
         if (!apiKey) {
           throw new Error("GOOGLE_GENERATIVE_AI_API_KEY não configurada");
@@ -126,7 +121,6 @@ Retorne APENAS o texto do resumo, sem formatação adicional, sem markdown, sem 
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
-        // Listar modelos disponíveis
         let modelosDisponiveis: string[] = [];
         try {
           const response = await fetch(
@@ -157,7 +151,6 @@ Retorne APENAS o texto do resumo, sem formatação adicional, sem markdown, sem 
           );
         }
 
-        // Tentar modelos diferentes
         const modelosParaTentar =
           modelosDisponiveis.length > 0
             ? modelosDisponiveis

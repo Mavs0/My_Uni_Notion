@@ -45,6 +45,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { EmptyState } from "@/components/ui/empty-state";
 interface Grupo {
   id: string;
   nome: string;
@@ -173,13 +174,13 @@ export default function GruposPage() {
         if (linkMatch) {
           const linkConvite = linkMatch[1];
           const response = await fetch(
-            `/api/colaboracao/grupos/entrar?link=${linkConvite}`
+            `/api/colaboracao/grupos/entrar?link=${linkConvite}`,
           );
           const data = await response.json();
           if (response.ok) {
             if (data.pendente) {
               toast.success(
-                data.mensagem || "Solicitação enviada! Aguarde aprovação."
+                data.mensagem || "Solicitação enviada! Aguarde aprovação.",
               );
             } else {
               toast.success("Você entrou no grupo com sucesso!");
@@ -194,18 +195,18 @@ export default function GruposPage() {
           }
         } else {
           toast.error(
-            "Link inválido. Certifique-se de copiar o link completo."
+            "Link inválido. Certifique-se de copiar o link completo.",
           );
         }
       } else if (tipoGrupoEntrar === "privado") {
         const response = await fetch(
-          `/api/colaboracao/grupos/entrar?codigo=${codigoEntrar.trim()}`
+          `/api/colaboracao/grupos/entrar?codigo=${codigoEntrar.trim()}`,
         );
         const data = await response.json();
         if (response.ok) {
           if (data.pendente) {
             toast.success(
-              data.mensagem || "Solicitação enviada! Aguarde aprovação."
+              data.mensagem || "Solicitação enviada! Aguarde aprovação.",
             );
           } else {
             toast.success("Você entrou no grupo com sucesso!");
@@ -237,13 +238,11 @@ export default function GruposPage() {
   const handleToggleAtivo = (
     grupoId: string,
     grupoNome: string,
-    atualAtivo: boolean
+    atualAtivo: boolean,
   ) => {
-    // Se for arquivar (está ativo), mostra o dialog de confirmação
     if (atualAtivo) {
       setGrupoToArchive({ id: grupoId, nome: grupoNome, isAtivo: atualAtivo });
     } else {
-      // Se for ativar (está arquivado), ativa diretamente
       confirmArchiveToggle(grupoId, atualAtivo);
     }
   };
@@ -262,13 +261,13 @@ export default function GruposPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ativo: !targetIsAtivo }),
-        }
+        },
       );
       if (response.ok) {
         toast.success(
           !targetIsAtivo
             ? "Grupo ativado com sucesso!"
-            : "Grupo arquivado com sucesso!"
+            : "Grupo arquivado com sucesso!",
         );
         setGrupoToArchive(null);
         await loadGrupos();
@@ -320,7 +319,7 @@ export default function GruposPage() {
                     value={tipoGrupoEntrar}
                     onChange={(e) => {
                       setTipoGrupoEntrar(
-                        e.target.value as "publico" | "privado" | ""
+                        e.target.value as "publico" | "privado" | "",
                       );
                       setCodigoEntrar("");
                       setLinkEntrar("");
@@ -560,24 +559,29 @@ export default function GruposPage() {
         </div>
       ) : filteredGrupos.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              {grupos.length === 0
-                ? "Nenhum grupo ainda"
-                : "Nenhum grupo encontrado"}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {grupos.length === 0
-                ? "Crie seu primeiro grupo de estudo para começar a colaborar!"
-                : "Tente buscar com outros termos"}
-            </p>
-            {grupos.length === 0 && (
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Primeiro Grupo
-              </Button>
-            )}
+          <CardContent className="py-4">
+            <EmptyState
+              icon={Users}
+              title={
+                grupos.length === 0
+                  ? "Nenhum grupo ainda"
+                  : "Nenhum grupo encontrado"
+              }
+              description={
+                grupos.length === 0
+                  ? "Crie seu primeiro grupo de estudo para começar a colaborar com colegas."
+                  : "Tente buscar com outros termos ou ajustar os filtros."
+              }
+              action={
+                grupos.length === 0
+                  ? {
+                      label: "Criar primeiro grupo",
+                      onClick: () => setShowCreateDialog(true),
+                      icon: Plus,
+                    }
+                  : undefined
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -585,7 +589,7 @@ export default function GruposPage() {
           {filteredGrupos.map((grupo) => (
             <Card
               key={grupo.id}
-              className={`hover:shadow-md transition-shadow ${
+              className={`hover:shadow-md transition-shadow min-h-[280px] flex flex-col ${
                 grupo.ativo === false ? "opacity-60" : ""
               }`}
             >
@@ -623,7 +627,7 @@ export default function GruposPage() {
                             handleToggleAtivo(
                               grupo.id,
                               grupo.nome,
-                              grupo.ativo !== false
+                              grupo.ativo !== false,
                             );
                           }}
                         >
@@ -645,8 +649,8 @@ export default function GruposPage() {
                   </TooltipProvider>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
+              <CardContent className="flex-1 flex flex-col min-h-0">
+                <div className="space-y-3 flex-1 flex flex-col">
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4" />
@@ -693,12 +697,12 @@ export default function GruposPage() {
                       {new Date(grupo.created_at).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex gap-2 pt-2 mt-auto">
                     <Button
                       asChild
                       variant="default"
-                      className="flex-1"
                       size="sm"
+                      className="min-w-[180px] h-9 shrink-0"
                     >
                       <Link href={`/grupos/${grupo.id}`}>
                         <MessageSquare className="h-4 w-4 mr-2" />
@@ -711,6 +715,7 @@ export default function GruposPage() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="h-9 w-9 shrink-0"
                             onClick={() => {
                               const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
                               navigator.clipboard.writeText(link);

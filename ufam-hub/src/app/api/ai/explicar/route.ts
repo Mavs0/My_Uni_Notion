@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar nome da disciplina
     let disciplinaNome = "";
     if (disciplinaId) {
       const { data: disciplina } = await supabase
@@ -103,7 +102,6 @@ REGRAS:
         modelError.message?.includes("not found") ||
         modelError.message?.includes("404")
       ) {
-        // Tentar usar @google/generative-ai diretamente como fallback
         console.log("Tentando usar @google/generative-ai diretamente...");
         try {
           const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -113,7 +111,6 @@ REGRAS:
 
           const genAI = new GoogleGenerativeAI(apiKey);
 
-          // Primeiro, tentar listar modelos disponíveis
           let modelosDisponiveis: string[] = [];
           try {
             const response = await fetch(
@@ -135,7 +132,6 @@ REGRAS:
             );
           }
 
-          // Tentar modelos diferentes na ordem de preferência
           const modelosParaTentar =
             modelosDisponiveis.length > 0
               ? modelosDisponiveis
@@ -153,7 +149,6 @@ REGRAS:
           for (const nomeModelo of modelosParaTentar) {
             try {
               const modelo = genAI.getGenerativeModel({ model: nomeModelo });
-              // Usar streaming
               const resultadoStream = await modelo.generateContentStream(
                 prompt
               );

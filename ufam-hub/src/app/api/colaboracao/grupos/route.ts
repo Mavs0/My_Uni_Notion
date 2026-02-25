@@ -230,7 +230,6 @@ export async function GET(request: NextRequest) {
         .from("grupos_estudo")
         .select(
           `
-          *,
           criador:auth.users!grupos_estudo_criador_id_fkey(id, raw_user_meta_data)
         `
         )

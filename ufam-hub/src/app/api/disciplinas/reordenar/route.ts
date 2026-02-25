@@ -23,7 +23,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Atualizar ordem de cada disciplina
     const updates = disciplinas.map((d: { id: string; ordem: number }) =>
       supabase
         .from("disciplinas")

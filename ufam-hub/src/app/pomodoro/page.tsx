@@ -34,10 +34,8 @@ export default function PomodoroPage() {
 
       const { progresso } = await response.json();
 
-      // Criar mapa de disciplinas
       const disciplinasMap = new Map(disciplinas.map((d) => [d.id, d.nome]));
 
-      // Agrupar por disciplina e calcular estatísticas
       const statsMap = new Map<string, StudySession>();
 
       progresso.forEach((item: any) => {
@@ -45,7 +43,6 @@ export default function PomodoroPage() {
         const disciplinaNome =
           disciplinasMap.get(disciplinaId) || "Disciplina desconhecida";
 
-        // Filtrar por período
         const dataRegistro = new Date(item.data_registro);
         const hoje = new Date();
         let incluir = false;

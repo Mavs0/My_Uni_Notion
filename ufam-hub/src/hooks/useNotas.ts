@@ -75,16 +75,7 @@ export function useNotas(filters?: { disciplinaId?: string }) {
           const errorData = await response.json();
           throw new Error(errorData.error || "Erro ao criar nota");
         }
-        const { nota: newNota, conquistasDesbloqueadas } =
-          await response.json();
-        if (conquistasDesbloqueadas && conquistasDesbloqueadas.length > 0) {
-          conquistasDesbloqueadas.forEach((conquista: any) => {
-            toast.success(`🏆 Conquista desbloqueada: ${conquista.nome}`, {
-              description: conquista.descricao,
-              duration: 5000,
-            });
-          });
-        }
+        const { nota: newNota } = await response.json();
         await fetchNotas();
         toast.success("Nota criada com sucesso!");
         return { success: true, nota: newNota };

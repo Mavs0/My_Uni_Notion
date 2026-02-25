@@ -17,7 +17,6 @@ function createErrorPage(
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${title}</title>
         <style>
-          * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -232,19 +231,16 @@ function createErrorPage(
           </div>
         </div>
         <script>
-          // Enviar mensagem de erro para o popup pai
           if (window.opener) {
             window.opener.postMessage({
               type: "GOOGLE_CALENDAR_AUTH_ERROR",
               error: ${JSON.stringify(errorMessage)}
             }, window.location.origin);
-            // Auto-fechar após 5 segundos se não houver interação
             let autoCloseTimer = setTimeout(() => {
               if (confirm("Deseja fechar esta janela?")) {
                 window.close();
               }
             }, 5000);
-            // Cancelar auto-fechar se o usuário interagir
             document.addEventListener('click', () => {
               clearTimeout(autoCloseTimer);
             });
@@ -291,7 +287,6 @@ export async function GET(request: NextRequest) {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Autenticação Concluída</title>
           <style>
-            * {
               margin: 0;
               padding: 0;
               box-sizing: border-box;

@@ -16,36 +16,45 @@ export async function GET(request: NextRequest) {
     const dataInicio = new Date();
     dataInicio.setDate(dataInicio.getDate() - dias);
     const dataInicioISO = dataInicio.toISOString().split("T")[0];
-    const { data: disciplinas, error: discError } = await supabase
-      .from("disciplinas")
-      .select("id, nome, tipo, horas_semana")
-      .eq("user_id", user.id);
+
+    const [
+      { data: disciplinas, error: discError },
+      { data: progresso, error: progError },
+      { data: avaliacoes, error: avalError },
+      { data: tarefas, error: tarefasError },
+    ] = await Promise.all([
+      supabase
+        .from("disciplinas")
+        .select("id, nome, tipo, horas_semana")
+        .eq("user_id", user.id),
+      supabase
+        .from("progresso_horas")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("data_registro", dataInicioISO)
+        .order("data_registro", { ascending: true }),
+      supabase
+        .from("avaliacoes")
+        .select("id, disciplina_id, nota, peso, data_iso, tipo")
+        .eq("user_id", user.id)
+        .not("nota", "is", null)
+        .order("data_iso", { ascending: true }),
+      supabase
+        .from("tarefas")
+        .select("id, disciplina_id, concluida, created_at")
+        .eq("user_id", user.id)
+        .gte("created_at", dataInicioISO),
+    ]);
+
     if (discError) {
       console.error("Erro ao buscar disciplinas:", discError);
     }
-    const { data: progresso, error: progError } = await supabase
-      .from("progresso_horas")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("data_registro", dataInicioISO)
-      .order("data_registro", { ascending: true });
     if (progError) {
       console.error("Erro ao buscar progresso:", progError);
     }
-    const { data: avaliacoes, error: avalError } = await supabase
-      .from("avaliacoes")
-      .select("id, disciplina_id, nota, peso, data_iso, tipo")
-      .eq("user_id", user.id)
-      .not("nota", "is", null)
-      .order("data_iso", { ascending: true });
     if (avalError) {
       console.error("Erro ao buscar avaliações:", avalError);
     }
-    const { data: tarefas, error: tarefasError } = await supabase
-      .from("tarefas")
-      .select("id, disciplina_id, concluida, created_at")
-      .eq("user_id", user.id)
-      .gte("created_at", dataInicioISO);
     if (tarefasError) {
       console.error("Erro ao buscar tarefas:", tarefasError);
     }

@@ -88,18 +88,6 @@ export function useAvaliacoes(filters?: {
           const { error } = await response.json();
           throw new Error(error || "Erro ao criar avaliação");
         }
-        const result = await response.json();
-        if (
-          result.conquistasDesbloqueadas &&
-          result.conquistasDesbloqueadas.length > 0
-        ) {
-          result.conquistasDesbloqueadas.forEach((conquista: any) => {
-            toast.success(`🏆 Conquista desbloqueada: ${conquista.nome}`, {
-              description: conquista.descricao,
-              duration: 5000,
-            });
-          });
-        }
         await fetchAvaliacoes();
         return { success: true };
       } catch (err: any) {

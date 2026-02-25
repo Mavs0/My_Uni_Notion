@@ -64,7 +64,6 @@ export async function POST(
       })
       .select(
         `
-        *,
         usuario:auth.users!grupo_membros_user_id_fkey(id, raw_user_meta_data)
       `
       )

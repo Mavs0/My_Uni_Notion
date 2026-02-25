@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-// POST - Verificar e criar lembrete de streak
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -14,7 +13,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Verificar e criar lembrete de streak se necessário
     const { error } = await supabase.rpc("verificar_lembrete_streak", {
       p_user_id: user.id,
     });

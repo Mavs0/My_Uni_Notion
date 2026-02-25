@@ -22,11 +22,18 @@ interface Activity {
 interface ActivityFeedProps {
   type?: "all" | "following" | "public" | "personalized";
   limit?: number;
+  filters?: {
+    tipoAtividade?: string;
+    disciplinaId?: string;
+    dataInicio?: string;
+    dataFim?: string;
+  };
 }
 
 export function ActivityFeed({
   type = "personalized",
   limit = 20,
+  filters = {},
 }: ActivityFeedProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +58,19 @@ export function ActivityFeed({
         params.append("limit", limit.toString());
         params.append("offset", currentOffset.toString());
 
-        // Usar endpoint personalizado se type for "personalized"
+        if (filters.tipoAtividade) {
+          params.append("tipo_atividade", filters.tipoAtividade);
+        }
+        if (filters.disciplinaId) {
+          params.append("disciplina_id", filters.disciplinaId);
+        }
+        if (filters.dataInicio) {
+          params.append("data_inicio", filters.dataInicio);
+        }
+        if (filters.dataFim) {
+          params.append("data_fim", filters.dataFim);
+        }
+
         const endpoint =
           type === "personalized"
             ? `/api/feed/personalized?${params.toString()}`
@@ -73,8 +92,6 @@ export function ActivityFeed({
           setActivities((prev) => [...prev, ...newActivities]);
         }
 
-        // Verificar se há mais atividades
-        // API personalizada retorna has_more, outras retornam baseado no length
         const hasMoreData =
           data.has_more !== undefined
             ? data.has_more
@@ -91,15 +108,13 @@ export function ActivityFeed({
         setLoadingMore(false);
       }
     },
-    [type, limit]
+    [type, limit, filters]
   );
 
   useEffect(() => {
     loadActivities(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type]);
 
-  // Configurar Intersection Observer para paginação infinita
   useEffect(() => {
     if (observerRef.current) {
       observerRef.current.disconnect();

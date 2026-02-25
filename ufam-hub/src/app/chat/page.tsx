@@ -31,7 +31,12 @@ import {
   FileText,
   Eye,
   FileDown,
+  FileUp,
   Zap,
+  Tag,
+  Save,
+  Tags,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +65,8 @@ import {
 import { useDisciplinas } from "@/hooks/useDisciplinas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { MessageRenderer } from "@/components/chat/MessageRenderer";
+import { toast } from "sonner";
 
 type Msg = {
   id: string;
@@ -78,6 +85,7 @@ type Thread = {
   updatedAt: number;
   favorited?: boolean;
   modo?: "chat" | "quiz" | "explicacao" | "mapa_mental";
+  tags?: string[];
 };
 
 type QuizPergunta = {
@@ -126,12 +134,11 @@ const MODOS = [
   },
 ] as const;
 export default function ChatPage() {
-  const { disciplinas, loading: loadingDisc } = useDisciplinas();
+  const { disciplinas, disciplinasAtivas, loading: loadingDisc } =
+    useDisciplinas();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
-  const [disciplinaId, setDisciplinaId] = useState<string>(
-    disciplinas[0]?.id || ""
-  );
+  const [disciplinaId, setDisciplinaId] = useState<string>("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamErr, setStreamErr] = useState<string | null>(null);
@@ -155,6 +162,8 @@ export default function ChatPage() {
   const [quizLoading, setQuizLoading] = useState(false);
   const [explicacaoLoading, setExplicacaoLoading] = useState(false);
   const [mapaLoading, setMapaLoading] = useState(false);
+  const [pdfExtractLoading, setPdfExtractLoading] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [quizConfig, setQuizConfig] = useState({
     tema: "",
     quantidade: 5,
@@ -175,18 +184,55 @@ export default function ChatPage() {
     anotacoes: string[];
     avaliacoes: string[];
   } | null>(null);
+  const [showSaveAsNoteDialog, setShowSaveAsNoteDialog] = useState(false);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [showTagsDialog, setShowTagsDialog] = useState(false);
+  const [threadTags, setThreadTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
+  const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [msgAsstId, setMsgAsstId] = useState<string | null>(null);
+  const [showSaveMapaDialog, setShowSaveMapaDialog] = useState(false);
+  const [showLoadMapaDialog, setShowLoadMapaDialog] = useState(false);
+  const [mapasSalvos, setMapasSalvos] = useState<any[]>([]);
+  const [loadingMapasSalvos, setLoadingMapasSalvos] = useState(false);
+  const [mapaTitleToSave, setMapaTitleToSave] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    const raw = localStorage.getItem(storeKey);
-    if (raw) {
-      const data: Thread[] = JSON.parse(raw);
-      setThreads(data);
-      if (data[0]) setCurrentId(data[0].id);
+    try {
+      const raw = localStorage.getItem(storeKey);
+      if (raw) {
+        const data: Thread[] = JSON.parse(raw);
+        console.log("📂 Threads carregadas do localStorage:", data.length);
+        setThreads(data);
+        if (data[0]) setCurrentId(data[0].id);
+      }
+    } catch (error) {
+      console.error("❌ Erro ao carregar threads do localStorage:", error);
     }
   }, []);
   useEffect(() => {
-    localStorage.setItem(storeKey, JSON.stringify(threads));
+    if (disciplinasAtivas.length === 0) return;
+    const ativa = disciplinasAtivas.some((d) => d.id === disciplinaId);
+    if (disciplinaId === "" || !ativa) {
+      setDisciplinaId(disciplinasAtivas[0]?.id ?? "");
+    }
+  }, [disciplinasAtivas, disciplinaId]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(threads));
+      console.log("💾 Threads salvas no localStorage:", threads.length);
+    } catch (error) {
+      console.error("❌ Erro ao salvar threads no localStorage:", error);
+    }
+    const allTags = new Set<string>();
+    threads.forEach((t) => {
+      if (t.tags) {
+        t.tags.forEach((tag) => allTags.add(tag));
+      }
+    });
+    setAvailableTags(Array.from(allTags).sort());
   }, [threads]);
   const current = useMemo(
     () => threads.find((t) => t.id === currentId) || null,
@@ -194,7 +240,7 @@ export default function ChatPage() {
   );
   const currentMsgs = current?.msgs ?? [];
   function newThread() {
-    if (!disciplinas || disciplinas.length === 0) {
+    if (!disciplinasAtivas || disciplinasAtivas.length === 0) {
       return;
     }
     const id = `t_${Date.now()}`;
@@ -265,12 +311,18 @@ export default function ChatPage() {
     if (filterFavorites) {
       filtered = filtered.filter((t) => t.favorited);
     }
+    if (filterTag) {
+      filtered = filtered.filter(
+        (t) => t.tags && t.tags.includes(filterTag)
+      );
+    }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (t) =>
           t.title.toLowerCase().includes(query) ||
-          t.msgs.some((m) => m.text.toLowerCase().includes(query))
+          t.msgs.some((m) => m.text.toLowerCase().includes(query)) ||
+          (t.tags && t.tags.some((tag) => tag.toLowerCase().includes(query)))
       );
     }
     filtered.sort((a, b) => {
@@ -288,10 +340,10 @@ export default function ChatPage() {
       return 0;
     });
     return filtered;
-  }, [threads, filterFavorites, searchQuery, sortBy]);
+  }, [threads, filterFavorites, searchQuery, sortBy, filterTag]);
   async function send() {
     if (!input.trim()) return;
-    if (!disciplinas || disciplinas.length === 0) {
+    if (!disciplinasAtivas || disciplinasAtivas.length === 0) {
       setStreamErr(
         "Você precisa cadastrar pelo menos uma disciplina para usar o chat de IA."
       );
@@ -324,13 +376,26 @@ export default function ChatPage() {
     };
     setInput("");
     setThreads((prev) =>
-      prev.map((t) =>
-        t.id === tId
-          ? { ...t, msgs: [...t.msgs, msgUser], updatedAt: Date.now() }
-          : t
-      )
+      prev.map((t) => {
+        if (t.id === tId) {
+          const newMsgs = [...t.msgs, msgUser];
+          const newTitle = t.msgs.length === 0 
+            ? msgUser.text.length > 50 
+              ? msgUser.text.substring(0, 50) + "..."
+              : msgUser.text
+            : t.title;
+          return { 
+            ...t, 
+            msgs: newMsgs, 
+            title: newTitle,
+            updatedAt: Date.now() 
+          };
+        }
+        return t;
+      })
     );
     const msgAsstId = `m_${Date.now()}_a`;
+    setMsgAsstId(msgAsstId);
     setThreads((prev) =>
       prev.map((t) =>
         t.id === tId
@@ -419,7 +484,7 @@ export default function ChatPage() {
             setIsTyping(true);
             setThreads((prev) =>
               prev.map((t) =>
-                t.id === (current?.id ?? tId)
+                t.id === tId
                   ? {
                       ...t,
                       msgs: t.msgs.map((m) =>
@@ -444,7 +509,19 @@ export default function ChatPage() {
         }
         clearTimeout(timeout);
         setIsTyping(false);
-        // Sugestões serão atualizadas automaticamente pelo useEffect quando currentMsgs mudar
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.id === tId
+              ? {
+                  ...t,
+                  msgs: t.msgs.map((m) =>
+                    m.id === msgAsstId ? { ...m, text: acc } : m
+                  ),
+                  updatedAt: Date.now(),
+                }
+              : t
+          )
+        );
         console.log(
           "✅ Stream processado com sucesso. Texto final:",
           acc.substring(0, 100) + "..."
@@ -470,7 +547,7 @@ export default function ChatPage() {
           : errorMessage;
       setThreads((prev) =>
         prev.map((t) =>
-          t.id === (current?.id ?? tId)
+          t.id === tId
             ? {
                 ...t,
                 msgs: t.msgs.map((m) =>
@@ -481,6 +558,7 @@ export default function ChatPage() {
                       }
                     : m
                 ),
+                updatedAt: Date.now(),
               }
             : t
         )
@@ -488,6 +566,7 @@ export default function ChatPage() {
     } finally {
       setLoading(false);
       setIsTyping(false);
+      setMsgAsstId(null);
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       inputRef.current?.focus();
     }
@@ -499,7 +578,11 @@ export default function ChatPage() {
   function confirmClear() {
     if (!current) return;
     setThreads((prev) =>
-      prev.map((t) => (t.id === current.id ? { ...t, msgs: [] } : t))
+      prev.map((t) => 
+        t.id === current.id 
+          ? { ...t, msgs: [], updatedAt: Date.now() } 
+          : t
+      )
     );
     setShowClearDialog(false);
   }
@@ -508,30 +591,43 @@ export default function ChatPage() {
   );
   const corDisciplina = disciplinaAtual?.cor || "#6366f1";
 
-  // Atualizar sugestões quando necessário
   useEffect(() => {
     if (modoAtual !== "chat" || !disciplinaAtual) {
       setSuggestions([]);
       return;
     }
 
-    const sugestoesGerais = [
-      `Explique os principais conceitos de ${disciplinaAtual.nome}`,
-      `Quais são os tópicos mais importantes de ${disciplinaAtual.nome}?`,
-      `Resuma o conteúdo de ${disciplinaAtual.nome}`,
-      `Quais são as aplicações práticas de ${disciplinaAtual.nome}?`,
-    ];
+    let sugestoesGerais: string[] = [];
 
-    // Se há mensagens recentes, gerar sugestões baseadas nelas
-    if (currentMsgs.length > 0) {
+    if (currentMsgs.length === 0) {
+      sugestoesGerais = [
+        `Explique os principais conceitos de ${disciplinaAtual.nome}`,
+        `Quais são os tópicos mais importantes de ${disciplinaAtual.nome}?`,
+        `Resuma o conteúdo de ${disciplinaAtual.nome}`,
+        `Quais são as aplicações práticas de ${disciplinaAtual.nome}?`,
+      ];
+    } else {
       const ultimaMsg = currentMsgs[currentMsgs.length - 1];
-      if (ultimaMsg.role === "assistant") {
-        sugestoesGerais.push(
+      if (ultimaMsg.role === "assistant" && ultimaMsg.text) {
+        const palavras = ultimaMsg.text
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 4)
+          .slice(0, 3);
+        
+        sugestoesGerais = [
           "Explique mais sobre isso",
           "Dê exemplos práticos",
           "Como isso se relaciona com outros conceitos?",
-          "Quais são os pontos-chave para lembrar?"
-        );
+          "Quais são os pontos-chave para lembrar?",
+        ];
+      } else if (ultimaMsg.role === "user") {
+        sugestoesGerais = [
+          "Explique de forma mais detalhada",
+          "Dê exemplos práticos",
+          "Como aplicar isso na prática?",
+          "Quais são as principais dificuldades?",
+        ];
       }
     }
 
@@ -541,9 +637,9 @@ export default function ChatPage() {
     disciplinaAtual?.id,
     disciplinaAtual?.nome,
     currentMsgs.length,
+    currentMsgs[currentMsgs.length - 1]?.text,
   ]);
 
-  // Compartilhar conversa
   const handleShareThread = () => {
     if (!current) return;
     const threadData = {
@@ -558,14 +654,89 @@ export default function ChatPage() {
     setShowShareDialog(true);
   };
 
-  // Copiar link de compartilhamento
-  const copyShareLink = () => {
-    navigator.clipboard.writeText(shareLink);
-    setShowShareDialog(false);
-    // Mostrar toast de sucesso (se disponível)
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      toast.success("Link copiado!");
+      setShowShareDialog(false);
+    } catch (error) {
+      toast.error("Erro ao copiar link");
+    }
   };
 
-  // Exportar para Markdown
+  const handleSaveAsNote = async () => {
+    if (!current || !noteTitle.trim()) return;
+    try {
+      const disciplina = disciplinas.find((d) => d.id === current.disciplinaId);
+      if (!disciplina) {
+        setStreamErr("Disciplina não encontrada");
+        return;
+      }
+
+      let contentMd = `# ${noteTitle}\n\n`;
+      contentMd += `**Disciplina:** ${disciplina.nome}\n`;
+      contentMd += `**Data da conversa:** ${new Date(current.createdAt).toLocaleString("pt-BR")}\n\n`;
+      contentMd += `---\n\n`;
+
+      current.msgs.forEach((msg) => {
+        const role = msg.role === "user" ? "**Você:**" : "**Assistente IA:**";
+        contentMd += `${role}\n\n${msg.text}\n\n---\n\n`;
+      });
+
+      const response = await fetch("/api/notas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          disciplina_id: current.disciplinaId,
+          titulo: noteTitle.trim(),
+          content_md: contentMd,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erro ao salvar anotação");
+      }
+
+      setShowSaveAsNoteDialog(false);
+      setNoteTitle("");
+      setStreamErr(null);
+      toast.success("Conversa salva como anotação!");
+    } catch (error: any) {
+      setStreamErr(error.message || "Erro ao salvar como anotação");
+    }
+  };
+
+  const openTagsDialog = (threadId: string) => {
+    const thread = threads.find((t) => t.id === threadId);
+    if (thread) {
+      setThreadTags(thread.tags || []);
+      setCurrentId(threadId);
+      setShowTagsDialog(true);
+    }
+  };
+
+  const addTag = () => {
+    if (newTag.trim() && !threadTags.includes(newTag.trim())) {
+      setThreadTags([...threadTags, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (tag: string) => {
+    setThreadTags(threadTags.filter((t) => t !== tag));
+  };
+
+  const saveTags = () => {
+    if (!currentId) return;
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === currentId ? { ...t, tags: threadTags } : t
+      )
+    );
+    setShowTagsDialog(false);
+  };
+
   const exportToMarkdown = () => {
     if (!current) return;
     const disciplina = disciplinas.find((d) => d.id === current.disciplinaId);
@@ -595,12 +766,15 @@ export default function ChatPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Copiar mensagem
-  const copyMessage = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyMessage = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Mensagem copiada!");
+    } catch (error) {
+      toast.error("Erro ao copiar mensagem");
+    }
   };
 
-  // Funções para os novos modos
   const gerarQuiz = async () => {
     if (!disciplinaId) {
       setStreamErr("Selecione uma disciplina primeiro");
@@ -688,9 +862,45 @@ export default function ChatPage() {
     }
   };
 
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== "application/pdf") {
+      toast.error("Selecione um arquivo PDF válido");
+      return;
+    }
+    setPdfExtractLoading(true);
+    setStreamErr(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/ai/pdf-extract", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erro ao processar PDF");
+      }
+      const { texto } = await res.json();
+      if (texto) {
+        setMapaConfig((prev) => ({ ...prev, texto }));
+        toast.success(`Texto extraído do PDF (${file.name})`);
+      } else {
+        toast.error("Nenhum texto encontrado no PDF. Tente outro arquivo.");
+      }
+    } catch (err: any) {
+      setStreamErr(err.message);
+      toast.error(err.message);
+    } finally {
+      setPdfExtractLoading(false);
+      e.target.value = "";
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
+    }
+  };
+
   const gerarMapaMental = async () => {
     if (!mapaConfig.texto.trim()) {
-      setStreamErr("Cole o texto que deseja transformar em mapa mental");
+      setStreamErr("Cole o texto ou envie um PDF para transformar em mapa mental");
       return;
     }
     setMapaLoading(true);
@@ -716,6 +926,70 @@ export default function ChatPage() {
       setStreamErr(error.message);
     } finally {
       setMapaLoading(false);
+    }
+  };
+
+  const carregarMapasSalvos = async () => {
+    setLoadingMapasSalvos(true);
+    try {
+      const res = await fetch("/api/colaboracao/biblioteca?tipo=mapa_mental");
+      if (!res.ok) throw new Error("Erro ao carregar mapas mentais");
+      const data = await res.json();
+      setMapasSalvos(data.materiais || []);
+    } catch (error: any) {
+      toast.error("Erro ao carregar mapas mentais salvos");
+      console.error(error);
+    } finally {
+      setLoadingMapasSalvos(false);
+    }
+  };
+
+  const salvarMapaMental = async () => {
+    if (!mapaMentalData) {
+      toast.error("Nenhum mapa mental para salvar");
+      return;
+    }
+    if (!mapaTitleToSave.trim()) {
+      toast.error("Digite um título para o mapa mental");
+      return;
+    }
+    try {
+      const res = await fetch("/api/colaboracao/biblioteca", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: mapaTitleToSave.trim(),
+          descricao: mapaMentalData.descricao || mapaMentalData.resumo,
+          tipo: "mapa_mental",
+          categoria: "estudo",
+          tags: ["mapa-mental", "ia"],
+          visibilidade: "privado",
+          arquivo_url: JSON.stringify(mapaMentalData),
+          arquivo_tipo: "application/json",
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Erro ao salvar mapa mental");
+      }
+      toast.success("Mapa mental salvo com sucesso!");
+      setShowSaveMapaDialog(false);
+      setMapaTitleToSave("");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao salvar mapa mental");
+      console.error(error);
+    }
+  };
+
+  const carregarMapaMental = async (material: any) => {
+    try {
+      const mapaData = JSON.parse(material.arquivo_url || "{}");
+      setMapaMentalData(mapaData);
+      setShowLoadMapaDialog(false);
+      toast.success("Mapa mental carregado!");
+    } catch (error: any) {
+      toast.error("Erro ao carregar mapa mental");
+      console.error(error);
     }
   };
   if (loadingDisc) {
@@ -762,18 +1036,18 @@ export default function ChatPage() {
             <Select
               value={disciplinaId || undefined}
               onValueChange={setDisciplinaId}
-              disabled={!disciplinas || disciplinas.length === 0}
+              disabled={!disciplinasAtivas || disciplinasAtivas.length === 0}
             >
               <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Selecione uma disciplina" />
               </SelectTrigger>
               <SelectContent>
-                {!disciplinas || disciplinas.length === 0 ? (
+                {!disciplinasAtivas || disciplinasAtivas.length === 0 ? (
                   <SelectItem value="__disabled__" disabled>
                     Nenhuma disciplina cadastrada
                   </SelectItem>
                 ) : (
-                  disciplinas.map((d) => (
+                  disciplinasAtivas.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.nome}
                     </SelectItem>
@@ -788,14 +1062,14 @@ export default function ChatPage() {
                     onClick={() => setShowNewThreadDialog(true)}
                     size="sm"
                     className="shrink-0"
-                    disabled={!disciplinas || disciplinas.length === 0}
+                    disabled={!disciplinasAtivas || disciplinasAtivas.length === 0}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>
-                    {!disciplinas || disciplinas.length === 0
+                    {!disciplinasAtivas || disciplinasAtivas.length === 0
                       ? "Cadastre uma disciplina primeiro"
                       : "Nova conversa"}
                   </p>
@@ -837,6 +1111,24 @@ export default function ChatPage() {
               />
               Favoritos
             </Button>
+            {availableTags.length > 0 && (
+              <Select
+                value={filterTag || undefined}
+                onValueChange={(value) => setFilterTag(value || null)}
+              >
+                <SelectTrigger className="flex-1 h-8 text-xs">
+                  <SelectValue placeholder="Tags" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas</SelectItem>
+                  {availableTags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select
               value={sortBy}
               onValueChange={(value) => setSortBy(value as any)}
@@ -899,6 +1191,27 @@ export default function ChatPage() {
                         <div className="text-xs text-muted-foreground truncate">
                           {disc}
                         </div>
+                        {t.tags && t.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {t.tags.slice(0, 3).map((tag) => (
+                              <Badge
+                                key={tag}
+                                variant="secondary"
+                                className="text-xs px-1.5 py-0 h-5"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                            {t.tags.length > 3 && (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs px-1.5 py-0 h-5"
+                              >
+                                +{t.tags.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                           <span>
                             {t.msgs.length}{" "}
@@ -942,6 +1255,24 @@ export default function ChatPage() {
                                   ? "Remover dos favoritos"
                                   : "Adicionar aos favoritos"}
                               </p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openTagsDialog(t.id);
+                                }}
+                              >
+                                <Tags className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Gerenciar tags</p>
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -1063,7 +1394,7 @@ export default function ChatPage() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 ml-4">
+            <div className="flex items-center gap-1.5 ml-4 flex-wrap">
               {current && modoAtual === "chat" && (
                 <>
                   <TooltipProvider>
@@ -1071,50 +1402,106 @@ export default function ChatPage() {
                       <TooltipTrigger asChild>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={handleShareThread}
-                          title="Compartilhar conversa"
                         >
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Compartilhar
+                          <Share2 className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Compartilhar conversa</TooltipContent>
                     </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="outline"
-                          size="sm"
-                          onClick={() => exportToMarkdown()}
-                          title="Exportar para Markdown"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            if (current) {
+                              setNoteTitle(current.title);
+                              setShowSaveAsNoteDialog(true);
+                            }
+                          }}
+                          disabled={!current || currentMsgs.length === 0}
                         >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Markdown
+                          <Save className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Salvar conversa como anotação</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            if (current) {
+                              openTagsDialog(current.id);
+                            }
+                          }}
+                          disabled={!current}
+                        >
+                          <Tags className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Gerenciar tags da conversa</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => exportToMarkdown()}
+                        >
+                          <FileText className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Exportar para Markdown</TooltipContent>
                     </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => exportThread(current)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Exportar conversa</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={clearCurrent}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Limpar conversa</TooltipContent>
+                    </Tooltip>
                   </TooltipProvider>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => exportThread(current)}
-                    title="Exportar conversa"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportar
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={clearCurrent}>
-                    Limpar
-                  </Button>
                 </>
               )}
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/disciplinas">Disciplinas</Link>
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-8 w-8" asChild>
+                      <Link href="/disciplinas">
+                        <BookOpen className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Ir para Disciplinas</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
@@ -1144,7 +1531,7 @@ export default function ChatPage() {
         </div>
         {/* Área de conteúdo baseada no modo */}
         <div className="flex-1 overflow-y-auto p-6 bg-background">
-          {!disciplinas || disciplinas.length === 0 ? (
+          {!disciplinasAtivas || disciplinasAtivas.length === 0 ? (
             <div className="grid h-full place-items-center text-center">
               <div className="max-w-md">
                 <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
@@ -1166,7 +1553,6 @@ export default function ChatPage() {
               </div>
             </div>
           ) : modoAtual === "chat" ? (
-            /* MODO CHAT */
             currentMsgs.length === 0 ? (
               <div className="grid h-full place-items-center text-center">
                 <div className="max-w-md">
@@ -1328,14 +1714,14 @@ export default function ChatPage() {
                             : {}
                         }
                       >
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                          {m.text || (
-                            <span className="flex items-center gap-2 text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Pensando...
-                            </span>
-                          )}
-                        </div>
+                        <MessageRenderer
+                          content={m.text}
+                          isStreaming={loading && m.id === msgAsstId && !m.text}
+                          onCopy={() => {
+                            copyMessage(m.text);
+                            toast.success("Mensagem copiada!");
+                          }}
+                        />
                         {/* Mostrar contexto usado se disponível */}
                         {m.role === "assistant" &&
                           m.text &&
@@ -1380,6 +1766,47 @@ export default function ChatPage() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>Copiar mensagem</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={async () => {
+                                    if (!current) return;
+                                    const ultimaPergunta = currentMsgs
+                                      .slice()
+                                      .reverse()
+                                      .find((msg) => msg.role === "user");
+                                    if (ultimaPergunta) {
+                                      setThreads((prev) =>
+                                        prev.map((t) =>
+                                          t.id === current.id
+                                            ? {
+                                                ...t,
+                                                msgs: t.msgs.filter(
+                                                  (msg) => msg.id !== m.id
+                                                ),
+                                                updatedAt: Date.now(),
+                                              }
+                                            : t
+                                        )
+                                      );
+                                      setTimeout(() => {
+                                        setInput(ultimaPergunta.text);
+                                        setTimeout(() => {
+                                          send();
+                                        }, 100);
+                                      }, 100);
+                                      toast.info("Regenerando resposta...");
+                                    }
+                                  }}
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Regenerar resposta</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
@@ -1484,7 +1911,6 @@ export default function ChatPage() {
               </div>
             )
           ) : modoAtual === "quiz" ? (
-            /* MODO QUIZ */
             <div className="max-w-3xl mx-auto space-y-6">
               {!quizData ? (
                 <Card className="p-6">
@@ -1737,7 +2163,6 @@ export default function ChatPage() {
               )}
             </div>
           ) : modoAtual === "explicacao" ? (
-            /* MODO EXPLICAÇÃO */
             <div className="max-w-3xl mx-auto space-y-6">
               <Card className="p-6">
                 <div className="space-y-6">
@@ -1824,14 +2249,11 @@ export default function ChatPage() {
 
               {explicacaoTexto && (
                 <Card className="p-6">
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <div className="whitespace-pre-wrap">{explicacaoTexto}</div>
-                  </div>
+                  <MessageRenderer content={explicacaoTexto} />
                 </Card>
               )}
             </div>
           ) : modoAtual === "mapa_mental" ? (
-            /* MODO MAPA MENTAL */
             <div className="max-w-4xl mx-auto space-y-6">
               {!mapaMentalData ? (
                 <Card className="p-6">
@@ -1844,8 +2266,8 @@ export default function ChatPage() {
                         Mapa Mental
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Cole um texto e a IA transformará em um mapa mental
-                        estruturado
+                        Cole um texto, envie um PDF ou resuma um documento para
+                        criar um mapa mental estruturado
                       </p>
                     </div>
 
@@ -1878,30 +2300,81 @@ export default function ChatPage() {
                               texto: e.target.value,
                             })
                           }
-                          placeholder="Cole aqui o texto das suas anotações, resumos ou qualquer conteúdo que deseja organizar..."
+                          placeholder="Cole aqui o texto das suas anotações, resumos ou envie um PDF abaixo..."
                           className="w-full min-h-[200px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            ref={pdfInputRef}
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={handlePdfUpload}
+                            className="hidden"
+                            id="mapa-pdf-upload"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => pdfInputRef.current?.click()}
+                            disabled={pdfExtractLoading}
+                          >
+                            {pdfExtractLoading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Extraindo texto...
+                              </>
+                            ) : (
+                              <>
+                                <FileUp className="h-4 w-4 mr-2" />
+                                Enviar PDF (.pdf)
+                              </>
+                            )}
+                          </Button>
+                          <span className="text-xs text-muted-foreground">
+                            ou cole o texto acima
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <Button
-                      onClick={gerarMapaMental}
-                      disabled={mapaLoading || !mapaConfig.texto.trim()}
-                      className="w-full"
-                      size="lg"
-                    >
-                      {mapaLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Gerando mapa mental...
-                        </>
-                      ) : (
-                        <>
-                          <Network className="h-4 w-4 mr-2" />
-                          Gerar Mapa Mental
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={gerarMapaMental}
+                        disabled={mapaLoading || !mapaConfig.texto.trim()}
+                        className="flex-1"
+                        size="lg"
+                      >
+                        {mapaLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Gerando mapa mental...
+                          </>
+                        ) : (
+                          <>
+                            <Network className="h-4 w-4 mr-2" />
+                            Gerar Mapa Mental
+                          </>
+                        )}
+                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="lg"
+                              onClick={() => {
+                                carregarMapasSalvos();
+                                setShowLoadMapaDialog(true);
+                              }}
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Carregar mapa mental salvo</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </div>
                 </Card>
               ) : (
@@ -1915,13 +2388,47 @@ export default function ChatPage() {
                         {mapaMentalData.descricao}
                       </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => setMapaMentalData(null)}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Novo Mapa
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => {
+                                setMapaTitleToSave(mapaMentalData.titulo);
+                                setShowSaveMapaDialog(true);
+                              }}
+                            >
+                              <Save className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Salvar mapa mental</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => {
+                                carregarMapasSalvos();
+                                setShowLoadMapaDialog(true);
+                              }}
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Carregar mapa mental salvo</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Button
+                        variant="outline"
+                        onClick={() => setMapaMentalData(null)}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Novo Mapa
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Visualização do Mapa Mental */}
@@ -2018,25 +2525,37 @@ export default function ChatPage() {
                   <textarea
                     ref={inputRef}
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    className="w-full min-h-[100px] max-h-[200px] rounded-lg border bg-background px-4 py-3 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 transition-all"
+                    onChange={(e) => {
+                      setInput(e.target.value);
+                      if (inputRef.current) {
+                        inputRef.current.style.height = "auto";
+                        inputRef.current.style.height = `${Math.min(
+                          inputRef.current.scrollHeight,
+                          200
+                        )}px`;
+                      }
+                    }}
+                    className="w-full min-h-[60px] max-h-[200px] rounded-lg border bg-background px-4 py-3 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 transition-all"
                     style={{
                       borderColor: `${corDisciplina}30`,
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        send();
+                        if (!loading && input.trim()) {
+                          send();
+                        }
                       }
                     }}
                     disabled={
-                      loading || !disciplinas || disciplinas.length === 0
+                      loading || !disciplinasAtivas || disciplinasAtivas.length === 0
                     }
                     placeholder={
-                      !disciplinas || disciplinas.length === 0
+                      !disciplinasAtivas || disciplinasAtivas.length === 0
                         ? "Cadastre uma disciplina para usar o chat..."
-                        : "Pergunte algo sobre a disciplina..."
+                        : "Pergunte algo sobre a disciplina... (Shift+Enter para nova linha)"
                     }
+                    rows={1}
                   />
                 </div>
                 <Button
@@ -2044,8 +2563,8 @@ export default function ChatPage() {
                   disabled={
                     loading ||
                     !input.trim() ||
-                    !disciplinas ||
-                    disciplinas.length === 0
+                    !disciplinasAtivas ||
+                    disciplinasAtivas.length === 0
                   }
                   size="lg"
                   className="shrink-0"
@@ -2054,7 +2573,7 @@ export default function ChatPage() {
                     borderColor: corDisciplina,
                   }}
                   title={
-                    !disciplinas || disciplinas.length === 0
+                    !disciplinasAtivas || disciplinasAtivas.length === 0
                       ? "Cadastre uma disciplina para usar o chat"
                       : undefined
                   }
@@ -2105,7 +2624,7 @@ export default function ChatPage() {
                   <SelectValue placeholder="Selecione uma disciplina" />
                 </SelectTrigger>
                 <SelectContent>
-                  {disciplinas.map((d) => (
+                  {disciplinasAtivas.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.nome}
                     </SelectItem>
@@ -2374,6 +2893,285 @@ export default function ChatPage() {
             <Button variant="destructive" onClick={confirmDeleteThread}>
               <Trash2 className="h-4 w-4 mr-2" />
               Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog de Salvar como Nota */}
+      <Dialog open={showSaveAsNoteDialog} onOpenChange={setShowSaveAsNoteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Salvar Conversa como Anotação</DialogTitle>
+            <DialogDescription>
+              Crie uma anotação a partir desta conversa para acessá-la facilmente depois.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Título da Anotação
+              </label>
+              <Input
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+                placeholder="Ex: Resumo sobre Recursão"
+              />
+            </div>
+            {current && (
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  <strong>Disciplina:</strong> {disciplinaAtual?.nome || "N/A"}
+                </p>
+                <p>
+                  <strong>Mensagens:</strong> {currentMsgs.length}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSaveAsNoteDialog(false);
+                setNoteTitle("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveAsNote}
+              disabled={!noteTitle.trim()}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog de Tags */}
+      <Dialog open={showTagsDialog} onOpenChange={setShowTagsDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerenciar Tags</DialogTitle>
+            <DialogDescription>
+              Adicione tags para organizar e encontrar suas conversas facilmente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Adicionar Tag
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Digite uma tag"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
+                />
+                <Button onClick={addTag} disabled={!newTag.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {availableTags.length > 0 && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Tags Disponíveis
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags
+                    .filter((tag) => !threadTags.includes(tag))
+                    .map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-accent"
+                        onClick={() => {
+                          if (!threadTags.includes(tag)) {
+                            setThreadTags([...threadTags, tag]);
+                          }
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        {tag}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            )}
+            {threadTags.length > 0 && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Tags da Conversa
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {threadTags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="cursor-pointer"
+                    >
+                      {tag}
+                      <X
+                        className="h-3 w-3 ml-1 cursor-pointer"
+                        onClick={() => removeTag(tag)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowTagsDialog(false);
+                setNewTag("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={saveTags}>
+              <Tag className="h-4 w-4 mr-2" />
+              Salvar Tags
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog de Salvar Mapa Mental */}
+      <Dialog open={showSaveMapaDialog} onOpenChange={setShowSaveMapaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Salvar Mapa Mental</DialogTitle>
+            <DialogDescription>
+              Salve este mapa mental como material para acessá-lo facilmente depois.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Título do Mapa Mental
+              </label>
+              <Input
+                value={mapaTitleToSave}
+                onChange={(e) => setMapaTitleToSave(e.target.value)}
+                placeholder="Ex: Estruturas de Dados - Mapa Mental"
+              />
+            </div>
+            {mapaMentalData && (
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  <strong>Descrição:</strong> {mapaMentalData.descricao || mapaMentalData.resumo}
+                </p>
+                <p>
+                  <strong>Ramos:</strong> {mapaMentalData.ramos.length}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSaveMapaDialog(false);
+                setMapaTitleToSave("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={salvarMapaMental}
+              disabled={!mapaTitleToSave.trim()}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog de Carregar Mapa Mental */}
+      <Dialog open={showLoadMapaDialog} onOpenChange={setShowLoadMapaDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Carregar Mapa Mental Salvo</DialogTitle>
+            <DialogDescription>
+              Selecione um mapa mental salvo para carregar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {loadingMapasSalvos ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : mapasSalvos.length === 0 ? (
+              <div className="text-center py-8">
+                <Network className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhum mapa mental salvo encontrado.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[400px] overflow-y-auto space-y-2">
+                {mapasSalvos.map((material) => (
+                  <Card
+                    key={material.id}
+                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                    onClick={() => carregarMapaMental(material)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm mb-1">
+                          {material.titulo}
+                        </h4>
+                        {material.descricao && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {material.descricao}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <span>
+                            {new Date(material.created_at).toLocaleDateString("pt-BR")}
+                          </span>
+                          {material.tags && material.tags.length > 0 && (
+                            <>
+                              <span>•</span>
+                              <div className="flex flex-wrap gap-1">
+                                {material.tags.slice(0, 3).map((tag: string) => (
+                                  <Badge
+                                    key={tag}
+                                    variant="secondary"
+                                    className="text-xs px-1.5 py-0 h-4"
+                                  >
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="shrink-0">
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowLoadMapaDialog(false)}
+            >
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -121,7 +121,6 @@ export async function POST(req: NextRequest) {
     const context = contextData.join("\n\n");
     const perguntaFinal = String(question || "").trim();
 
-    // Criar prompt completo
     const promptCompleto = `Você é um assistente virtual acadêmico do UFAM Hub. Responda de forma CONCISA e DIRETA (máximo 2-3 frases).
 
 CONTEXTO DISPONÍVEL:
@@ -139,7 +138,6 @@ ${perguntaFinal}`;
 
     console.log("✅ [Quick] Iniciando quick question com Gemini");
 
-    // Sempre tentar fallback primeiro (como funciona em quiz e mapa mental)
     console.log("Tentando usar @google/generative-ai diretamente...");
     try {
       const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -149,7 +147,6 @@ ${perguntaFinal}`;
 
       const genAI = new GoogleGenerativeAI(apiKey);
 
-      // Primeiro, tentar listar modelos disponíveis
       let modelosDisponiveis: string[] = [];
       try {
         const response = await fetch(
@@ -171,7 +168,6 @@ ${perguntaFinal}`;
         );
       }
 
-      // Tentar modelos diferentes na ordem de preferência
       const modelosParaTentar =
         modelosDisponiveis.length > 0
           ? modelosDisponiveis
@@ -190,7 +186,6 @@ ${perguntaFinal}`;
         try {
           const modelo = genAI.getGenerativeModel({ model: nomeModelo });
 
-          // Usar streaming
           const resultadoStream = await modelo.generateContentStream(
             promptCompleto
           );
@@ -215,7 +210,6 @@ ${perguntaFinal}`;
           console.log(`✅ [Quick] Modelo ${nomeModelo} funcionou!`);
           modeloFuncionou = true;
 
-          // Retornar diretamente o stream do fallback
           return new Response(stream, {
             headers: {
               "Content-Type": "text/plain; charset=utf-8",
@@ -247,7 +241,6 @@ ${perguntaFinal}`;
         "⚠️ [Quick] Tentando usar @ai-sdk/google como último recurso..."
       );
 
-      // Tentar @ai-sdk/google como último recurso
       try {
         const result = await streamText({
           model: model,

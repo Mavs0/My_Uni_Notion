@@ -37,13 +37,10 @@ export default function BuscaAnotacoesPage() {
   } = useNotas();
   const { disciplinas } = useDisciplinas();
 
-  // Criar mapa de disciplinas para buscar nomes rapidamente
   const disciplinasMap = useMemo(() => {
     return new Map(disciplinas.map((d) => [d.id, d.nome]));
   }, [disciplinas]);
 
-  // Quando há busca, usar resultados da busca
-  // Quando não há busca, mostrar todas as notas
   const hasSearch = debouncedQuery.trim().length > 0;
 
   const allNotasFormatted = useMemo(() => {

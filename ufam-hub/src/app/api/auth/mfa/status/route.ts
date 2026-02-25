@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Listar fatores MFA do usuário
     const { data, error } = await supabase.auth.mfa.listFactors();
 
     if (error) {

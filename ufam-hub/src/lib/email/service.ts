@@ -1,4 +1,4 @@
-import { resend, EMAIL_CONFIG } from "./config";
+import { mailjet, EMAIL_CONFIG } from "./config";
 import {
   createAvaliacaoProximaEmail,
   createEventoProximoEmail,
@@ -8,139 +8,120 @@ import {
   createConquistaEmail,
   EmailTemplate,
 } from "./templates";
+
 export interface SendEmailOptions {
   to: string;
   template: EmailTemplate;
 }
+
 export async function sendEmail({ to, template }: SendEmailOptions) {
   try {
-    if (!resend) {
-      console.error("RESEND_API_KEY não configurada");
+    if (!mailjet) {
+      console.error("MAILJET_API_KEY não configurada");
       return {
         success: false,
         error:
-          "API key não configurada. Adicione RESEND_API_KEY no arquivo .env.local",
+          "API key não configurada. Adicione MAILJET_API_KEY no arquivo .env.local",
       };
     }
+
     if (!to || !to.includes("@")) {
       console.error("Email destinatário inválido:", to);
       return { success: false, error: "Email destinatário inválido" };
     }
-    console.log("Enviando email para:", to);
-    const { data, error } = await resend.emails.send({
-      from: EMAIL_CONFIG.from,
-      to: [to],
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      replyTo: EMAIL_CONFIG.replyTo || undefined,
+
+    console.log("Enviando email via Mailjet para:", to);
+
+    const fromMatch = EMAIL_CONFIG.from.match(/^(.+?)\s*<(.+?)>$/);
+    const fromEmail = fromMatch ? fromMatch[2] : EMAIL_CONFIG.fromEmail;
+    const fromName = fromMatch ? fromMatch[1] : EMAIL_CONFIG.fromName;
+
+    const result = await mailjet.post("send", { version: "v3.1" }).request({
+      Messages: [
+        {
+          From: {
+            Email: fromEmail,
+            Name: fromName,
+          },
+          To: [
+            {
+              Email: to,
+            },
+          ],
+          Subject: template.subject,
+          HTMLPart: template.html,
+          TextPart: template.text || template.html.replace(/<[^>]*>/g, ""),
+          ...(EMAIL_CONFIG.replyTo && {
+            ReplyTo: {
+              Email: EMAIL_CONFIG.replyTo,
+            },
+          }),
+        },
+      ],
     });
-    if (error) {
-      console.error("Erro ao enviar email:", JSON.stringify(error, null, 2));
 
-      // Extrair mensagem de erro de diferentes formatos do Resend
-      let errorMessage = "Erro desconhecido ao enviar email";
-      let errorDetails: any = null;
+    console.log("Email enviado com sucesso via Mailjet:", result.body);
 
-      if (typeof error === "string") {
-        errorMessage = error;
-      } else if (error instanceof Error) {
+    return { success: true, data: result.body };
+  } catch (error: any) {
+    console.error("Erro ao enviar email via Mailjet:", error);
+
+    let errorMessage = "Erro desconhecido ao enviar email";
+    let errorDetails: any = null;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = error;
+    } else if (error && typeof error === "object") {
+      errorDetails = error;
+      if ("ErrorMessage" in error) {
+        errorMessage = String(error.ErrorMessage);
+      } else if ("message" in error && typeof error.message === "string") {
         errorMessage = error.message;
-      } else if (error && typeof error === "object") {
-        // Resend pode retornar erro como objeto com message
-        errorDetails = error;
-        if ("message" in error && typeof error.message === "string") {
-          errorMessage = error.message;
-        } else if ("error" in error && typeof error.error === "string") {
-          errorMessage = error.error;
-        } else {
-          errorMessage = JSON.stringify(error);
-        }
+      } else if ("error" in error && typeof error.error === "string") {
+        errorMessage = error.error;
+      } else {
+        errorMessage = JSON.stringify(error);
       }
-
-      // Verificar tipos específicos de erro do Resend
-      const errorLower = errorMessage.toLowerCase();
-
-      if (
-        errorLower.includes("api key") ||
-        errorLower.includes("unauthorized") ||
-        errorLower.includes("invalid api key")
-      ) {
-        return {
-          success: false,
-          error:
-            "Chave da API de email inválida ou não configurada. Verifique as configurações.",
-        };
-      }
-
-      if (
-        errorLower.includes("domain") ||
-        errorLower.includes("verification") ||
-        errorLower.includes("not verified")
-      ) {
-        return {
-          success: false,
-          error:
-            "Domínio de email não verificado. Configure um domínio válido no Resend.",
-        };
-      }
-
-      // Erro específico sobre email não verificado (comum no plano gratuito do Resend)
-      if (
-        errorLower.includes("not verified") ||
-        errorLower.includes("unverified") ||
-        errorLower.includes("recipient") ||
-        errorLower.includes("email address") ||
-        (errorDetails &&
-          (errorDetails.statusCode === 403 || errorDetails.statusCode === 422))
-      ) {
-        return {
-          success: false,
-          error: `Não é possível enviar para este email. No plano gratuito do Resend, você só pode enviar para emails verificados. Verifique o email ${to} no painel do Resend ou faça upgrade do plano.`,
-        };
-      }
-
-      // Retornar mensagem de erro genérica com detalhes em desenvolvimento
-      return {
-        success: false,
-        error: errorMessage,
-        details:
-          process.env.NODE_ENV === "development" ? errorDetails : undefined,
-      };
     }
-    return { success: true, data };
-  } catch (error) {
-    console.error("Erro ao enviar email (catch):", error);
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : typeof error === "string"
-        ? error
-        : "Erro desconhecido ao enviar email";
 
     const errorLower = errorMessage.toLowerCase();
 
+    if (
+      errorLower.includes("api key") ||
+      errorLower.includes("unauthorized") ||
+      errorLower.includes("invalid api key") ||
+      errorLower.includes("authentication")
+    ) {
+      return {
+        success: false,
+        error:
+          "Chave da API de email inválida ou não configurada. Verifique as configurações.",
+      };
+    }
+
+    if (
+      errorLower.includes("domain") ||
+      errorLower.includes("verification") ||
+      errorLower.includes("not verified") ||
+      errorLower.includes("sender")
+    ) {
+      return {
+        success: false,
+        error:
+          "Domínio de email não verificado. Configure um domínio válido no Mailjet.",
+      };
+    }
+
     return {
       success: false,
-      error:
-        errorLower.includes("api key") ||
-        errorLower.includes("resend") ||
-        errorLower.includes("unauthorized")
-          ? "Chave da API de email não configurada. Adicione RESEND_API_KEY no arquivo .env.local"
-          : errorLower.includes("not verified") ||
-            errorLower.includes("unverified") ||
-            errorLower.includes("recipient")
-          ? `Não é possível enviar para este email. No plano gratuito do Resend, você só pode enviar para emails verificados. Verifique o email no painel do Resend ou faça upgrade do plano.`
-          : errorMessage,
+      error: errorMessage,
       details:
-        process.env.NODE_ENV === "development"
-          ? error instanceof Error
-            ? error.stack
-            : undefined
-          : undefined,
+        process.env.NODE_ENV === "development" ? errorDetails : undefined,
     };
   }
 }
+
 export async function sendAvaliacaoNotification(data: {
   to: string;
   disciplina: string;
@@ -153,6 +134,7 @@ export async function sendAvaliacaoNotification(data: {
   const template = createAvaliacaoProximaEmail(data);
   return sendEmail({ to: data.to, template });
 }
+
 export async function sendEventoNotification(data: {
   to: string;
   titulo: string;
@@ -165,6 +147,7 @@ export async function sendEventoNotification(data: {
   const template = createEventoProximoEmail(data);
   return sendEmail({ to: data.to, template });
 }
+
 export async function sendConfirmacaoEmail(data: {
   to: string;
   nome?: string;

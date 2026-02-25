@@ -577,6 +577,7 @@ const helpContents: Record<string, HelpContent> = {
           <h3 className="text-xl font-semibold mb-3">Criar Mapas Mentais</h3>
           <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
             <li>Peça para criar um mapa mental</li>
+            <li>Cole texto, envie um PDF ou digite o tema</li>
             <li>Exemplo: "Crie um mapa mental sobre o sistema nervoso"</li>
             <li>A IA gera um mapa visual interativo</li>
             <li>Você pode editar e personalizar</li>
@@ -606,127 +607,6 @@ const helpContents: Record<string, HelpContent> = {
             <li>Você pode voltar a conversas anteriores</li>
             <li>Organize por threads</li>
             <li>Arquive conversas antigas</li>
-          </ul>
-        </section>
-      </div>
-    ),
-  },
-  gamificacao: {
-    id: "gamificacao",
-    title: "Sistema de Gamificação",
-    category: "Gamificação",
-    content: (
-      <div className="space-y-6">
-        <section>
-          <h2 className="text-2xl font-semibold mb-4">
-            Sistema de Gamificação
-          </h2>
-          <p className="text-muted-foreground leading-relaxed mb-4">
-            Transforme seus estudos em uma jornada épica! Ganhe XP, suba de
-            nível e desbloqueie conquistas.
-          </p>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Como Ganhar XP</h3>
-          <p className="text-muted-foreground mb-3">
-            Você ganha XP ao realizar atividades:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>
-              <strong>Registrar horas de estudo:</strong> 1 XP por hora
-            </li>
-            <li>
-              <strong>Completar Pomodoro:</strong> 5 XP
-            </li>
-            <li>
-              <strong>Criar disciplina:</strong> 10 XP
-            </li>
-            <li>
-              <strong>Adicionar avaliação:</strong> 15 XP
-            </li>
-            <li>
-              <strong>Criar tarefa:</strong> 5 XP
-            </li>
-            <li>
-              <strong>Concluir tarefa:</strong> 10 XP
-            </li>
-          </ul>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Subir de Nível</h3>
-          <p className="text-muted-foreground mb-3">
-            Cada nível requer mais XP:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Nível 1-5: Iniciante (100 XP por nível)</li>
-            <li>Nível 6-10: Avançado (200 XP por nível)</li>
-            <li>Nível 11-20: Experiente (300 XP por nível)</li>
-            <li>Nível 21+: Lenda (500 XP por nível)</li>
-          </ul>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Manter Streaks</h3>
-          <p className="text-muted-foreground mb-3">
-            Um streak é uma sequência de dias estudando:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Estude pelo menos 1 hora por dia</li>
-            <li>Seu streak aumenta automaticamente</li>
-            <li>Se você não estudar por 1 dia, o streak reseta</li>
-            <li>Mantenha seu streak para ganhar bônus de XP</li>
-          </ul>
-          <p className="text-sm text-muted-foreground mt-3 italic">
-            💡 Dica: Você receberá lembretes quando seu streak estiver prestes a
-            quebrar!
-          </p>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Desbloquear Conquistas</h3>
-          <p className="text-muted-foreground mb-3">
-            Conquistas são desbloqueadas automaticamente:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>
-              <strong>Nível 5:</strong> "Iniciante"
-            </li>
-            <li>
-              <strong>Nível 10:</strong> "Avançado"
-            </li>
-            <li>
-              <strong>Nível 20:</strong> "Experiente"
-            </li>
-            <li>
-              <strong>Streak 3 dias:</strong> "Em chamas"
-            </li>
-            <li>
-              <strong>Streak 7 dias:</strong> "Semana perfeita"
-            </li>
-            <li>
-              <strong>Streak 30 dias:</strong> "Lenda do estudo"
-            </li>
-          </ul>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Visualizar Progresso</h3>
-          <p className="text-muted-foreground mb-3">
-            Acesse{" "}
-            <Link href="/gamificacao" className="text-primary hover:underline">
-              Gamificação
-            </Link>{" "}
-            para ver:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Seu nível atual e progresso</li>
-            <li>XP total e XP necessário para próximo nível</li>
-            <li>Streak atual e máximo</li>
-            <li>Todas as conquistas desbloqueadas</li>
-            <li>Conquistas ainda não desbloqueadas</li>
-            <li>Histórico de XP ganho</li>
           </ul>
         </section>
       </div>
@@ -1126,12 +1006,6 @@ const helpContents: Record<string, HelpContent> = {
             Configure sua privacidade:
           </p>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>
-              <strong>Perfil Público:</strong> Outros podem ver seu perfil
-            </li>
-            <li>
-              <strong>Perfil Privado:</strong> Apenas você vê seu perfil
-            </li>
             <li>Escolha o que compartilhar no feed</li>
             <li>Controle visibilidade de atividades</li>
           </ul>

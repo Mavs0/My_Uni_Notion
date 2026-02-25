@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// Tipos para Web Speech API
 interface SpeechRecognitionEvent {
   resultIndex: number;
   results: SpeechRecognitionResultList;
@@ -38,10 +37,8 @@ export function useVoiceAccessibility() {
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    // Verificar suporte a Web Speech API apenas uma vez
     if (typeof window === "undefined") return;
 
-    // Verificar suporte de forma mais eficiente
     const hasSpeechSynthesis = "speechSynthesis" in window;
     const hasSpeechRecognition =
       "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
@@ -52,7 +49,6 @@ export function useVoiceAccessibility() {
       synthRef.current = window.speechSynthesis;
     }
 
-    // Carregar configurações salvas de forma otimizada
     try {
       const savedSettings = localStorage.getItem(
         "voice-accessibility-settings"
@@ -66,12 +62,10 @@ export function useVoiceAccessibility() {
     }
   }, []);
 
-  // Text-to-Speech (Leitura de texto)
   const speak = useCallback(
     (text: string, options?: Partial<VoiceSettings>) => {
       if (!synthRef.current || !settings.enabled) return;
 
-      // Cancelar qualquer fala anterior
       synthRef.current.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
@@ -82,7 +76,6 @@ export function useVoiceAccessibility() {
       utterance.pitch = voiceSettings.pitch;
       utterance.volume = voiceSettings.volume;
 
-      // Tentar encontrar voz em português
       const voices = synthRef.current.getVoices();
       const ptVoice = voices.find(
         (v) => v.lang.startsWith("pt") || v.lang.startsWith("pt-BR")
@@ -107,7 +100,6 @@ export function useVoiceAccessibility() {
     }
   }, []);
 
-  // Speech-to-Text (Reconhecimento de voz)
   const startListening = useCallback(() => {
     if (!isSupported) return;
 
@@ -187,7 +179,6 @@ export function useVoiceAccessibility() {
     }
   }, []);
 
-  // Atualizar configurações
   const updateSettings = useCallback(
     (newSettings: Partial<VoiceSettings>) => {
       const updated = { ...settings, ...newSettings };

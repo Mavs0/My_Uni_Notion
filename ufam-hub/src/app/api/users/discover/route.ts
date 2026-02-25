@@ -17,13 +17,15 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "6"), 50);
+    const offset = Math.max(0, parseInt(searchParams.get("offset") || "0"));
     const search = searchParams.get("search") || "";
+    const curso = searchParams.get("curso") || "";
+    const periodo = searchParams.get("periodo") || "";
+    const sort = searchParams.get("sort") || "seguidores"; // seguidores | nome | recent
 
-    // Buscar IDs de usuários de várias fontes para garantir que encontramos usuários
     const allUserIds = new Set<string>();
 
-    // 1. Buscar usuários com atividades (públicas ou privadas)
     const { data: activities } = await supabase
       .from("user_activities")
       .select("user_id")
@@ -36,7 +38,6 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 2. Buscar usuários através de seguidores
     const { data: followers } = await supabase
       .from("followers")
       .select("following_id, follower_id")
@@ -51,7 +52,6 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 3. Buscar usuários através de disciplinas (se existir tabela)
     try {
       const { data: disciplinas } = await supabase
         .from("disciplinas")
@@ -65,7 +65,6 @@ export async function GET(request: NextRequest) {
         }
       });
     } catch (e) {
-      // Tabela pode não existir ou não ter user_id
     }
 
     const userIdsToProcess = Array.from(allUserIds).slice(0, limit + 50);
@@ -81,7 +80,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ users: [] });
     }
 
-    // Buscar dados dos usuários usando admin client
     const adminClient = createSupabaseAdmin();
     const usersArray: any[] = [];
 
@@ -94,18 +92,33 @@ export async function GET(request: NextRequest) {
 
         const userMetadata = userData.user.user_metadata || {};
 
-        // Mostrar todos os usuários (removido filtro de perfil público)
         const nome =
           userMetadata.nome ||
           userMetadata.full_name ||
           userData.user.email?.split("@")[0] ||
           "Usuário";
 
-        // Filtrar por busca se especificado
         if (
           search &&
           !nome.toLowerCase().includes(search.toLowerCase()) &&
-          !userMetadata.curso?.toLowerCase().includes(search.toLowerCase())
+          !userMetadata.curso?.toLowerCase().includes(search.toLowerCase()) &&
+          !userMetadata.bio?.toLowerCase().includes(search.toLowerCase())
+        ) {
+          continue;
+        }
+
+        if (
+          curso &&
+          !String(userMetadata.curso || "")
+            .toLowerCase()
+            .includes(curso.toLowerCase())
+        ) {
+          continue;
+        }
+
+        if (
+          periodo &&
+          String(userMetadata.periodo ?? "").toString() !== periodo.toString()
         ) {
           continue;
         }
@@ -120,14 +133,13 @@ export async function GET(request: NextRequest) {
           periodo: userMetadata.periodo || "",
         });
 
-        if (usersArray.length >= limit) break;
+        if (usersArray.length >= 200) break;
       } catch (error) {
         console.error(`Erro ao buscar usuário ${userId}:`, error);
         continue;
       }
     }
 
-    // Buscar contagem de seguidores para cada usuário
     for (const userProfile of usersArray) {
       const [followersResult, followingResult, isFollowingResult] =
         await Promise.all([
@@ -154,8 +166,29 @@ export async function GET(request: NextRequest) {
       userProfile.isFollowing = !!isFollowingResult.data;
     }
 
-    console.log(`✅ Retornando ${usersArray.length} usuários`);
-    return NextResponse.json({ users: usersArray });
+    const total = usersArray.length;
+    if (sort === "nome") {
+      usersArray.sort((a, b) =>
+        (a.nome || "").localeCompare(b.nome || "", "pt-BR")
+      );
+    } else if (sort === "recent") {
+      usersArray.reverse();
+    } else {
+      usersArray.sort(
+        (a, b) =>
+          (b.stats?.totalSeguidores || 0) - (a.stats?.totalSeguidores || 0)
+      );
+    }
+
+    const paginatedUsers = usersArray.slice(offset, offset + limit);
+
+    console.log(`✅ Retornando ${paginatedUsers.length} de ${total} usuários`);
+    return NextResponse.json({
+      users: paginatedUsers,
+      total,
+      limit,
+      offset,
+    });
   } catch (error: any) {
     console.error("Erro ao buscar usuários:", error);
     return NextResponse.json(

@@ -151,6 +151,7 @@ export async function GET(request: NextRequest) {
     const grupo_id = searchParams.get("grupo_id");
     const busca = searchParams.get("busca");
     const tags = searchParams.get("tags");
+    const ordenar = searchParams.get("ordenar") || "recentes"; // recentes | visualizacoes | downloads | curtidas
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
     const supabase = await createSupabaseServer();
@@ -189,8 +190,18 @@ export async function GET(request: NextRequest) {
       `,
         { count: "exact" }
       )
-      .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
+    const orderCol =
+      ordenar === "visualizacoes"
+        ? "visualizacoes"
+        : ordenar === "downloads"
+          ? "downloads"
+          : ordenar === "curtidas"
+            ? "curtidas"
+            : "created_at";
+    query = query.order(orderCol, {
+      ascending: ordenar === "recentes",
+    });
     if (tipo) {
       query = query.eq("tipo", tipo);
       countQuery = countQuery.eq("tipo", tipo);
@@ -232,6 +243,14 @@ export async function GET(request: NextRequest) {
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const adminClient = createSupabaseAdmin();
 
+      const adminOrderCol =
+        ordenar === "visualizacoes"
+          ? "visualizacoes"
+          : ordenar === "downloads"
+            ? "downloads"
+            : ordenar === "curtidas"
+              ? "curtidas"
+              : "created_at";
       let adminQuery = adminClient
         .from("biblioteca_materiais")
         .select(
@@ -257,10 +276,9 @@ export async function GET(request: NextRequest) {
         `,
           { count: "exact" }
         )
-        .order("created_at", { ascending: false })
+        .order(adminOrderCol, { ascending: ordenar === "recentes" })
         .range(offset, offset + limit - 1);
 
-      // Aplicar filtros
       if (tipo) {
         adminQuery = adminQuery.eq("tipo", tipo);
       }
@@ -285,9 +303,7 @@ export async function GET(request: NextRequest) {
       error = result.error;
       count = result.count;
 
-      // Filtrar manualmente por visibilidade (já que não temos RLS)
       if (data) {
-        // Buscar grupos do usuário
         const { data: membrosData } = await adminClient
           .from("grupo_membros")
           .select("grupo_id")
@@ -299,18 +315,15 @@ export async function GET(request: NextRequest) {
         );
 
         data = data.filter((material: any) => {
-          // Materiais públicos ou gerais são visíveis para todos
           if (
             material.visibilidade === "publico" ||
             material.visibilidade === "geral"
           ) {
             return true;
           }
-          // Materiais do próprio usuário
           if (material.user_id === user.id) {
             return true;
           }
-          // Materiais privados de grupos onde o usuário é membro
           if (
             material.visibilidade === "privado" &&
             material.grupo_id &&

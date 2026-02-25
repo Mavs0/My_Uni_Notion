@@ -56,6 +56,14 @@ export function useFlashcards(filters?: FlashcardFilters) {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
         } catch {
+          if (response.status === 401) {
+            errorMessage = "Não autorizado. Faça login novamente.";
+          } else if (response.status === 500) {
+            errorMessage =
+              "Erro interno do servidor. Verifique se o banco de dados está configurado.";
+          } else {
+            errorMessage = `Erro ${response.status}: ${response.statusText}`;
+          }
         }
         throw new Error(errorMessage);
       }
@@ -91,8 +99,20 @@ export function useFlashcards(filters?: FlashcardFilters) {
           }),
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Erro ao criar flashcard");
+          let errorMessage = "Erro ao criar flashcard";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            if (response.status === 401) {
+              errorMessage = "Não autorizado. Faça login novamente.";
+            } else if (response.status === 500) {
+              errorMessage = "Erro interno do servidor.";
+            } else {
+              errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+          }
+          throw new Error(errorMessage);
         }
         const result = await response.json();
         await fetchFlashcards();
@@ -121,8 +141,20 @@ export function useFlashcards(filters?: FlashcardFilters) {
           body: JSON.stringify({ id, ...data }),
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Erro ao atualizar flashcard");
+          let errorMessage = "Erro ao atualizar flashcard";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            if (response.status === 401) {
+              errorMessage = "Não autorizado. Faça login novamente.";
+            } else if (response.status === 500) {
+              errorMessage = "Erro interno do servidor.";
+            } else {
+              errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+          }
+          throw new Error(errorMessage);
         }
         const result = await response.json();
         await fetchFlashcards();
@@ -141,8 +173,20 @@ export function useFlashcards(filters?: FlashcardFilters) {
           method: "DELETE",
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Erro ao deletar flashcard");
+          let errorMessage = "Erro ao deletar flashcard";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            if (response.status === 401) {
+              errorMessage = "Não autorizado. Faça login novamente.";
+            } else if (response.status === 500) {
+              errorMessage = "Erro interno do servidor.";
+            } else {
+              errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+          }
+          throw new Error(errorMessage);
         }
         await fetchFlashcards();
         return true;
@@ -165,8 +209,20 @@ export function useFlashcards(filters?: FlashcardFilters) {
           }),
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Erro ao revisar flashcard");
+          let errorMessage = "Erro ao revisar flashcard";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            if (response.status === 401) {
+              errorMessage = "Não autorizado. Faça login novamente.";
+            } else if (response.status === 500) {
+              errorMessage = "Erro interno do servidor.";
+            } else {
+              errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+          }
+          throw new Error(errorMessage);
         }
         const result = await response.json();
         await fetchFlashcards();
@@ -190,15 +246,30 @@ export function useFlashcards(filters?: FlashcardFilters) {
           }),
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Erro ao gerar flashcards");
+          let errorMessage = "Erro ao gerar flashcards";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            if (response.status === 401) {
+              errorMessage = "Não autorizado. Faça login novamente.";
+            } else if (response.status === 500) {
+              errorMessage =
+                "Erro interno do servidor. Verifique se o banco de dados está configurado.";
+            } else {
+              errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+          }
+          throw new Error(errorMessage);
         }
         const result = await response.json();
         await fetchFlashcards();
         return result.flashcards;
       } catch (err) {
         console.error("Erro ao gerar flashcards:", err);
-        throw err;
+        const errorMessage =
+          err instanceof Error ? err.message : "Erro ao gerar flashcards";
+        throw new Error(errorMessage);
       }
     },
     [fetchFlashcards]

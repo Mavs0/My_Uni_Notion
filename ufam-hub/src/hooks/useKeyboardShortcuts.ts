@@ -19,7 +19,6 @@ export function useKeyboardShortcuts(
     (e: KeyboardEvent) => {
       if (!enabled) return;
 
-      // Ignora se estiver em um input, textarea ou elemento editável
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
@@ -85,13 +84,6 @@ export function useGlobalShortcuts(callbacks?: {
       action: () => router.push("/avaliacoes"),
     },
     {
-      key: "g",
-      ctrl: true,
-      shift: true,
-      description: "Ir para Gamificação",
-      action: () => router.push("/gamificacao"),
-    },
-    {
       key: "r",
       ctrl: true,
       shift: true,
@@ -135,7 +127,6 @@ export const ALL_SHORTCUTS = [
   { keys: "⌘/Ctrl + Shift + N", description: "Nova avaliação" },
   { keys: "⌘/Ctrl + Shift + D", description: "Ir para Disciplinas" },
   { keys: "⌘/Ctrl + Shift + A", description: "Ir para Avaliações" },
-  { keys: "⌘/Ctrl + Shift + G", description: "Ir para Gamificação" },
   { keys: "⌘/Ctrl + Shift + R", description: "Ir para Revisão" },
   { keys: "Escape", description: "Fechar modal/dialog" },
 ];

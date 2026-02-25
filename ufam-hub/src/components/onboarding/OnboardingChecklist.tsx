@@ -112,7 +112,6 @@ export function OnboardingChecklist() {
       icon: Sparkles,
       href: "/chat",
       checkFn: async () => {
-        // Verificar se já usou o chat (pode ser verificado via histórico)
         return false; // Sempre false para incentivar o uso
       },
     },

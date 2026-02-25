@@ -64,7 +64,6 @@ export function useVoiceCommands({
           const mainContent = document.querySelector("main");
           if (mainContent) {
             const text = mainContent.textContent || "";
-            // Usar a API de síntese de voz diretamente
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = "pt-BR";
             window.speechSynthesis.speak(utterance);
@@ -86,7 +85,6 @@ export function useVoiceCommands({
   useEffect(() => {
     if (!isListening || !enabled || !transcript) return;
 
-    // Processar comandos quando há uma transcrição final
     const processCommands = () => {
       for (const command of commands) {
         const matches = transcript.match(command.pattern);

@@ -31,6 +31,7 @@ import {
   Loader2,
   Maximize2,
   X,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -95,12 +96,68 @@ export default function MaterialDetailPage() {
   const [loadingComentarios, setLoadingComentarios] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [avaliacao, setAvaliacao] = useState<{
+    media: number;
+    total: number;
+    minhaNota: number | null;
+  }>({ media: 0, total: 0, minhaNota: null });
+  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
 
   useEffect(() => {
     loadMaterial();
     loadComentarios();
     loadCurrentUser();
+    loadAvaliacao();
   }, [materialId]);
+
+  const loadAvaliacao = async () => {
+    try {
+      const res = await fetch(
+        `/api/colaboracao/biblioteca/${materialId}/avaliacao`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setAvaliacao({
+          media: data.media ?? 0,
+          total: data.total ?? 0,
+          minhaNota: data.minhaNota ?? null,
+        });
+      }
+    } catch (e) {
+      console.error("Erro ao carregar avaliação:", e);
+    }
+  };
+
+  const handleRate = async (nota: number) => {
+    if (enviandoAvaliacao) return;
+    setEnviandoAvaliacao(true);
+    try {
+      const res = await fetch(
+        `/api/colaboracao/biblioteca/${materialId}/avaliacao`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nota }),
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setAvaliacao({
+          media: data.media ?? 0,
+          total: data.total ?? 0,
+          minhaNota: data.minhaNota ?? null,
+        });
+        toast.success("Avaliação salva!");
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Erro ao avaliar");
+      }
+    } catch (e) {
+      toast.error("Erro ao enviar avaliação");
+    } finally {
+      setEnviandoAvaliacao(false);
+    }
+  };
 
   const loadCurrentUser = async () => {
     try {
@@ -375,6 +432,38 @@ export default function MaterialDetailPage() {
                 <div className="text-xs text-muted-foreground">Curtidas</div>
               </div>
             </div>
+          </div>
+
+          {/* Avaliação (rating) */}
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+            <span className="text-sm font-medium text-muted-foreground">
+              Avaliação:
+            </span>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  disabled={enviandoAvaliacao}
+                  onClick={() => handleRate(star)}
+                  className="p-0.5 rounded focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                  aria-label={`Avaliar com ${star} estrela(s)`}
+                >
+                  <Star
+                    className={`h-6 w-6 ${
+                      (avaliacao.minhaNota ?? 0) >= star
+                        ? "fill-amber-400 text-amber-500"
+                        : "text-muted-foreground/50"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {avaliacao.media > 0
+                ? `${avaliacao.media.toFixed(1)} (${avaliacao.total} ${avaliacao.total === 1 ? "avaliação" : "avaliações"})`
+                : "Ninguém avaliou ainda"}
+            </span>
           </div>
 
           <div className="space-y-4 pt-4 border-t">

@@ -35,7 +35,6 @@ export async function GET(
       comentarios = result.data || [];
       comentariosError = result.error;
 
-      // Buscar dados dos usuários
       if (comentarios.length > 0) {
         const comentariosComUsuario = await Promise.all(
           comentarios.map(async (comentario) => {
@@ -138,7 +137,6 @@ export async function POST(
       comentario = result.data;
       comentarioError = result.error;
 
-      // Adicionar dados do usuário
       if (comentario) {
         const { data: userData } = await adminClient.auth.admin.getUserById(
           user.id
@@ -219,7 +217,6 @@ export async function DELETE(
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const adminClient = createSupabaseAdmin();
 
-      // Verificar se o comentário pertence ao usuário
       const { data: comentario } = await adminClient
         .from("biblioteca_comentarios")
         .select("user_id")

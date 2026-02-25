@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-// POST - Adicionar mensagem à thread
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -18,7 +17,6 @@ export async function POST(
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Verificar se a thread pertence ao usuário
     const { data: thread, error: threadError } = await supabase
       .from("chat_threads")
       .select("id")
@@ -43,7 +41,6 @@ export async function POST(
       );
     }
 
-    // Inserir mensagem
     const { data: mensagem, error: msgError } = await supabase
       .from("chat_mensagens")
       .insert({
@@ -63,7 +60,6 @@ export async function POST(
       );
     }
 
-    // Atualizar updated_at da thread
     await supabase
       .from("chat_threads")
       .update({ updated_at: new Date().toISOString() })
@@ -79,7 +75,6 @@ export async function POST(
   }
 }
 
-// DELETE - Limpar todas as mensagens da thread
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -96,7 +91,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Verificar se a thread pertence ao usuário
     const { data: thread, error: threadError } = await supabase
       .from("chat_threads")
       .select("id")
@@ -111,7 +105,6 @@ export async function DELETE(
       );
     }
 
-    // Excluir todas as mensagens
     const { error } = await supabase
       .from("chat_mensagens")
       .delete()

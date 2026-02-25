@@ -190,7 +190,6 @@ export async function GET(request: NextRequest) {
       .from("notas_compartilhadas")
       .select(
         `
-        *,
         disciplina:disciplinas(id, nome),
         usuario:auth.users!notas_compartilhadas_user_id_fkey(id, raw_user_meta_data)
       `

@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { tourCompleted, skipped, checklistCompleted } = body;
 
-    // Atualizar metadata do usuário
     const updates: Record<string, any> = {};
 
     if (tourCompleted !== undefined) {

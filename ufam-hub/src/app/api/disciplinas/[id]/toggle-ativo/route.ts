@@ -20,7 +20,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Verificar se a disciplina pertence ao usuário
     const { data: disciplina, error: discError } = await supabase
       .from("disciplinas")
       .select("id, user_id")
@@ -41,7 +40,6 @@ export async function PATCH(
       );
     }
 
-    // Atualizar o status ativo/arquivado
     const { data: updated, error: updateError } = await supabase
       .from("disciplinas")
       .update({ ativo: ativo !== false })

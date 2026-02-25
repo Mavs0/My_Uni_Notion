@@ -6,10 +6,10 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const grupo_id = params.id;
+    const { id: grupo_id } = await params;
 
     const supabase = await createSupabaseServer();
     const {

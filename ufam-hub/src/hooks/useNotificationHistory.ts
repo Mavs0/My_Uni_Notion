@@ -34,15 +34,22 @@ export function useNotificationHistory() {
         params.append("limit", limit.toString());
 
         const response = await fetch(
-          `/api/notifications/history?${params.toString()}`
+          `/api/notifications/history?${params.toString()}`,
+          { credentials: "include" }
         );
         if (response.ok) {
           const data = await response.json();
           setNotifications(data.notifications || []);
-          setTotalNaoLidas(data.total_nao_lidas || 0);
+          setTotalNaoLidas(data.total_nao_lidas ?? 0);
+        } else {
+          setNotifications([]);
+          setTotalNaoLidas(0);
+          console.error("Erro ao carregar histórico:", response.status, response.statusText);
         }
       } catch (error) {
         console.error("Erro ao carregar histórico:", error);
+        setNotifications([]);
+        setTotalNaoLidas(0);
       } finally {
         setLoading(false);
       }
@@ -55,6 +62,7 @@ export function useNotificationHistory() {
       try {
         const response = await fetch("/api/notifications/history", {
           method: "PATCH",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id,
@@ -63,15 +71,22 @@ export function useNotificationHistory() {
         });
 
         if (response.ok) {
-          await loadNotifications();
           if (id) {
+            setNotifications((prev) =>
+              prev.map((n) => (n.id === id ? { ...n, lida: true } : n))
+            );
+            setTotalNaoLidas((prev) => Math.max(0, prev - 1));
             toast.success("Notificação marcada como lida");
           } else {
+            setNotifications((prev) => prev.map((n) => ({ ...n, lida: true })));
+            setTotalNaoLidas(0);
             toast.success("Todas as notificações marcadas como lidas");
           }
+          await loadNotifications();
           return true;
         } else {
-          toast.error("Erro ao atualizar notificação");
+          const errorData = await response.json().catch(() => ({}));
+          toast.error(errorData.error || "Erro ao atualizar notificação");
           return false;
         }
       } catch (error) {
@@ -85,6 +100,11 @@ export function useNotificationHistory() {
 
   useEffect(() => {
     loadNotifications();
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [loadNotifications]);
 
   return {

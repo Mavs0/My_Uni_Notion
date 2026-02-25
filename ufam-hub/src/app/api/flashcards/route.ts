@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
       .from("flashcards")
       .select(
         `
-        *,
         disciplinas (
           id,
           nome
@@ -132,7 +131,6 @@ export async function POST(request: NextRequest) {
       })
       .select(
         `
-        *,
         disciplinas (
           id,
           nome
@@ -197,7 +195,6 @@ export async function PUT(request: NextRequest) {
       .eq("id", id)
       .select(
         `
-        *,
         disciplinas (
           id,
           nome

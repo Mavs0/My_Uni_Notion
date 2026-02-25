@@ -13,13 +13,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Buscar total de disciplinas
     const { data: disciplinas, count: totalDisciplinas } = await supabase
       .from("disciplinas")
       .select("id", { count: "exact" })
       .eq("user_id", user.id);
 
-    // Buscar próximas avaliações (próximos 7 dias)
     const hoje = new Date();
     const em7Dias = new Date();
     em7Dias.setDate(hoje.getDate() + 7);
@@ -35,7 +33,6 @@ export async function GET(request: NextRequest) {
       .order("data_iso", { ascending: true })
       .limit(5);
 
-    // Calcular progresso geral (média das disciplinas com avaliações)
     const { data: avaliacoes } = await supabase
       .from("avaliacoes")
       .select("nota, peso")

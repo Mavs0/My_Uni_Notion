@@ -4,10 +4,8 @@ export interface EmailTemplate {
   text: string;
 }
 
-// Template base reutilizável com design moderno
 function getBaseEmailStyles() {
   return `
-    * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
@@ -174,7 +172,11 @@ function getBaseEmailStyles() {
   `;
 }
 
-function wrapEmailTemplate(content: string, headerText: string, headerIcon: string = "📚"): string {
+function wrapEmailTemplate(
+  content: string,
+  headerText: string,
+  headerIcon: string = "📚"
+): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   return `
 <!DOCTYPE html>
@@ -237,16 +239,17 @@ export function createAvaliacaoProximaEmail(data: {
       ? "amanhã"
       : `em ${diasRestantes} dias`;
   const subject = `📚 ${tipoFormatado} de ${disciplina} ${diasTexto}`;
-  
-  const urgencyBanner = diasRestantes === 0 
-    ? `<div class="urgency-banner">
+
+  const urgencyBanner =
+    diasRestantes === 0
+      ? `<div class="urgency-banner">
         <p>⚠️ Esta avaliação é hoje! Não se esqueça!</p>
       </div>`
-    : diasRestantes === 1
-    ? `<div class="urgency-banner">
+      : diasRestantes === 1
+      ? `<div class="urgency-banner">
         <p>⏰ Esta avaliação é amanhã! Prepare-se!</p>
       </div>`
-    : "";
+      : "";
 
   const content = `
     <p class="email-greeting">Olá! 👋</p>
@@ -267,24 +270,34 @@ export function createAvaliacaoProximaEmail(data: {
       </div>
       <div class="info-row">
         <span class="info-label">Data:</span>
-        <span class="info-value">${dataFormatada}${horario ? ` às ${horario}` : ""}</span>
+        <span class="info-value">${dataFormatada}${
+    horario ? ` às ${horario}` : ""
+  }</span>
       </div>
-      ${descricao ? `
+      ${
+        descricao
+          ? `
       <div class="info-row">
         <span class="info-label">Descrição:</span>
         <span class="info-value">${descricao}</span>
       </div>
-      ` : ""}
+      `
+          : ""
+      }
       <div class="info-row">
         <span class="info-label">Tempo restante:</span>
-        <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${diasRestantes === 1 ? "dia" : "dias"}</span>
+        <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${
+    diasRestantes === 1 ? "dia" : "dias"
+  }</span>
       </div>
     </div>
     <p style="margin-top: 24px; font-size: 15px; color: #4b5563;">
       Boa sorte nos seus estudos! 🎓
     </p>
     <div style="text-align: center; margin-top: 32px;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/avaliacoes" class="cta-button">
+      <a href="${
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      }/avaliacoes" class="cta-button">
         Ver Detalhes da Avaliação
       </a>
     </div>
@@ -330,7 +343,7 @@ export function createEventoProximoEmail(data: {
       ? "amanhã"
       : `em ${diasRestantes} dias`;
   const subject = `📅 ${tipoFormatado}: ${titulo} ${diasTexto}`;
-  
+
   const content = `
     <p class="email-greeting">Olá! 👋</p>
     <p style="font-size: 16px; margin-bottom: 20px;">
@@ -343,27 +356,41 @@ export function createEventoProximoEmail(data: {
       </div>
       <div class="info-row">
         <span class="info-label">Data:</span>
-        <span class="info-value">${dataFormatada}${horario ? ` às ${horario}` : ""}</span>
+        <span class="info-value">${dataFormatada}${
+    horario ? ` às ${horario}` : ""
+  }</span>
       </div>
-      ${local ? `
+      ${
+        local
+          ? `
       <div class="info-row">
         <span class="info-label">Local:</span>
         <span class="info-value">${local}</span>
       </div>
-      ` : ""}
+      `
+          : ""
+      }
       <div class="info-row">
         <span class="info-label">Tempo restante:</span>
-        <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${diasRestantes === 1 ? "dia" : "dias"}</span>
+        <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${
+    diasRestantes === 1 ? "dia" : "dias"
+  }</span>
       </div>
     </div>
     <div style="text-align: center; margin-top: 32px;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/grade" class="cta-button">
+      <a href="${
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      }/grade" class="cta-button">
         Ver Calendário
       </a>
     </div>
   `;
 
-  const html = wrapEmailTemplate(content, `Notificação de ${tipoFormatado}`, "📅");
+  const html = wrapEmailTemplate(
+    content,
+    `Notificação de ${tipoFormatado}`,
+    "📅"
+  );
   const text = `
 UFAM Hub - Notificação de ${tipoFormatado}
 Olá!
@@ -576,7 +603,6 @@ ${appUrl}
   return { subject, html, text };
 }
 
-// Template para notificações de tarefas
 export function createTarefaEmail(data: {
   titulo: string;
   disciplina?: string;
@@ -584,28 +610,47 @@ export function createTarefaEmail(data: {
   prioridade?: "baixa" | "media" | "alta";
   diasRestantes: number;
 }): EmailTemplate {
-  const { titulo, disciplina, prazo, prioridade = "media", diasRestantes } = data;
+  const {
+    titulo,
+    disciplina,
+    prazo,
+    prioridade = "media",
+    diasRestantes,
+  } = data;
   const prazoFormatado = new Date(prazo).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
-  
-  const prioridadeTexto = prioridade === "alta" ? "Alta" : prioridade === "baixa" ? "Baixa" : "Média";
-  const prioridadeCor = prioridade === "alta" ? "#dc2626" : prioridade === "baixa" ? "#6b7280" : "#f59e0b";
-  
-  const urgencyBanner = diasRestantes === 0 
-    ? `<div class="urgency-banner">
+
+  const prioridadeTexto =
+    prioridade === "alta" ? "Alta" : prioridade === "baixa" ? "Baixa" : "Média";
+  const prioridadeCor =
+    prioridade === "alta"
+      ? "#dc2626"
+      : prioridade === "baixa"
+      ? "#6b7280"
+      : "#f59e0b";
+
+  const urgencyBanner =
+    diasRestantes === 0
+      ? `<div class="urgency-banner">
         <p>⚠️ Esta tarefa vence hoje! Complete-a o quanto antes!</p>
       </div>`
-    : diasRestantes === 1
-    ? `<div class="urgency-banner">
+      : diasRestantes === 1
+      ? `<div class="urgency-banner">
         <p>⏰ Esta tarefa vence amanhã! Não deixe para última hora!</p>
       </div>`
-    : "";
+      : "";
 
-  const subject = `✅ Tarefa: ${titulo}${diasRestantes === 0 ? " (Vence hoje!)" : diasRestantes === 1 ? " (Vence amanhã!)" : ""}`;
-  
+  const subject = `✅ Tarefa: ${titulo}${
+    diasRestantes === 0
+      ? " (Vence hoje!)"
+      : diasRestantes === 1
+      ? " (Vence amanhã!)"
+      : ""
+  }`;
+
   const content = `
     <p class="email-greeting">Olá! 👋</p>
     <p style="font-size: 16px; margin-bottom: 20px;">
@@ -617,12 +662,16 @@ export function createTarefaEmail(data: {
         <span class="info-label">Tarefa:</span>
         <span class="info-value"><strong>${titulo}</strong></span>
       </div>
-      ${disciplina ? `
+      ${
+        disciplina
+          ? `
       <div class="info-row">
         <span class="info-label">Disciplina:</span>
         <span class="info-value">${disciplina}</span>
       </div>
-      ` : ""}
+      `
+          : ""
+      }
       <div class="info-row">
         <span class="info-label">Prazo:</span>
         <span class="info-value">${prazoFormatado}</span>
@@ -637,18 +686,22 @@ export function createTarefaEmail(data: {
       </div>
       <div class="info-row">
         <span class="info-label">Tempo restante:</span>
-        <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${diasRestantes === 1 ? "dia" : "dias"}</span>
+        <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${
+    diasRestantes === 1 ? "dia" : "dias"
+  }</span>
       </div>
     </div>
     <div style="text-align: center; margin-top: 32px;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/disciplinas" class="cta-button">
+      <a href="${
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      }/disciplinas" class="cta-button">
         Ver Tarefas
       </a>
     </div>
   `;
 
   const html = wrapEmailTemplate(content, "Notificação de Tarefa", "✅");
-  
+
   const text = `
 UFAM Hub - Notificação de Tarefa
 Olá!
@@ -656,13 +709,14 @@ Você tem uma tarefa pendente: ${titulo}
 ${disciplina ? `Disciplina: ${disciplina}\n` : ""}Prazo: ${prazoFormatado}
 Prioridade: ${prioridadeTexto}
 Tempo restante: ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}
-Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/disciplinas
+Acesse: ${
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  }/disciplinas
   `;
 
   return { subject, html, text };
 }
 
-// Template para notificações de lembretes
 export function createLembreteEmail(data: {
   titulo: string;
   descricao?: string;
@@ -677,11 +731,11 @@ export function createLembreteEmail(data: {
     hour: "2-digit",
     minute: "2-digit",
   });
-  
+
   const tipoFormatado = tipo.charAt(0).toUpperCase() + tipo.slice(1);
-  
+
   const subject = `🔔 Lembrete: ${titulo}`;
-  
+
   const content = `
     <p class="email-greeting">Olá! 👋</p>
     <p style="font-size: 16px; margin-bottom: 20px;">
@@ -692,12 +746,16 @@ export function createLembreteEmail(data: {
         <span class="info-label">Título:</span>
         <span class="info-value"><strong>${titulo}</strong></span>
       </div>
-      ${descricao ? `
+      ${
+        descricao
+          ? `
       <div class="info-row">
         <span class="info-label">Descrição:</span>
         <span class="info-value">${descricao}</span>
       </div>
-      ` : ""}
+      `
+          : ""
+      }
       <div class="info-row">
         <span class="info-label">Tipo:</span>
         <span class="info-value">
@@ -710,36 +768,39 @@ export function createLembreteEmail(data: {
       </div>
     </div>
     <div style="text-align: center; margin-top: 32px;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/configuracoes" class="cta-button">
+      <a href="${
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      }/configuracoes" class="cta-button">
         Ver Lembretes
       </a>
     </div>
   `;
 
   const html = wrapEmailTemplate(content, "Lembrete", "🔔");
-  
+
   const text = `
 UFAM Hub - Lembrete
 Olá!
 Você tem um lembrete agendado: ${titulo}
 ${descricao ? `Descrição: ${descricao}\n` : ""}Tipo: ${tipoFormatado}
 Agendado para: ${dataFormatada}
-Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/configuracoes
+Acesse: ${
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  }/configuracoes
   `;
 
   return { subject, html, text };
 }
 
-// Template para notificações de conquistas
 export function createConquistaEmail(data: {
   nome: string;
   descricao: string;
   icone?: string;
 }): EmailTemplate {
   const { nome, descricao, icone = "🏆" } = data;
-  
+
   const subject = `${icone} Conquista Desbloqueada: ${nome}`;
-  
+
   const content = `
     <p class="email-greeting">Parabéns! 🎉</p>
     <div style="text-align: center; margin: 30px 0;">
@@ -754,14 +815,16 @@ export function createConquistaEmail(data: {
       </p>
     </div>
     <div style="text-align: center; margin-top: 32px;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard" class="cta-button">
+      <a href="${
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      }/dashboard" class="cta-button">
         Ver Minhas Conquistas
       </a>
     </div>
   `;
 
   const html = wrapEmailTemplate(content, "Conquista Desbloqueada", icone);
-  
+
   const text = `
 UFAM Hub - Conquista Desbloqueada
 Parabéns! 🎉

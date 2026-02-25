@@ -1,6 +1,13 @@
 "use client";
-import { useState } from "react";
-import { Search, BookOpen, HelpCircle, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Search,
+  BookOpen,
+  HelpCircle,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +24,6 @@ import {
   GraduationCap,
   FileText,
   Brain,
-  Trophy,
   Clock,
   Shield,
   Users,
@@ -88,16 +94,6 @@ const HELP_ARTICLES: HelpArticle[] = [
     tags: ["ia", "chat", "quizzes", "mapas mentais", "dúvidas"],
   },
   {
-    id: "gamificacao",
-    title: "Sistema de Gamificação",
-    description:
-      "Entenda como ganhar XP, subir de nível, manter streaks e desbloquear conquistas.",
-    category: "Gamificação",
-    icon: Trophy,
-    href: "/ajuda/gamificacao",
-    tags: ["xp", "níveis", "conquistas", "streaks", "badges"],
-  },
-  {
     id: "pomodoro",
     title: "Pomodoro Timer",
     description:
@@ -156,6 +152,8 @@ const categories = Array.from(
 export default function AjudaPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 9; // 3 colunas x 3 linhas
 
   const filteredArticles = HELP_ARTICLES.filter((article) => {
     const matchesSearch =
@@ -171,6 +169,15 @@ export default function AjudaPage() {
 
     return matchesSearch && matchesCategory;
   });
+
+  const totalPaginas = Math.ceil(filteredArticles.length / itensPorPagina);
+  const indiceInicio = (paginaAtual - 1) * itensPorPagina;
+  const indiceFim = indiceInicio + itensPorPagina;
+  const artigosPaginados = filteredArticles.slice(indiceInicio, indiceFim);
+
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [searchQuery, selectedCategory]);
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
@@ -230,43 +237,98 @@ export default function AjudaPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredArticles.map((article) => {
-            const Icon = article.icon;
-            return (
-              <Link key={article.id} href={article.href}>
-                <Card className="h-full hover:shadow-md transition-all duration-200 hover:border-primary/50 cursor-pointer group">
-                  <CardHeader>
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                        <Icon className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                          {article.title}
-                        </CardTitle>
-                        <div className="mt-1">
-                          <span className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
-                            {article.category}
-                          </span>
+        <>
+          {/* Indicador de resultados */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {artigosPaginados.length} de {filteredArticles.length}{" "}
+              artigo{filteredArticles.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {artigosPaginados.map((article) => {
+              const Icon = article.icon;
+              return (
+                <Link key={article.id} href={article.href}>
+                  <Card className="h-full hover:shadow-md transition-all duration-200 hover:border-primary/50 cursor-pointer group">
+                    <CardHeader>
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                            {article.title}
+                          </CardTitle>
+                          <div className="mt-1">
+                            <span className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                              {article.category}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-sm leading-relaxed">
-                      {article.description}
-                    </CardDescription>
-                    <div className="flex items-center gap-2 mt-4 text-sm text-primary group-hover:gap-3 transition-all">
-                      <span className="font-medium">Ler mais</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-sm leading-relaxed">
+                        {article.description}
+                      </CardDescription>
+                      <div className="flex items-center gap-2 mt-4 text-sm text-primary group-hover:gap-3 transition-all">
+                        <span className="font-medium">Ler mais</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Controles de Paginação */}
+          {totalPaginas > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (paginaAtual > 1) {
+                    setPaginaAtual(paginaAtual - 1);
+                  }
+                }}
+                disabled={paginaAtual === 1}
+                className="min-w-[100px]"
+              >
+                <ChevronLeft className="size-4 mr-1" />
+                Anterior
+              </Button>
+
+              <div className="flex items-center gap-2 px-4">
+                <span className="text-sm font-medium text-foreground">
+                  Página {paginaAtual} de {totalPaginas}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({filteredArticles.length} artigo
+                  {filteredArticles.length !== 1 ? "s" : ""} no total)
+                </span>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (paginaAtual < totalPaginas) {
+                    setPaginaAtual(paginaAtual + 1);
+                  }
+                }}
+                disabled={paginaAtual === totalPaginas}
+                className="min-w-[100px]"
+              >
+                Próxima
+                <ChevronRight className="size-4 ml-1" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Ajuda Adicional */}

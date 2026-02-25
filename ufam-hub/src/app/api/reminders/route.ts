@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { sendPushNotification } from "@/lib/push/notifications";
 
-// GET - Listar lembretes do usuário
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -53,7 +52,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Criar lembrete personalizado
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -117,7 +115,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Deletar lembrete
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();

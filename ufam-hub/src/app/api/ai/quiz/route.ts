@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar anotações da disciplina
     const { data: anotacoes } = await supabase
       .from("anotacoes")
       .select("titulo, conteudo")
@@ -38,7 +37,6 @@ export async function POST(request: NextRequest) {
       ?.map((a) => `${a.titulo}:\n${a.conteudo}`)
       .join("\n\n");
 
-    // Buscar nome da disciplina
     const { data: disciplina } = await supabase
       .from("disciplinas")
       .select("nome")
@@ -113,7 +111,6 @@ REGRAS:
         modelError.message?.includes("not found") ||
         modelError.message?.includes("404")
       ) {
-        // Tentar usar @google/generative-ai diretamente como fallback
         console.log("Tentando usar @google/generative-ai diretamente...");
         try {
           const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -123,7 +120,6 @@ REGRAS:
 
           const genAI = new GoogleGenerativeAI(apiKey);
 
-          // Primeiro, tentar listar modelos disponíveis
           let modelosDisponiveis: string[] = [];
           try {
             const response = await fetch(
@@ -145,7 +141,6 @@ REGRAS:
             );
           }
 
-          // Tentar modelos diferentes na ordem de preferência
           const modelosParaTentar =
             modelosDisponiveis.length > 0
               ? modelosDisponiveis
@@ -192,14 +187,11 @@ REGRAS:
       }
     }
 
-    // Tentar extrair JSON da resposta
     let quiz;
     try {
-      // Remover markdown se presente
       const jsonStr = text.replace(/```json\n?|\n?```/g, "").trim();
       quiz = JSON.parse(jsonStr);
     } catch {
-      // Se falhar, retornar o texto como está
       return NextResponse.json({
         quiz: null,
         rawResponse: text,

@@ -21,7 +21,6 @@ export function VoiceReader({
 
   useEffect(() => {
     if (autoRead && settings.enabled && text && !hasReadRef.current) {
-      // Aguardar um pouco antes de ler para garantir que o componente está montado
       const timer = setTimeout(() => {
         speak(text);
         hasReadRef.current = true;

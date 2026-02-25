@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { adicionarXP, verificarConquistasEspecificas } from "@/lib/gamificacao";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +18,6 @@ export async function GET(request: NextRequest) {
       .from("tarefas")
       .select(
         `
-        *,
         disciplinas (
           id,
           nome
@@ -135,41 +133,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    let conquistasDesbloqueadas: any[] = [];
-    try {
-      const { count: totalTarefas } = await supabase
-        .from("tarefas")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-      const resultadoXP = await adicionarXP(
-        user.id,
-        5,
-        "tarefa",
-        `Tarefa criada: ${titulo.trim()}`,
-        tarefa.id
-      );
-      if (resultadoXP.success && resultadoXP.conquistasDesbloqueadas) {
-        conquistasDesbloqueadas.push(...resultadoXP.conquistasDesbloqueadas);
-      }
-      const resultadoConquista = await verificarConquistasEspecificas(
-        user.id,
-        "primeira_tarefa",
-        {
-          totalTarefas: (totalTarefas || 0) + 1,
-        }
-      );
-      if (resultadoConquista.conquistasDesbloqueadas) {
-        conquistasDesbloqueadas.push(
-          ...resultadoConquista.conquistasDesbloqueadas
-        );
-      }
-    } catch (gamError) {
-      console.error("Erro ao processar gamificação:", gamError);
-    }
     return NextResponse.json({
       success: true,
       tarefa: { id: tarefa.id },
-      conquistasDesbloqueadas,
     });
   } catch (error) {
     console.error("Erro na API de tarefas:", error);
@@ -240,43 +206,8 @@ export async function PUT(request: NextRequest) {
         { status: 500 }
       );
     }
-    let conquistasDesbloqueadas: any[] = [];
-    if (concluida === true && !estavaConcluidaAntes) {
-      try {
-        const { count: totalTarefasConcluidas } = await supabase
-          .from("tarefas")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("concluida", true);
-        const resultadoXP = await adicionarXP(
-          user.id,
-          10,
-          "tarefa_concluida",
-          `Tarefa concluída`,
-          id
-        );
-        if (resultadoXP.success && resultadoXP.conquistasDesbloqueadas) {
-          conquistasDesbloqueadas.push(...resultadoXP.conquistasDesbloqueadas);
-        }
-        const resultadoConquista = await verificarConquistasEspecificas(
-          user.id,
-          "tarefa_concluida",
-          {
-            totalTarefasConcluidas: totalTarefasConcluidas || 0,
-          }
-        );
-        if (resultadoConquista.conquistasDesbloqueadas) {
-          conquistasDesbloqueadas.push(
-            ...resultadoConquista.conquistasDesbloqueadas
-          );
-        }
-      } catch (gamError) {
-        console.error("Erro ao processar gamificação:", gamError);
-      }
-    }
     return NextResponse.json({
       success: true,
-      conquistasDesbloqueadas,
     });
   } catch (error) {
     console.error("Erro na API de tarefas:", error);

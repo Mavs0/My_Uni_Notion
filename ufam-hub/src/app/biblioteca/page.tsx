@@ -1,7 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +46,8 @@ import {
   Archive,
   ArchiveRestore,
   EyeOff,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Tooltip,
@@ -56,6 +57,7 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 interface Material {
   id: string;
   titulo: string;
@@ -99,6 +101,9 @@ export default function BibliotecaPage() {
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
   const [filtroGrupo, setFiltroGrupo] = useState<string>(grupoIdFromUrl || "");
   const [filtroFormato, setFiltroFormato] = useState<string>("");
+  const [ordenar, setOrdenar] = useState<string>("recentes");
+  const [filtroTags, setFiltroTags] = useState<string>("");
+  const [showBuscaAvancada, setShowBuscaAvancada] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
@@ -124,6 +129,8 @@ export default function BibliotecaPage() {
     isAtivo: boolean;
   } | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [dialogShake, setDialogShake] = useState(false);
+  const [addMaterialStep, setAddMaterialStep] = useState(1);
 
   useEffect(() => {
     if (grupoIdFromUrl && !filtroGrupo) {
@@ -165,47 +172,61 @@ export default function BibliotecaPage() {
       : formData.visibilidade === "publico"
       ? gruposPublicos
       : [];
-  const {
-    items: materiaisInfinite,
-    loading: loadingInfinite,
-    hasMore,
-    lastElementRef,
-    reset: resetMateriais,
-  } = useInfiniteScroll<Material>({
-    fetchFn: async (offset, limit) => {
-      const params = new URLSearchParams();
-      if (search) params.append("busca", search);
-      if (filtroTipo && filtroTipo !== "all") params.append("tipo", filtroTipo);
-      if (filtroCategoria && filtroCategoria !== "all")
-        params.append("categoria", filtroCategoria);
-      if (filtroGrupo && filtroGrupo !== "none")
-        params.append("grupo_id", filtroGrupo);
-      params.append("limit", limit.toString());
-      params.append("offset", offset.toString());
 
-      const response = await fetch(
-        `/api/colaboracao/biblioteca?${params.toString()}`
-      );
-      if (!response.ok) {
-        throw new Error("Erro ao carregar materiais");
+  const ITEMS_PER_PAGE = 9;
+  const [page, setPage] = useState(1);
+  const [materiaisInfinite, setMateriaisInfinite] = useState<Material[]>([]);
+  const [loadingInfinite, setLoadingInfinite] = useState(false);
+  const [totalMateriais, setTotalMateriais] = useState(0);
+
+  const loadMateriais = useCallback(
+    async (pageNum?: number) => {
+      const p = pageNum ?? page;
+      setLoadingInfinite(true);
+      try {
+        const params = new URLSearchParams();
+        if (search) params.append("busca", search);
+        if (filtroTipo && filtroTipo !== "all") params.append("tipo", filtroTipo);
+        if (filtroCategoria && filtroCategoria !== "all")
+          params.append("categoria", filtroCategoria);
+        if (filtroGrupo && filtroGrupo !== "none")
+          params.append("grupo_id", filtroGrupo);
+        if (ordenar) params.append("ordenar", ordenar);
+        if (filtroTags.trim()) params.append("tags", filtroTags.trim());
+        params.append("limit", ITEMS_PER_PAGE.toString());
+        params.append("offset", ((p - 1) * ITEMS_PER_PAGE).toString());
+
+        const response = await fetch(
+          `/api/colaboracao/biblioteca?${params.toString()}`
+        );
+        if (!response.ok) throw new Error("Erro ao carregar materiais");
+        const data = await response.json();
+        setMateriaisInfinite(data.materiais || []);
+        setTotalMateriais(data.total ?? 0);
+      } catch (err) {
+        console.error(err);
+        setMateriaisInfinite([]);
+      } finally {
+        setLoadingInfinite(false);
       }
-      const data = await response.json();
-      return {
-        data: data.materiais || [],
-        hasMore: data.hasMore || false,
-        total: data.total,
-      };
     },
-    limit: 20,
-    enabled: true,
-    dependencies: [
-      search,
-      filtroTipo,
-      filtroCategoria,
-      filtroGrupo,
-      filtroFormato,
-    ],
-  });
+    [page, search, filtroTipo, filtroCategoria, filtroGrupo, ordenar, filtroTags]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filtroTipo, filtroCategoria, filtroGrupo, ordenar, filtroTags]);
+
+  useEffect(() => {
+    loadMateriais();
+  }, [loadMateriais]);
+
+  const resetMateriais = useCallback(() => {
+    setPage(1);
+    loadMateriais(1);
+  }, [loadMateriais]);
+
+  const totalPages = Math.max(1, Math.ceil(totalMateriais / ITEMS_PER_PAGE));
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -346,6 +367,7 @@ export default function BibliotecaPage() {
       if (response.ok) {
         toast.success("Material adicionado com sucesso!");
         setShowAddDialog(false);
+        setAddMaterialStep(1);
         setFormData({
           titulo: "",
           descricao: "",
@@ -360,6 +382,7 @@ export default function BibliotecaPage() {
         setArquivoMetodo("upload");
         setSubtipoAnotacao("");
         setSubtipoFlashcard("");
+        setDialogShake(false);
         resetMateriais();
       } else {
         toast.error(data.error || "Erro ao adicionar material");
@@ -376,7 +399,6 @@ export default function BibliotecaPage() {
     resetMateriais();
   };
 
-  // Função para verificar formato do arquivo
   const matchesFormato = (material: Material, formato: string): boolean => {
     if (!formato) return true;
     const url = material.arquivo_url?.toLowerCase() || "";
@@ -408,14 +430,15 @@ export default function BibliotecaPage() {
     }
   };
 
-  // Materiais filtrados por formato e status ativo (filtro local)
-  const materiaisFiltrados = materiaisInfinite.filter((m) => {
-    const matchFormato = filtroFormato
-      ? matchesFormato(m, filtroFormato)
-      : true;
-    const matchAtivo = mostrarArquivados ? true : m.ativo !== false;
-    return matchFormato && matchAtivo;
-  });
+  const materiaisFiltrados = materiaisInfinite
+    .filter((m) => {
+      const matchFormato = filtroFormato
+        ? matchesFormato(m, filtroFormato)
+        : true;
+      const matchAtivo = mostrarArquivados ? true : m.ativo !== false;
+      return matchFormato && matchAtivo;
+    })
+    .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i);
 
   const handleDownload = async (material: Material) => {
     if (material.arquivo_url) {
@@ -491,117 +514,100 @@ export default function BibliotecaPage() {
             Explore e compartilhe materiais de estudo
           </p>
         </div>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <Dialog 
+          open={showAddDialog} 
+          onOpenChange={(open) => {
+            setShowAddDialog(open);
+            if (!open) {
+              setDialogShake(false);
+              setAddMaterialStep(1);
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Material
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Adicionar Material à Biblioteca</DialogTitle>
-              <DialogDescription>
-                Compartilhe materiais de estudo com a comunidade
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="titulo">
-                  Título <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="titulo"
-                  value={formData.titulo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, titulo: e.target.value })
-                  }
-                  placeholder="Ex: Resumo de Cálculo I"
-                />
-              </div>
+          <DialogContent 
+            className={`max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 ${
+              dialogShake ? "animate-[shake_0.5s_ease-in-out]" : ""
+            }`}
+            onInteractOutside={(e) => {
+              e.preventDefault();
+              setDialogShake(true);
+              setTimeout(() => setDialogShake(false), 500);
+            }}
+          >
+            {/* Stepper */}
+            <div className="flex items-center justify-center gap-1 px-6 pt-6 pb-2 border-b">
+              {[1, 2, 3].map((s) => (
+                <div key={s} className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setAddMaterialStep(s)}
+                    className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-colors ${
+                      addMaterialStep === s
+                        ? "bg-primary text-primary-foreground"
+                        : addMaterialStep > s
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                  {s < 3 && <div className="w-8 h-0.5 bg-muted mx-0.5" />}
+                </div>
+              ))}
+            </div>
+            <div className="px-2 text-center text-xs text-muted-foreground mb-4 mt-2">
+              {addMaterialStep === 1 && "Informações gerais"}
+              {addMaterialStep === 2 && "Visibilidade"}
+              {addMaterialStep === 3 && "Conteúdo"}
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <textarea
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) =>
-                    setFormData({ ...formData, descricao: e.target.value })
-                  }
-                  placeholder="Descreva o material..."
-                  className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="visibilidade">
-                  Visibilidade <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.visibilidade}
-                  onValueChange={(value) => {
-                    setFormData({
-                      ...formData,
-                      visibilidade: value,
-                      grupo_id: value === "geral" ? "" : formData.grupo_id,
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="publico">Público</SelectItem>
-                    <SelectItem value="privado">Privado</SelectItem>
-                    <SelectItem value="geral">Geral</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.visibilidade !== "geral" &&
-                gruposDisponiveis.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="grupo">
-                      Grupo{" "}
-                      {formData.visibilidade === "privado" && (
-                        <span className="text-red-500">*</span>
-                      )}
-                    </Label>
-                    <Select
-                      value={formData.grupo_id}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, grupo_id: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um grupo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formData.visibilidade === "publico" && (
-                          <SelectItem value="none">
-                            Nenhum (público geral)
-                          </SelectItem>
-                        )}
-                        {gruposDisponiveis.map((grupo) => (
-                          <SelectItem key={grupo.id} value={grupo.id}>
-                            {grupo.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {formData.visibilidade === "privado"
-                        ? "Selecione o grupo privado para compartilhar"
-                        : "Se selecionado, o material será compartilhado apenas com o grupo"}
-                    </p>
-                  </div>
-                )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tipo">
-                    Tipo <span className="text-red-500">*</span>
+            <div className="px-6 pb-6 space-y-4">
+            {addMaterialStep === 1 && (
+              <div className="space-y-5">
+                <DialogHeader>
+                  <DialogTitle>Informações do material</DialogTitle>
+                  <DialogDescription>
+                    Título, descrição, tipo e categoria
+                  </DialogDescription>
+                </DialogHeader>
+                <div>
+                  <Label htmlFor="titulo" className="block mb-3">
+                    Título <span className="text-red-500">*</span>
                   </Label>
+                  <Input
+                    id="titulo"
+                    value={formData.titulo}
+                    onChange={(e) =>
+                      setFormData({ ...formData, titulo: e.target.value })
+                    }
+                    placeholder="Ex: Resumo de Cálculo I"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="descricao" className="block mb-3">Descrição</Label>
+                  <textarea
+                    id="descricao"
+                    value={formData.descricao}
+                    onChange={(e) =>
+                      setFormData({ ...formData, descricao: e.target.value })
+                    }
+                    placeholder="Descreva o material..."
+                    className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="tipo" className="block mb-3">
+                      Tipo <span className="text-red-500">*</span>
+                    </Label>
                   <Select
                     value={formData.tipo}
                     onValueChange={(value) => {
@@ -622,8 +628,8 @@ export default function BibliotecaPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="categoria">Categoria</Label>
+                <div>
+                  <Label htmlFor="categoria" className="block mb-3">Categoria</Label>
                   <Select
                     value={formData.categoria}
                     onValueChange={(value) =>
@@ -638,14 +644,15 @@ export default function BibliotecaPage() {
                       <SelectItem value="resumo">Resumo</SelectItem>
                       <SelectItem value="exercicio">Exercício</SelectItem>
                       <SelectItem value="prova">Prova</SelectItem>
+                      <SelectItem value="mapa-mental">Mapa Mental</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               {formData.tipo === "anotacao" && (
-                <div className="space-y-2">
-                  <Label htmlFor="subtipo-anotacao">Tipo de Anotação</Label>
+                <div>
+                  <Label htmlFor="subtipo-anotacao" className="block mb-3">Tipo de Anotação</Label>
                   <Select
                     value={subtipoAnotacao}
                     onValueChange={setSubtipoAnotacao}
@@ -668,8 +675,8 @@ export default function BibliotecaPage() {
               )}
 
               {formData.tipo === "flashcard" && (
-                <div className="space-y-2">
-                  <Label htmlFor="subtipo-flashcard">Tipo de Flashcard</Label>
+                <div>
+                  <Label htmlFor="subtipo-flashcard" className="block mb-3">Tipo de Flashcard</Label>
                   <Select
                     value={subtipoFlashcard}
                     onValueChange={setSubtipoFlashcard}
@@ -696,10 +703,84 @@ export default function BibliotecaPage() {
                   </Select>
                 </div>
               )}
+            </div>
+            )}
 
+            {addMaterialStep === 2 && (
+              <div className="space-y-5">
+                <DialogHeader>
+                  <DialogTitle>Visibilidade e compartilhamento</DialogTitle>
+                  <DialogDescription>
+                    Quem pode ver este material
+                  </DialogDescription>
+                </DialogHeader>
+                <div>
+                  <Label htmlFor="visibilidade" className="block mb-3">
+                    Visibilidade <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.visibilidade}
+                    onValueChange={(value) => {
+                      setFormData({
+                        ...formData,
+                        visibilidade: value,
+                        grupo_id: value === "geral" ? "" : formData.grupo_id,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="publico">Público</SelectItem>
+                      <SelectItem value="privado">Privado</SelectItem>
+                      <SelectItem value="geral">Geral</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.visibilidade === "privado" && gruposDisponiveis.length > 0 && (
+                  <div>
+                    <Label htmlFor="grupo" className="block mb-3">
+                      Grupo <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.grupo_id}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, grupo_id: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um grupo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gruposDisponiveis.map((grupo) => (
+                          <SelectItem key={grupo.id} value={grupo.id}>
+                            {grupo.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Selecione o grupo privado para compartilhar
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {addMaterialStep === 3 && (
+              <div className="space-y-5">
+                <DialogHeader>
+                  <DialogTitle>Conteúdo do material</DialogTitle>
+                  <DialogDescription>
+                    Arquivo, link ou URL e tags
+                  </DialogDescription>
+                </DialogHeader>
               {formData.tipo === "arquivo" && (
-                <div className="space-y-2">
-                  <Label htmlFor="arquivo">Arquivo</Label>
+                <div>
+                  <Label htmlFor="arquivo" className="block mb-3">
+                    Arquivo <span className="text-red-500">*</span>
+                  </Label>
                   <div className="flex gap-2 mb-2">
                     <Button
                       type="button"
@@ -732,13 +813,27 @@ export default function BibliotecaPage() {
 
                   {arquivoMetodo === "upload" ? (
                     <>
-                      <Input
-                        id="arquivo"
-                        type="file"
-                        onChange={handleFileSelect}
-                        accept=".pdf,.csv,.jpg,.jpeg,.png"
-                        className="flex-1"
-                      />
+                      <label
+                        htmlFor="arquivo"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                          <p className="mb-2 text-sm text-muted-foreground">
+                            <span className="font-semibold">Clique para fazer upload</span> ou arraste o arquivo aqui
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            PDF, CSV, JPG, PNG (máx. 10MB)
+                          </p>
+                        </div>
+                        <Input
+                          id="arquivo"
+                          type="file"
+                          onChange={handleFileSelect}
+                          accept=".pdf,.csv,.jpg,.jpeg,.png"
+                          className="hidden"
+                        />
+                      </label>
                       {selectedFile && (
                         <p className="text-sm text-muted-foreground">
                           Arquivo selecionado: {selectedFile.name} (
@@ -763,8 +858,8 @@ export default function BibliotecaPage() {
               )}
 
               {formData.tipo === "link" && (
-                <div className="space-y-2">
-                  <Label htmlFor="url">
+                <div>
+                  <Label htmlFor="url" className="block mb-3">
                     URL <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -779,8 +874,8 @@ export default function BibliotecaPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
+              <div>
+                <Label htmlFor="tags" className="block mb-3">Tags (separadas por vírgula)</Label>
                 <Input
                   id="tags"
                   value={formData.tags}
@@ -790,44 +885,73 @@ export default function BibliotecaPage() {
                   placeholder="Ex: cálculo, matemática, resumo"
                 />
               </div>
+              </div>
+            )}
 
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddDialog(false);
-                    setFormData({
-                      titulo: "",
-                      descricao: "",
-                      tipo: "arquivo",
-                      categoria: "",
-                      grupo_id: "",
-                      arquivo_url: "",
-                      tags: "",
-                      visibilidade: "publico",
-                    });
-                    setSelectedFile(null);
-                    setArquivoMetodo("upload");
-                    setSubtipoAnotacao("");
-                    setSubtipoFlashcard("");
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddMaterial} disabled={uploading}>
-                  {uploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Adicionando...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
+            <DialogFooter className="flex-row justify-between items-center gap-4 p-4 border-t bg-muted/20 mt-6">
+              <div>
+                {addMaterialStep > 1 ? (
+                  <Button variant="outline" onClick={() => setAddMaterialStep((s) => s - 1)}>
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Voltar
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddDialog(false);
+                      setFormData({
+                        titulo: "",
+                        descricao: "",
+                        tipo: "arquivo",
+                        categoria: "",
+                        grupo_id: "",
+                        arquivo_url: "",
+                        tags: "",
+                        visibilidade: "publico",
+                      });
+                      setSelectedFile(null);
+                      setArquivoMetodo("upload");
+                      setSubtipoAnotacao("");
+                      setSubtipoFlashcard("");
+                      setDialogShake(false);
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+              <div>
+                {addMaterialStep < 3 ? (
+                  <Button
+                    onClick={() => setAddMaterialStep((s) => s + 1)}
+                    disabled={
+                      (addMaterialStep === 1 && !formData.titulo.trim()) ||
+                      (addMaterialStep === 2 &&
+                        formData.visibilidade === "privado" &&
+                        !formData.grupo_id)
+                    }
+                  >
+                    Próximo
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button onClick={handleAddMaterial} disabled={uploading}>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Adicionando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </DialogFooter>
             </div>
           </DialogContent>
         </Dialog>
@@ -880,6 +1004,8 @@ export default function BibliotecaPage() {
                 filtroCategoria ||
                 filtroFormato ||
                 filtroGrupo ||
+                filtroTags.trim() ||
+                ordenar !== "recentes" ||
                 mostrarArquivados) && (
                 <Button
                   variant="ghost"
@@ -890,6 +1016,8 @@ export default function BibliotecaPage() {
                     setFiltroCategoria("");
                     setFiltroFormato("");
                     setFiltroGrupo("");
+                    setFiltroTags("");
+                    setOrdenar("recentes");
                     setMostrarArquivados(false);
                   }}
                 >
@@ -940,12 +1068,13 @@ export default function BibliotecaPage() {
                     <SelectValue placeholder="Categoria" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
+                  <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
                   <SelectItem value="apostila">📚 Apostila</SelectItem>
                   <SelectItem value="resumo">📋 Resumo</SelectItem>
                   <SelectItem value="exercicio">✏️ Exercício</SelectItem>
                   <SelectItem value="prova">📝 Prova</SelectItem>
+                  <SelectItem value="mapa-mental">🧠 Mapa Mental</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1000,6 +1129,31 @@ export default function BibliotecaPage() {
                 </SelectContent>
               </Select>
 
+              <Select
+                value={ordenar}
+                onValueChange={setOrdenar}
+              >
+                <SelectTrigger className="h-9 w-[160px]">
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recentes">Mais recentes</SelectItem>
+                  <SelectItem value="visualizacoes">Visualizações</SelectItem>
+                  <SelectItem value="downloads">Downloads</SelectItem>
+                  <SelectItem value="curtidas">Curtidas</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant={showBuscaAvancada ? "default" : "outline"}
+                size="sm"
+                className="h-9"
+                onClick={() => setShowBuscaAvancada(!showBuscaAvancada)}
+              >
+                <Filter className="h-3.5 w-3.5 mr-1.5" />
+                Busca avançada
+              </Button>
+
               <Button
                 variant={mostrarArquivados ? "default" : "outline"}
                 size="sm"
@@ -1021,8 +1175,22 @@ export default function BibliotecaPage() {
             </div>
           </div>
 
+          {showBuscaAvancada && (
+            <div className="pt-4 border-t space-y-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                Filtro por tags (separadas por vírgula)
+              </p>
+              <Input
+                value={filtroTags}
+                onChange={(e) => setFiltroTags(e.target.value)}
+                placeholder="Ex.: cálculo, álgebra, lista"
+                className="max-w-md h-9"
+              />
+            </div>
+          )}
+
           {/* Tags de filtros ativos */}
-          {(filtroTipo || filtroCategoria || filtroFormato || filtroGrupo) && (
+          {(filtroTipo || filtroCategoria || filtroFormato || filtroGrupo || filtroTags.trim()) && (
             <div className="flex flex-wrap gap-2 pt-2 border-t">
               {filtroTipo && (
                 <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
@@ -1070,6 +1238,17 @@ export default function BibliotecaPage() {
                   </button>
                 </span>
               )}
+              {filtroTags.trim() && (
+                <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
+                  Tags: {filtroTags}
+                  <button
+                    onClick={() => setFiltroTags("")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
             </div>
           )}
         </CardContent>
@@ -1083,22 +1262,31 @@ export default function BibliotecaPage() {
         </div>
       ) : materiaisFiltrados.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Library className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              Nenhum material encontrado
-            </h3>
-            <p className="text-muted-foreground">
-              Tente buscar com outros termos ou ajustar os filtros
-            </p>
+          <CardContent className="py-4">
+            <EmptyState
+              icon={Library}
+              title="Nenhum material encontrado"
+              description="Tente buscar com outros termos, ajustar os filtros ou adicione o primeiro material ao grupo."
+              action={{
+                label: "Adicionar material",
+                onClick: () => setShowAddDialog(true),
+                icon: Plus,
+              }}
+            />
           </CardContent>
         </Card>
       ) : (
+        <>
+        {totalMateriais > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Mostrando {(page - 1) * ITEMS_PER_PAGE + 1}–
+            {Math.min(page * ITEMS_PER_PAGE, totalMateriais)} de {totalMateriais}{" "}
+            {totalMateriais === 1 ? "material" : "materiais"}
+          </p>
+        )}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {materiaisFiltrados.map((material, index) => {
-            const isLast = index === materiaisFiltrados.length - 1;
-            return (
-              <div key={material.id} ref={isLast ? lastElementRef : null}>
+          {materiaisFiltrados.map((material) => (
+              <div key={material.id}>
                 <Card
                   className={`hover:shadow-md transition-shadow cursor-pointer ${
                     material.ativo === false ? "opacity-60" : ""
@@ -1268,17 +1456,34 @@ export default function BibliotecaPage() {
                   </CardContent>
                 </Card>
               </div>
-            );
-          })}
-          {loadingInfinite && hasMore && (
-            <div className="col-span-full flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">
-                Carregando mais...
+            ))}
+          {totalPages > 1 && (
+            <div className="col-span-full flex items-center justify-center gap-4 py-6 border-t mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || loadingInfinite}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground min-w-[140px] text-center">
+                Página {page} de {totalPages}
               </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages || loadingInfinite}
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
             </div>
           )}
         </div>
+        </>
       )}
 
       {/* Dialog de confirmação para arquivar */}

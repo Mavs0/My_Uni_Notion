@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
       matricula: user.user_metadata?.matricula || "",
       telefone: user.user_metadata?.telefone || "",
       tema_preferencia: user.user_metadata?.tema_preferencia || "system",
-      perfil_publico: user.user_metadata?.perfil_publico || false,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };
@@ -46,7 +45,6 @@ export async function PUT(request: NextRequest) {
       telefone,
       avatar_url,
       tema_preferencia,
-      perfil_publico,
     } = body;
     const supabase = await createSupabaseServer();
     const {
@@ -66,8 +64,6 @@ export async function PUT(request: NextRequest) {
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url || "";
     if (tema_preferencia !== undefined)
       updateData.tema_preferencia = tema_preferencia;
-    if (perfil_publico !== undefined)
-      updateData.perfil_publico = perfil_publico;
     console.log("📝 Atualizando perfil do usuário:", user.id);
     console.log("📋 Dados a atualizar:", updateData);
     const { data, error } = await supabase.auth.updateUser({
@@ -98,7 +94,6 @@ export async function PUT(request: NextRequest) {
         matricula: data.user.user_metadata?.matricula || "",
         telefone: data.user.user_metadata?.telefone || "",
         tema_preferencia: data.user.user_metadata?.tema_preferencia || "system",
-        perfil_publico: data.user.user_metadata?.perfil_publico || false,
       },
     });
   } catch (error: any) {
