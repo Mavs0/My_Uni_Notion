@@ -348,8 +348,8 @@ export function SyncAvaliacoesWithCalendar() {
       let errorCount = 0;
       for (const avaliacao of avaliacoes) {
         try {
-          const disciplinaNome =
-            disciplinasMap.get(avaliacao.disciplinaId) || "Disciplina";
+          const rawNome = disciplinasMap.get(avaliacao.disciplinaId);
+          const disciplinaNome = typeof rawNome === "string" ? rawNome : "Disciplina";
           const dataISO = new Date(avaliacao.dataISO);
           const dataStr = dataISO.toISOString().split("T")[0];
           const horarioStr = dataISO.toTimeString().slice(0, 5);

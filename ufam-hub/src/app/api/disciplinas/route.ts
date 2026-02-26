@@ -32,27 +32,27 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    const formatted = (disciplinas || []).map(
-      (disc: {
+    type DiscRow = {
+      id: string;
+      nome: string;
+      tipo: string;
+      horas_semana: number;
+      professor?: string | null;
+      local?: string | null;
+      ativo?: boolean;
+      ordem?: number | null;
+      favorito?: boolean | null;
+      cor?: string | null;
+      created_at?: string;
+      updated_at?: string;
+      horarios?: Array<{
         id: string;
-        nome: string;
-        tipo: string;
-        horas_semana: number;
-        professor?: string | null;
-        local?: string | null;
-        ativo?: boolean;
-        ordem?: number | null;
-        favorito?: boolean | null;
-        cor?: string | null;
-        created_at?: string;
-        updated_at?: string;
-        horarios?: Array<{
-          id: string;
-          dia_semana: number;
-          hora_inicio: string;
-          hora_fim: string;
-        }>;
-      }) => ({
+        dia_semana: number;
+        hora_inicio: string;
+        hora_fim: string;
+      }>;
+    };
+    const formatted = ((disciplinas || []) as DiscRow[]).map((disc) => ({
         id: disc.id,
         nome: disc.nome,
         tipo: disc.tipo,

@@ -32,7 +32,7 @@ export async function GET(
       );
     }
 
-    const { data, error } = await resend.attachments.receiving.list({
+    const { data, error } = await (resend as any).attachments.receiving.list({
       emailId: id,
     });
 

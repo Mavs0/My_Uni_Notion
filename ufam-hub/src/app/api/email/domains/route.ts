@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY || !resend) {
       return NextResponse.json(
         { error: "Chave da API não configurada" },
         { status: 400 }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY || !resend) {
       return NextResponse.json(
         { error: "Chave da API não configurada" },
         { status: 400 }

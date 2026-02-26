@@ -42,6 +42,8 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
+    type FlashcardRow = { id: string; disciplina_id?: string; disciplinas?: { id: string; nome: string }[] | { id: string; nome: string } | null; [key: string]: unknown };
+    const list = (flashcards || []) as FlashcardRow[];
     if (paraRevisar) {
       const { data: revisoes, error: revisoesError } = await supabase
         .from("flashcard_revisoes")
@@ -56,7 +58,7 @@ export async function GET(request: NextRequest) {
       const idsParaRevisar = new Set(
         (revisoes || []).map((r) => r.flashcard_id)
       );
-      const flashcardsParaRevisar = (flashcards || []).filter((fc) =>
+      const flashcardsParaRevisar = list.filter((fc) =>
         idsParaRevisar.has(fc.id)
       );
       const flashcardsComRevisao = flashcardsParaRevisar.map((fc) => {
@@ -76,12 +78,12 @@ export async function GET(request: NextRequest) {
       .eq("user_id", user.id)
       .in(
         "flashcard_id",
-        (flashcards || []).map((fc) => fc.id)
+        list.map((fc) => fc.id)
       );
     if (todasRevisoesError) {
       console.error("Erro ao buscar todas as revisões:", todasRevisoesError);
     }
-    const flashcardsComRevisao = (flashcards || []).map((fc) => {
+    const flashcardsComRevisao = list.map((fc) => {
       const revisao = (todasRevisoes || []).find(
         (r) => r.flashcard_id === fc.id
       );

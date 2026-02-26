@@ -15,7 +15,7 @@ export async function GET(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY || !resend) {
       return NextResponse.json(
         { error: "Chave da API não configurada" },
         { status: 400 }
@@ -82,7 +82,7 @@ export async function PUT(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY || !resend) {
       return NextResponse.json(
         { error: "Chave da API não configurada" },
         { status: 400 }
@@ -155,7 +155,7 @@ export async function POST(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY || !resend) {
       return NextResponse.json(
         { error: "Chave da API não configurada" },
         { status: 400 }
@@ -222,7 +222,7 @@ export async function DELETE(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY || !resend) {
       return NextResponse.json(
         { error: "Chave da API não configurada" },
         { status: 400 }

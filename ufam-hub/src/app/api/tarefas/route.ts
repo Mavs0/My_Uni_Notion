@@ -41,22 +41,25 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    const formatted = (tarefas || []).map(
-      (t: {
-        id: string;
-        disciplina_id: string | null;
-        titulo: string;
-        descricao?: string | null;
-        data_vencimento?: string | null;
-        concluida: boolean;
-        prioridade?: string | null;
-        created_at?: string;
-        updated_at?: string;
-        disciplinas?: { id: string; nome: string } | null;
-      }) => ({
+    type TarefaRow = {
+      id: string;
+      disciplina_id: string | null;
+      titulo: string;
+      descricao?: string | null;
+      data_vencimento?: string | null;
+      concluida: boolean;
+      prioridade?: string | null;
+      created_at?: string;
+      updated_at?: string;
+      disciplinas?: { id: string; nome: string }[] | { id: string; nome: string } | null;
+    };
+    const formatted = ((tarefas || []) as TarefaRow[]).map((t) => {
+      const disc = t.disciplinas;
+      const nome = Array.isArray(disc) ? disc[0]?.nome : disc?.nome;
+      return {
         id: t.id,
         disciplinaId: t.disciplina_id,
-        disciplina: t.disciplinas?.nome,
+        disciplina: nome,
         titulo: t.titulo,
         descricao: t.descricao || undefined,
         dataVencimento: t.data_vencimento || undefined,
@@ -64,8 +67,8 @@ export async function GET(request: NextRequest) {
         prioridade: (t.prioridade as "baixa" | "media" | "alta") || "media",
         created_at: t.created_at,
         updated_at: t.updated_at,
-      })
-    );
+      };
+    });
     return NextResponse.json({ tarefas: formatted });
   } catch (error) {
     console.error("Erro na API de tarefas:", error);
