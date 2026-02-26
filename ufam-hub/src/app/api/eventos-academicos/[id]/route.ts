@@ -3,9 +3,10 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: eventoId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -19,7 +20,7 @@ export async function GET(
     const { data: evento, error } = await supabase
       .from("eventos_academicos")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", eventoId)
       .single();
 
     if (error || !evento) {
@@ -39,14 +40,14 @@ export async function GET(
     const { data: interesse } = await supabase
       .from("eventos_interesse")
       .select("status")
-      .eq("evento_id", params.id)
+      .eq("evento_id", eventoId)
       .eq("usuario_id", user.id)
       .single();
 
     const { count } = await supabase
       .from("eventos_interesse")
       .select("*", { count: "exact", head: true })
-      .eq("evento_id", params.id);
+      .eq("evento_id", eventoId);
 
     return NextResponse.json({
       ...evento,
@@ -67,9 +68,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: eventoId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -83,7 +85,7 @@ export async function PUT(
     const { data: evento } = await supabase
       .from("eventos_academicos")
       .select("criado_por")
-      .eq("id", params.id)
+      .eq("id", eventoId)
       .single();
 
     if (!evento) {
@@ -139,7 +141,7 @@ export async function PUT(
     const { data: eventoAtualizado, error } = await supabase
       .from("eventos_academicos")
       .update(updateData)
-      .eq("id", params.id)
+      .eq("id", eventoId)
       .select()
       .single();
 
@@ -163,9 +165,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: eventoId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -179,7 +182,7 @@ export async function DELETE(
     const { data: evento } = await supabase
       .from("eventos_academicos")
       .select("criado_por")
-      .eq("id", params.id)
+      .eq("id", eventoId)
       .single();
 
     if (!evento) {
@@ -199,7 +202,7 @@ export async function DELETE(
     const { error } = await supabase
       .from("eventos_academicos")
       .delete()
-      .eq("id", params.id);
+      .eq("id", eventoId);
 
     if (error) {
       console.error("Erro ao deletar evento:", error);

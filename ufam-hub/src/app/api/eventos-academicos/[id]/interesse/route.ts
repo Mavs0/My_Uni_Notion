@@ -3,9 +3,10 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: eventoId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -29,7 +30,7 @@ export async function POST(
     const { data: interesseExistente } = await supabase
       .from("eventos_interesse")
       .select("*")
-      .eq("evento_id", params.id)
+      .eq("evento_id", eventoId)
       .eq("usuario_id", user.id)
       .single();
 
@@ -40,7 +41,7 @@ export async function POST(
           status,
           notificacoes_ativas,
         })
-        .eq("evento_id", params.id)
+        .eq("evento_id", eventoId)
         .eq("usuario_id", user.id)
         .select()
         .single();
@@ -58,7 +59,7 @@ export async function POST(
       const { data, error } = await supabase
         .from("eventos_interesse")
         .insert({
-          evento_id: params.id,
+          evento_id: eventoId,
           usuario_id: user.id,
           status,
           notificacoes_ativas,
@@ -87,9 +88,10 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: eventoId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -103,7 +105,7 @@ export async function DELETE(
     const { error } = await supabase
       .from("eventos_interesse")
       .delete()
-      .eq("evento_id", params.id)
+      .eq("evento_id", eventoId)
       .eq("usuario_id", user.id);
 
     if (error) {

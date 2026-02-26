@@ -39,25 +39,28 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    const formatted = (avaliacoes || []).map(
-      (av: {
-        id: string;
-        disciplina_id: string;
-        tipo: string;
-        data_iso: string;
-        descricao?: string;
-        resumo_assuntos?: string;
-        gerado_por_ia?: boolean;
-        horario?: string;
-        nota?: number | null;
-        peso?: number | null;
-        created_at?: string;
-        updated_at?: string;
-        disciplinas?: { id: string; nome: string } | null;
-      }) => ({
+    type Row = {
+      id: string;
+      disciplina_id: string;
+      tipo: string;
+      data_iso: string;
+      descricao?: string;
+      resumo_assuntos?: string;
+      gerado_por_ia?: boolean;
+      horario?: string;
+      nota?: number | null;
+      peso?: number | null;
+      created_at?: string;
+      updated_at?: string;
+      disciplinas?: { id: string; nome: string }[] | { id: string; nome: string } | null;
+    };
+    const formatted = ((avaliacoes || []) as Row[]).map((av) => {
+      const disc = av.disciplinas;
+      const nome = Array.isArray(disc) ? disc[0]?.nome : disc?.nome;
+      return {
         id: av.id,
         disciplinaId: av.disciplina_id,
-        disciplina: av.disciplinas?.nome,
+        disciplina: nome,
         tipo: av.tipo,
         dataISO: av.data_iso,
         descricao: av.descricao,
@@ -68,8 +71,8 @@ export async function GET(request: NextRequest) {
         peso: av.peso ?? undefined,
         created_at: av.created_at,
         updated_at: av.updated_at,
-      })
-    );
+      };
+    });
     return NextResponse.json({ avaliacoes: formatted });
   } catch (error) {
     console.error("Erro na API de avaliações:", error);

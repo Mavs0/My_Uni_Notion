@@ -3,9 +3,10 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { resend } from "@/lib/email/config";
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -20,7 +21,6 @@ export async function GET(
         { status: 400 }
       );
     }
-    const { id } = params;
     const { data, error } = await resend.domains.get(id);
     if (error) {
       console.error("Erro ao obter domínio:", error);
@@ -70,9 +70,10 @@ export async function GET(
 }
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -87,7 +88,6 @@ export async function PUT(
         { status: 400 }
       );
     }
-    const { id } = params;
     const body = await request.json();
     const { openTracking, clickTracking } = body;
     const { data, error } = await resend.domains.update({
@@ -143,9 +143,10 @@ export async function PUT(
 }
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -160,7 +161,6 @@ export async function POST(
         { status: 400 }
       );
     }
-    const { id } = params;
     const { data, error } = await resend.domains.verify(id);
     if (error) {
       console.error("Erro ao verificar domínio:", error);
@@ -210,9 +210,10 @@ export async function POST(
 }
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -227,7 +228,6 @@ export async function DELETE(
         { status: 400 }
       );
     }
-    const { id } = params;
     const { data, error } = await resend.domains.remove(id);
     if (error) {
       console.error("Erro ao deletar domínio:", error);

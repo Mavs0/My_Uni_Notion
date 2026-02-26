@@ -4,9 +4,10 @@ import { resend } from "@/lib/email/config";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; attachmentId: string } }
+  { params }: { params: Promise<{ id: string; attachmentId: string }> }
 ) {
   try {
+    const { id, attachmentId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -23,8 +24,6 @@ export async function GET(
         { status: 400 }
       );
     }
-
-    const { id, attachmentId } = params;
 
     if (!id) {
       return NextResponse.json(

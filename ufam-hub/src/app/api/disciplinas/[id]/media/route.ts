@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const disciplinaId = params.id;
+    const { id: disciplinaId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },

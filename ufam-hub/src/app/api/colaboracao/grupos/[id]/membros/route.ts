@@ -5,10 +5,10 @@ import {
 } from "@/lib/supabase/server";
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const grupo_id = params.id;
+    const { id: grupo_id } = await params;
     const body = await request.json();
     const { user_id } = body;
     const supabase = await createSupabaseServer();
@@ -86,10 +86,10 @@ export async function POST(
 }
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const grupo_id = params.id;
+    const { id: grupo_id } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -202,10 +202,10 @@ export async function GET(
 }
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const grupo_id = params.id;
+    const { id: grupo_id } = await params;
     const { searchParams } = new URL(request.url);
     const user_id = searchParams.get("user_id");
     const supabase = await createSupabaseServer();

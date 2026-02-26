@@ -3,10 +3,10 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const threadId = params.id;
+    const { id: threadId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -77,10 +77,10 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const threadId = params.id;
+    const { id: threadId } = await params;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
