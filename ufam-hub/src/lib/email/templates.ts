@@ -411,7 +411,7 @@ export function createConfirmacaoEmail(data: {
   email: string;
   confirmationLink: string;
 }): EmailTemplate {
-  const { nome, email, confirmationLink } = data;
+  const { nome, confirmationLink } = data;
   const nomeFormatado = nome || "estudante";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const subject = "🎓 Confirme seu email - UFAM Hub";

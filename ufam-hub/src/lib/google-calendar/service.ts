@@ -1,4 +1,6 @@
 import { google } from "googleapis";
+import type { calendar_v3 } from "googleapis";
+import type { OAuth2Client, Credentials } from "google-auth-library";
 import { createOAuth2Client, GOOGLE_CALENDAR_CONFIG } from "./config";
 export interface CalendarEvent {
   id?: string;
@@ -34,15 +36,15 @@ export interface CalendarListResponse {
   nextPageToken?: string;
 }
 export class GoogleCalendarService {
-  private calendar: any;
-  private oauth2Client: any;
+  private calendar: calendar_v3.Calendar;
+  private oauth2Client: OAuth2Client;
   constructor(accessToken: string, refreshToken?: string) {
     this.oauth2Client = createOAuth2Client();
     this.oauth2Client.setCredentials({
       access_token: accessToken,
       refresh_token: refreshToken,
     });
-    this.oauth2Client.on("tokens", (tokens: any) => {
+    this.oauth2Client.on("tokens", (tokens: Credentials) => {
       if (tokens.refresh_token) {
         this.oauth2Client.setCredentials(tokens);
       }
@@ -104,17 +106,18 @@ export class GoogleCalendarService {
         resource: event,
       });
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao criar evento:", error);
-      if (error.code === 401) {
+      const err = error as { code?: number; message?: string; response?: { data?: { error?: { message?: string } } } };
+      if (err.code === 401) {
         throw new Error("Token de acesso expirado. Faça login novamente.");
-      } else if (error.code === 403) {
+      } else if (err.code === 403) {
         throw new Error("Sem permissão para criar eventos neste calendário.");
-      } else if (error.message) {
-        throw new Error(`Erro ao criar evento: ${error.message}`);
-      } else if (error.response?.data?.error?.message) {
+      } else if (err.message) {
+        throw new Error(`Erro ao criar evento: ${err.message}`);
+      } else if (err.response?.data?.error?.message) {
         throw new Error(
-          `Erro do Google Calendar: ${error.response.data.error.message}`
+          `Erro do Google Calendar: ${err.response.data.error.message}`
         );
       }
       throw new Error("Falha ao criar evento no calendário");
@@ -179,21 +182,12 @@ export class GoogleCalendarService {
     disciplina: string,
     professor: string,
     sala: string,
-    diaSemana: number,
+    _diaSemana: number,
     horarioInicio: string,
     horarioFim: string,
     dataInicio: string,
-    dataFim: string
+    _dataFim: string
   ): Promise<CalendarEvent> {
-    const diasSemana = [
-      "domingo",
-      "segunda",
-      "terça",
-      "quarta",
-      "quinta",
-      "sexta",
-      "sábado",
-    ];
     const event: CalendarEvent = {
       summary: `${disciplina} - ${professor}`,
       description: `Aula de ${disciplina}\nProfessor: ${professor}\nSala: ${sala}`,

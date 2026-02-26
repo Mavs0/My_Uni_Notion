@@ -9,9 +9,7 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("pt-BR");
-  const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    setMounted(true);
     if (typeof window !== "undefined") {
       const savedLocale = localStorage.getItem("app:locale") as Locale;
       if (savedLocale && (savedLocale === "pt-BR" || savedLocale === "en")) {

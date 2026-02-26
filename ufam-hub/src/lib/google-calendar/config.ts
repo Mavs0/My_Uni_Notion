@@ -1,4 +1,6 @@
 import { google } from "googleapis";
+import type { OAuth2Client } from "google-auth-library";
+
 export const GOOGLE_CALENDAR_CONFIG = {
   scopes: [
     "https://www.googleapis.com/auth/calendar",
@@ -29,14 +31,14 @@ export function createOAuth2Client() {
   );
   return oauth2Client;
 }
-export function generateAuthUrl(oauth2Client: any) {
+export function generateAuthUrl(oauth2Client: OAuth2Client) {
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: GOOGLE_CALENDAR_CONFIG.scopes,
     prompt: "consent",
   });
 }
-export async function getTokensFromCode(oauth2Client: any, code: string) {
+export async function getTokensFromCode(oauth2Client: OAuth2Client, code: string) {
   const { tokens } = await oauth2Client.getToken(code);
   oauth2Client.setCredentials(tokens);
   return tokens;
