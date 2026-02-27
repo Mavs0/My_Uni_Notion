@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     if (!provider || !["google", "github"].includes(provider)) {
       return NextResponse.json(
         { error: "Provider inválido. Use 'google' ou 'github'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       provider: provider as "google" | "github",
       options: {
         redirectTo: `${
-          process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+          process.env.NEXT_PUBLIC_SITE_URL || "https://my-uni-notion.vercel.app"
         }${redirectTo}`,
         queryParams: {
           access_type: "offline",
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       console.error("Erro ao iniciar OAuth:", error);
       return NextResponse.json(
         { error: "Erro ao iniciar autenticação OAuth" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     console.error("Erro na API OAuth:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

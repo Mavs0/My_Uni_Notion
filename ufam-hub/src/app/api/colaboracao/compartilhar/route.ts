@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     if (!nota_id || !titulo) {
       return NextResponse.json(
         { error: "nota_id e titulo são obrigatórios" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const supabase = await createSupabaseServer();
@@ -36,11 +36,11 @@ export async function POST(request: NextRequest) {
     if (notaError || !nota) {
       return NextResponse.json(
         { error: "Anotação não encontrada ou não autorizada" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     const link_compartilhamento = `share_${Buffer.from(
-      `${user.id}-${Date.now()}`
+      `${user.id}-${Date.now()}`,
     )
       .toString("base64")
       .replace(/[^a-zA-Z0-9]/g, "")
@@ -80,14 +80,14 @@ export async function POST(request: NextRequest) {
       console.error("Erro ao compartilhar anotação:", shareError);
       return NextResponse.json(
         { error: "Erro ao compartilhar anotação" },
-        { status: 500 }
+        { status: 500 },
       );
     }
     return NextResponse.json({
       success: true,
       compartilhada,
       link: `${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
       }/compartilhado/${link_compartilhamento}`,
       codigo_acesso: codigo_acesso,
     });
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     console.error("Erro na API de compartilhamento:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
       if (compartilhadaError || !compartilhada) {
         return NextResponse.json(
           { error: "Anotação não encontrada" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
               requer_codigo: true,
               visibilidade: "privado",
             },
-            { status: 403 }
+            { status: 403 },
           );
         }
       }
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
               requer_email: true,
               email_permitido: compartilhada.email_permitido,
             },
-            { status: 403 }
+            { status: 403 },
           );
         }
       }
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
         .eq("id", compartilhada.nota_id)
         .single();
       const { data: usuario } = await supabase.auth.admin.getUserById(
-        compartilhada.user_id
+        compartilhada.user_id,
       );
       await supabase
         .from("notas_compartilhadas")
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
         `
         disciplina:disciplinas(id, nome),
         usuario:auth.users!notas_compartilhadas_user_id_fkey(id, raw_user_meta_data)
-      `
+      `,
       )
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
       console.error("Erro ao buscar anotações compartilhadas:", error);
       return NextResponse.json(
         { error: "Erro ao buscar anotações compartilhadas" },
-        { status: 500 }
+        { status: 500 },
       );
     }
     return NextResponse.json({ compartilhadas: data || [] });
@@ -215,7 +215,7 @@ export async function GET(request: NextRequest) {
     console.error("Erro na API de compartilhamento:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -243,7 +243,7 @@ export async function DELETE(request: NextRequest) {
       console.error("Erro ao descompartilhar:", error);
       return NextResponse.json(
         { error: "Erro ao descompartilhar anotação" },
-        { status: 500 }
+        { status: 500 },
       );
     }
     return NextResponse.json({ success: true });
@@ -251,7 +251,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Erro na API de compartilhamento:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

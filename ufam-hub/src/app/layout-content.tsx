@@ -25,7 +25,7 @@ function LayoutContentInner({
 }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const authPages = ["/login", "/esqueci-senha", "/resetar-senha"];
+  const authPages = ["/login", "/esqueci-senha", "/resetar-senha", "/config-error"];
   const isAuthPage = authPages.includes(pathname);
   const isErrorPage = pathname === "/404" || pathname === "/500";
 

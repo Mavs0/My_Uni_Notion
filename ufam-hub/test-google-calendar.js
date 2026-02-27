@@ -14,7 +14,7 @@ try {
     console.log("✅ Dependências googleapis e google-auth-library instaladas");
   } else {
     console.log(
-      "❌ Dependências não encontradas. Execute: npm install googleapis google-auth-library"
+      "❌ Dependências não encontradas. Execute: npm install googleapis google-auth-library",
     );
     process.exit(1);
   }
@@ -45,7 +45,7 @@ requiredFiles.forEach((file) => {
 });
 if (!allFilesExist) {
   console.log(
-    "\n❌ Alguns arquivos estão faltando. Verifique a implementação."
+    "\n❌ Alguns arquivos estão faltando. Verifique a implementação.",
   );
   process.exit(1);
 }
@@ -64,13 +64,13 @@ if (fs.existsSync(envFile)) {
     console.log("   GOOGLE_CLIENT_ID=seu_client_id");
     console.log("   GOOGLE_CLIENT_SECRET=seu_client_secret");
     console.log(
-      "   GOOGLE_REDIRECT_URI=http://localhost:3000/api/calendar/auth/callback"
+      "   GOOGLE_REDIRECT_URI=http://localhost:3000/api/calendar/auth/callback",
     );
   }
 } else {
   console.log("❌ Arquivo .env.local não encontrado");
   console.log(
-    "   Crie o arquivo .env.local com as variáveis do Google Calendar"
+    "   Crie o arquivo .env.local com as variáveis do Google Calendar",
   );
 }
 console.log("\n🛣️ Verificando rotas da API...");
@@ -103,7 +103,7 @@ console.log("\n🎯 Próximos passos:");
 console.log("1. Configure as credenciais no Google Cloud Console");
 console.log("2. Adicione as variáveis de ambiente no .env.local");
 console.log("3. Execute: npm run dev");
-console.log("4. Acesse: http://localhost:3000/dashboard");
+console.log("4. Acesse: https://my-uni-notion.vercel.app/dashboard");
 console.log('5. Teste a integração clicando em "Conectar"');
 console.log("\n📚 Documentação:");
 console.log("- Guia completo: INTEGRACAO_GOOGLE_CALENDAR.md");

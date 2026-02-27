@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!nome) {
       return NextResponse.json(
         { error: "nome é obrigatório" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const supabase = await createSupabaseServer();
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         p_visibilidade: visibilidade || "publico",
         p_max_membros: max_membros || 50,
         p_tags: tags || [],
-      }
+      },
     );
 
     if (grupoError) {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           error: "Erro ao criar grupo",
           details: grupoError.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
           error: "Erro ao criar grupo",
           details: "Grupo não foi criado",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       success: true,
       grupo,
       link_convite: `${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
       }/grupos/convite/${grupo.link_convite}`,
     });
   } catch (error: any) {
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         error: "Erro interno do servidor",
         details: error?.message || "Erro desconhecido",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
         }
       } else {
         console.log(
-          "⚠️ Service Role Key não configurada, usando cliente normal"
+          "⚠️ Service Role Key não configurada, usando cliente normal",
         );
         const result = await supabase
           .from("grupo_membros")
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         console.error("❌ Erro ao buscar membros:", membrosError);
         return NextResponse.json(
           { error: "Erro ao buscar grupos", details: membrosError.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
       console.log("👥 Membros encontrados:", membros?.length || 0);
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
         } catch (adminError: any) {
           console.error(
             "❌ Erro ao usar Service Role Key para grupos:",
-            adminError
+            adminError,
           );
           queryResult = { data: null, error: adminError };
         }
@@ -211,14 +211,14 @@ export async function GET(request: NextRequest) {
           } catch (err) {
             console.warn(
               "Erro ao usar admin client para buscar criadores:",
-              err
+              err,
             );
           }
         }
 
         for (const grupo of data) {
           (grupo as any).criador = criadoresMap.get(
-            (grupo as any).criador_id
+            (grupo as any).criador_id,
           ) || {
             id: (grupo as any).criador_id,
             raw_user_meta_data: {},
@@ -231,7 +231,7 @@ export async function GET(request: NextRequest) {
         .select(
           `
           criador:auth.users!grupos_estudo_criador_id_fkey(id, raw_user_meta_data)
-        `
+        `,
         )
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
       console.error("Erro ao buscar grupos:", error);
       return NextResponse.json(
         { error: "Erro ao buscar grupos" },
-        { status: 500 }
+        { status: 500 },
       );
     }
     return NextResponse.json({ grupos: data || [] });
@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
         error: "Erro interno do servidor",
         details: error?.message || "Erro desconhecido",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

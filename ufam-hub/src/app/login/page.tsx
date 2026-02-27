@@ -340,9 +340,11 @@ export default function LoginPage() {
         }
         if (data.user) {
           if (data.session === null && data.user.email) {
-            const confirmationLink = `${
-              process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-            }/auth/confirm?email=${encodeURIComponent(data.user.email)}`;
+            const baseUrl =
+              process.env.NEXT_PUBLIC_APP_URL ||
+              process.env.NEXT_PUBLIC_SITE_URL ||
+              (typeof window !== "undefined" ? window.location.origin : "");
+            const confirmationLink = `${baseUrl.replace(/\/$/, "")}/auth/confirm?email=${encodeURIComponent(data.user.email)}`;
             try {
               await fetch("/api/auth/send-confirmation", {
                 method: "POST",

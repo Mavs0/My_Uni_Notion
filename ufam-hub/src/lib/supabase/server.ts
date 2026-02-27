@@ -5,12 +5,20 @@ import { NextRequest } from "next/server";
 import { SESSION_COOKIE_OPTIONS } from "./session-security";
 
 export async function createSupabaseServer(request?: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY são obrigatórias. " +
+        "Configure em Vercel → Settings → Environment Variables e faça um novo deploy."
+    );
+  }
   const cookieStore = await cookies();
   const requestCookies = request?.headers.get("cookie") || "";
   const canModifyCookies = !!request;
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     {
       cookies: {
         get(name: string) {

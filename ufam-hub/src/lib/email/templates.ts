@@ -175,9 +175,10 @@ function getBaseEmailStyles() {
 function wrapEmailTemplate(
   content: string,
   headerText: string,
-  headerIcon: string = "📚"
+  headerIcon: string = "📚",
 ): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
   return `
 <!DOCTYPE html>
 <html>
@@ -236,8 +237,8 @@ export function createAvaliacaoProximaEmail(data: {
     diasRestantes === 0
       ? "hoje"
       : diasRestantes === 1
-      ? "amanhã"
-      : `em ${diasRestantes} dias`;
+        ? "amanhã"
+        : `em ${diasRestantes} dias`;
   const subject = `📚 ${tipoFormatado} de ${disciplina} ${diasTexto}`;
 
   const urgencyBanner =
@@ -246,10 +247,10 @@ export function createAvaliacaoProximaEmail(data: {
         <p>⚠️ Esta avaliação é hoje! Não se esqueça!</p>
       </div>`
       : diasRestantes === 1
-      ? `<div class="urgency-banner">
+        ? `<div class="urgency-banner">
         <p>⏰ Esta avaliação é amanhã! Prepare-se!</p>
       </div>`
-      : "";
+        : "";
 
   const content = `
     <p class="email-greeting">Olá! 👋</p>
@@ -271,8 +272,8 @@ export function createAvaliacaoProximaEmail(data: {
       <div class="info-row">
         <span class="info-label">Data:</span>
         <span class="info-value">${dataFormatada}${
-    horario ? ` às ${horario}` : ""
-  }</span>
+          horario ? ` às ${horario}` : ""
+        }</span>
       </div>
       ${
         descricao
@@ -287,8 +288,8 @@ export function createAvaliacaoProximaEmail(data: {
       <div class="info-row">
         <span class="info-label">Tempo restante:</span>
         <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${
-    diasRestantes === 1 ? "dia" : "dias"
-  }</span>
+          diasRestantes === 1 ? "dia" : "dias"
+        }</span>
       </div>
     </div>
     <p style="margin-top: 24px; font-size: 15px; color: #4b5563;">
@@ -296,7 +297,7 @@ export function createAvaliacaoProximaEmail(data: {
     </p>
     <div style="text-align: center; margin-top: 32px;">
       <a href="${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
       }/avaliacoes" class="cta-button">
         Ver Detalhes da Avaliação
       </a>
@@ -314,7 +315,7 @@ Data: ${dataFormatada}${horario ? ` às ${horario}` : ""}
 ${descricao ? `Descrição: ${descricao}\n` : ""}
 Dias restantes: ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}
 Boa sorte nos seus estudos! 🎓
-Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/avaliacoes
+Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"}/avaliacoes
 ---
 Esta é uma notificação automática do UFAM Hub.
 Você pode gerenciar suas preferências de notificação nas configurações.
@@ -340,8 +341,8 @@ export function createEventoProximoEmail(data: {
     diasRestantes === 0
       ? "hoje"
       : diasRestantes === 1
-      ? "amanhã"
-      : `em ${diasRestantes} dias`;
+        ? "amanhã"
+        : `em ${diasRestantes} dias`;
   const subject = `📅 ${tipoFormatado}: ${titulo} ${diasTexto}`;
 
   const content = `
@@ -357,8 +358,8 @@ export function createEventoProximoEmail(data: {
       <div class="info-row">
         <span class="info-label">Data:</span>
         <span class="info-value">${dataFormatada}${
-    horario ? ` às ${horario}` : ""
-  }</span>
+          horario ? ` às ${horario}` : ""
+        }</span>
       </div>
       ${
         local
@@ -373,13 +374,13 @@ export function createEventoProximoEmail(data: {
       <div class="info-row">
         <span class="info-label">Tempo restante:</span>
         <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${
-    diasRestantes === 1 ? "dia" : "dias"
-  }</span>
+          diasRestantes === 1 ? "dia" : "dias"
+        }</span>
       </div>
     </div>
     <div style="text-align: center; margin-top: 32px;">
       <a href="${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
       }/grade" class="cta-button">
         Ver Calendário
       </a>
@@ -389,7 +390,7 @@ export function createEventoProximoEmail(data: {
   const html = wrapEmailTemplate(
     content,
     `Notificação de ${tipoFormatado}`,
-    "📅"
+    "📅",
   );
   const text = `
 UFAM Hub - Notificação de ${tipoFormatado}
@@ -399,7 +400,7 @@ Título: ${titulo}
 Data: ${dataFormatada}${horario ? ` às ${horario}` : ""}
 ${local ? `Local: ${local}\n` : ""}
 Dias restantes: ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}
-Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/calendar
+Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"}/calendar
 ---
 Esta é uma notificação automática do UFAM Hub.
 Você pode gerenciar suas preferências de notificação nas configurações.
@@ -413,7 +414,8 @@ export function createConfirmacaoEmail(data: {
 }): EmailTemplate {
   const { nome, confirmationLink } = data;
   const nomeFormatado = nome || "estudante";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
   const subject = "🎓 Confirme seu email - UFAM Hub";
   const html = `
 <!DOCTYPE html>
@@ -629,8 +631,8 @@ export function createTarefaEmail(data: {
     prioridade === "alta"
       ? "#dc2626"
       : prioridade === "baixa"
-      ? "#6b7280"
-      : "#f59e0b";
+        ? "#6b7280"
+        : "#f59e0b";
 
   const urgencyBanner =
     diasRestantes === 0
@@ -638,17 +640,17 @@ export function createTarefaEmail(data: {
         <p>⚠️ Esta tarefa vence hoje! Complete-a o quanto antes!</p>
       </div>`
       : diasRestantes === 1
-      ? `<div class="urgency-banner">
+        ? `<div class="urgency-banner">
         <p>⏰ Esta tarefa vence amanhã! Não deixe para última hora!</p>
       </div>`
-      : "";
+        : "";
 
   const subject = `✅ Tarefa: ${titulo}${
     diasRestantes === 0
       ? " (Vence hoje!)"
       : diasRestantes === 1
-      ? " (Vence amanhã!)"
-      : ""
+        ? " (Vence amanhã!)"
+        : ""
   }`;
 
   const content = `
@@ -687,13 +689,13 @@ export function createTarefaEmail(data: {
       <div class="info-row">
         <span class="info-label">Tempo restante:</span>
         <span class="info-value"><strong style="font-size: 16px; color: #667eea;">${diasRestantes}</strong> ${
-    diasRestantes === 1 ? "dia" : "dias"
-  }</span>
+          diasRestantes === 1 ? "dia" : "dias"
+        }</span>
       </div>
     </div>
     <div style="text-align: center; margin-top: 32px;">
       <a href="${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
       }/disciplinas" class="cta-button">
         Ver Tarefas
       </a>
@@ -710,7 +712,7 @@ ${disciplina ? `Disciplina: ${disciplina}\n` : ""}Prazo: ${prazoFormatado}
 Prioridade: ${prioridadeTexto}
 Tempo restante: ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}
 Acesse: ${
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
   }/disciplinas
   `;
 
@@ -769,7 +771,7 @@ export function createLembreteEmail(data: {
     </div>
     <div style="text-align: center; margin-top: 32px;">
       <a href="${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
       }/configuracoes" class="cta-button">
         Ver Lembretes
       </a>
@@ -785,7 +787,7 @@ Você tem um lembrete agendado: ${titulo}
 ${descricao ? `Descrição: ${descricao}\n` : ""}Tipo: ${tipoFormatado}
 Agendado para: ${dataFormatada}
 Acesse: ${
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
   }/configuracoes
   `;
 
@@ -816,7 +818,7 @@ export function createConquistaEmail(data: {
     </div>
     <div style="text-align: center; margin-top: 32px;">
       <a href="${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"
       }/dashboard" class="cta-button">
         Ver Minhas Conquistas
       </a>
@@ -831,7 +833,7 @@ Parabéns! 🎉
 Você desbloqueou uma nova conquista: ${nome}
 ${descricao}
 Continue estudando para desbloquear mais conquistas! 🚀
-Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard
+Acesse: ${process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app"}/dashboard
   `;
 
   return { subject, html, text };

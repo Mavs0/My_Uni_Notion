@@ -12,7 +12,7 @@ export const GOOGLE_CALENDAR_CONFIG = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     redirectUri:
       process.env.GOOGLE_REDIRECT_URI ||
-      "http://localhost:3000/api/calendar/auth/callback",
+      "https://my-uni-notion.vercel.app/api/calendar/auth/callback",
   },
   calendar: {
     primaryCalendarId: "primary",
@@ -27,7 +27,7 @@ export function createOAuth2Client() {
   const oauth2Client = new google.auth.OAuth2(
     GOOGLE_CALENDAR_CONFIG.oauth2.clientId,
     GOOGLE_CALENDAR_CONFIG.oauth2.clientSecret,
-    GOOGLE_CALENDAR_CONFIG.oauth2.redirectUri
+    GOOGLE_CALENDAR_CONFIG.oauth2.redirectUri,
   );
   return oauth2Client;
 }
@@ -38,7 +38,10 @@ export function generateAuthUrl(oauth2Client: OAuth2Client) {
     prompt: "consent",
   });
 }
-export async function getTokensFromCode(oauth2Client: OAuth2Client, code: string) {
+export async function getTokensFromCode(
+  oauth2Client: OAuth2Client,
+  code: string,
+) {
   const { tokens } = await oauth2Client.getToken(code);
   oauth2Client.setCredentials(tokens);
   return tokens;
