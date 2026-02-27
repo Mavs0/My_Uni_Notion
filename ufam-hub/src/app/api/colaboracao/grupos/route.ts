@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
       visibilidade,
       max_membros,
       tags,
-      senha,
       requer_aprovacao,
     } = body;
     if (!nome) {
@@ -68,6 +67,21 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("✅ Grupo criado com sucesso, ID:", grupo.id);
+
+    if (grupo.id && visibilidade === "privado" && requer_aprovacao === true) {
+      try {
+        const updateClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+          ? createSupabaseAdmin()
+          : supabase;
+        await updateClient
+          .from("grupos_estudo")
+          .update({ requer_aprovacao: true })
+          .eq("id", grupo.id);
+      } catch (updateErr) {
+        console.warn("Aviso: não foi possível definir requer_aprovacao:", updateErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       grupo,

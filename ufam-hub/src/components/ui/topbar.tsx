@@ -142,21 +142,22 @@ function TopBar() {
   };
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur">
-        <div className="flex h-14 items-center gap-4 px-4">
+      <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
           {/* Lado esquerdo: Menu mobile + Logo */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="md:hidden h-9 w-9 shrink-0"
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Abrir menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
             <Link
               href="/dashboard"
-              className="shrink-0 transition-opacity hover:opacity-80"
+              className="shrink-0 transition-opacity hover:opacity-80 flex items-center"
             >
               <Logo size="sm" showText={true} variant="minimal" />
             </Link>
@@ -181,11 +182,11 @@ function TopBar() {
           </form>
 
           {/* Lado direito: Notificações + Modo Foco + Tema + Avatar */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Notificações */}
             {isAuthenticated && <NotificationCenter />}
 
-            {/* Modo Foco */}
+            {/* Modo Foco — escondido em telas muito pequenas para não apertar */}
             {isAuthenticated && (
               <TooltipProvider>
                 <Tooltip>
@@ -200,7 +201,7 @@ function TopBar() {
                           setShowFocusSettings(true);
                         }
                       }}
-                      className="h-9 w-9"
+                      className="h-9 w-9 hidden sm:inline-flex"
                       aria-label={
                         isFocusModeActive
                           ? "Desativar Modo Foco"
@@ -234,15 +235,20 @@ function TopBar() {
               />
             )}
 
+            {/* Separador visual antes do tema + avatar (só quando há ícones à esquerda) */}
+            {isAuthenticated && (
+              <div className="w-px h-6 bg-border mx-0.5 sm:mx-1" aria-hidden />
+            )}
+
             {/* Toggle de tema */}
             <ThemeToggle />
 
-            {/* Avatar com menu */}
+            {/* Avatar com menu — mais espaço à esquerda no mobile */}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full">
-                    <Avatar className="h-8 w-8">
+                  <button className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full ml-0.5 sm:ml-1 flex-shrink-0">
+                    <Avatar className="h-8 w-8 ring-2 ring-transparent hover:ring-border transition-shadow">
                       <AvatarImage
                         src={userProfile?.avatar_url}
                         alt={userProfile?.nome || "Usuário"}

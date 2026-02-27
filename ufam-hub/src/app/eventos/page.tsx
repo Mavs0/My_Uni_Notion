@@ -285,6 +285,8 @@ export default function EventosPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [eventoToDelete, setEventoToDelete] = useState<string | null>(null);
+  const [eventoFormStep, setEventoFormStep] = useState(1);
+  const EVENTO_FORM_STEPS = 3;
 
   useEffect(() => {
     loadEventos();
@@ -1204,197 +1206,246 @@ export default function EventosPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Formulário de Evento */}
-      <Dialog open={showEventoForm} onOpenChange={setShowEventoForm}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingEvento ? "Editar Evento" : "Criar Novo Evento"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingEvento
-                ? "Atualize as informações do evento"
-                : "Preencha os dados para criar um novo evento acadêmico"}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="titulo">
-                Título <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="titulo"
-                value={formData.titulo}
-                onChange={(e) =>
-                  setFormData({ ...formData, titulo: e.target.value })
-                }
-                placeholder="Ex: Semana Acadêmica de Ciências"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="descricao">Descrição</Label>
-              <Textarea
-                id="descricao"
-                value={formData.descricao}
-                onChange={(e) =>
-                  setFormData({ ...formData, descricao: e.target.value })
-                }
-                placeholder="Descreva o evento..."
-                className="min-h-[100px]"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="categoria">
-                  Categoria <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.categoria}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      categoria: value as CategoriaEvento,
-                    })
-                  }
+      {/* Dialog de Formulário de Evento com Stepper */}
+      <Dialog
+        open={showEventoForm}
+        onOpenChange={(open) => {
+          setShowEventoForm(open);
+          setEventoFormStep(1);
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          {/* Stepper */}
+          <div className="flex items-center justify-center gap-1 px-6 pt-6 pb-2 border-b">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setEventoFormStep(s)}
+                  className={cn(
+                    "flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-colors",
+                    eventoFormStep === s
+                      ? "bg-primary text-primary-foreground"
+                      : eventoFormStep > s
+                        ? "bg-primary/20 text-primary"
+                        : "bg-muted text-muted-foreground"
+                  )}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(categoriasConfig).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        {config.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {s}
+                </button>
+                {s < EVENTO_FORM_STEPS && (
+                  <div className="w-6 sm:w-8 h-0.5 bg-muted mx-0.5" />
+                )}
               </div>
+            ))}
+          </div>
+          <div className="px-2 text-center text-xs text-muted-foreground mb-2 mt-2">
+            {eventoFormStep === 1 && "Informações básicas"}
+            {eventoFormStep === 2 && "Data e local"}
+            {eventoFormStep === 3 && "Links e recorrência"}
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="publico">Visibilidade</Label>
-                <Select
-                  value={formData.publico ? "publico" : "privado"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, publico: value === "publico" })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="publico">Público</SelectItem>
-                    <SelectItem value="privado">Privado</SelectItem>
-                  </SelectContent>
-                </Select>
+          <div className="px-6 pb-6 overflow-y-auto max-h-[50vh]">
+            {eventoFormStep === 1 && (
+              <div className="space-y-6">
+                <DialogHeader className="space-y-1.5 pb-1">
+                  <DialogTitle>
+                    {editingEvento ? "Editar Evento" : "Criar Novo Evento"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Campos com * são obrigatórios.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="titulo">
+                    Título <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="titulo"
+                    value={formData.titulo}
+                    onChange={(e) =>
+                      setFormData({ ...formData, titulo: e.target.value })
+                    }
+                    placeholder="Ex: Semana Acadêmica de Ciências"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="descricao">Descrição</Label>
+                  <Textarea
+                    id="descricao"
+                    value={formData.descricao}
+                    onChange={(e) =>
+                      setFormData({ ...formData, descricao: e.target.value })
+                    }
+                    placeholder="Descreva o evento..."
+                    className="min-h-[100px]"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="categoria">
+                      Categoria <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.categoria}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          categoria: value as CategoriaEvento,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(categoriasConfig).map(([key, config]) => (
+                          <SelectItem key={key} value={key}>
+                            {config.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="publico">Visibilidade</Label>
+                    <Select
+                      value={formData.publico ? "publico" : "privado"}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, publico: value === "publico" })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="publico">Público</SelectItem>
+                        <SelectItem value="privado">Privado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="data_inicio">
-                  Data e Hora de Início <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="data_inicio"
-                  type="datetime-local"
-                  value={formData.data_inicio}
-                  onChange={(e) =>
-                    setFormData({ ...formData, data_inicio: e.target.value })
-                  }
-                />
+            {eventoFormStep === 2 && (
+              <div className="space-y-6">
+                <DialogHeader className="space-y-1.5 pb-1">
+                  <DialogTitle>Data e local</DialogTitle>
+                  <DialogDescription>
+                    Quando e onde o evento acontece.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="data_inicio">
+                      Data e Hora de Início <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="data_inicio"
+                      type="datetime-local"
+                      value={formData.data_inicio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, data_inicio: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="data_fim">Data e Hora de Fim</Label>
+                    <Input
+                      id="data_fim"
+                      type="datetime-local"
+                      value={formData.data_fim}
+                      onChange={(e) =>
+                        setFormData({ ...formData, data_fim: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="local">Local</Label>
+                  <Input
+                    id="local"
+                    value={formData.local}
+                    onChange={(e) =>
+                      setFormData({ ...formData, local: e.target.value })
+                    }
+                    placeholder="Ex: Auditório Central - Bloco A"
+                  />
+                </div>
               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="data_fim">Data e Hora de Fim</Label>
-                <Input
-                  id="data_fim"
-                  type="datetime-local"
-                  value={formData.data_fim}
-                  onChange={(e) =>
-                    setFormData({ ...formData, data_fim: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="local">Local</Label>
-              <Input
-                id="local"
-                value={formData.local}
-                onChange={(e) =>
-                  setFormData({ ...formData, local: e.target.value })
-                }
-                placeholder="Ex: Auditório Central - Bloco A"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="link_externo">Link Externo</Label>
-              <Input
-                id="link_externo"
-                type="url"
-                value={formData.link_externo}
-                onChange={(e) =>
-                  setFormData({ ...formData, link_externo: e.target.value })
-                }
-                placeholder="https://..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="imagem_url">URL da Imagem</Label>
-              <Input
-                id="imagem_url"
-                type="url"
-                value={formData.imagem_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, imagem_url: e.target.value })
-                }
-                placeholder="https://..."
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="recorrente"
-                checked={formData.recorrente}
-                onChange={(e) =>
-                  setFormData({ ...formData, recorrente: e.target.checked })
-                }
-                className="rounded"
-              />
-              <Label htmlFor="recorrente" className="cursor-pointer">
-                Evento recorrente
-              </Label>
-            </div>
-
-            {formData.recorrente && (
-              <div className="space-y-2">
-                <Label htmlFor="tipo_recorrencia">Tipo de Recorrência</Label>
-                <Select
-                  value={formData.tipo_recorrencia}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, tipo_recorrencia: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="anual">Anual</SelectItem>
-                    <SelectItem value="semestral">Semestral</SelectItem>
-                  </SelectContent>
-                </Select>
+            {eventoFormStep === 3 && (
+              <div className="space-y-6">
+                <DialogHeader className="space-y-1.5 pb-1">
+                  <DialogTitle>Links e recorrência</DialogTitle>
+                  <DialogDescription>
+                    Opcionais: link do evento, imagem e se repete.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="link_externo">Link Externo</Label>
+                  <Input
+                    id="link_externo"
+                    type="url"
+                    value={formData.link_externo}
+                    onChange={(e) =>
+                      setFormData({ ...formData, link_externo: e.target.value })
+                    }
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="imagem_url">URL da Imagem</Label>
+                  <Input
+                    id="imagem_url"
+                    type="url"
+                    value={formData.imagem_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, imagem_url: e.target.value })
+                    }
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="recorrente"
+                    checked={formData.recorrente}
+                    onChange={(e) =>
+                      setFormData({ ...formData, recorrente: e.target.checked })
+                    }
+                    className="rounded"
+                  />
+                  <Label htmlFor="recorrente" className="cursor-pointer">
+                    Evento recorrente
+                  </Label>
+                </div>
+                {formData.recorrente && (
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo_recorrencia">Tipo de Recorrência</Label>
+                    <Select
+                      value={formData.tipo_recorrencia}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, tipo_recorrencia: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="anual">Anual</SelectItem>
+                        <SelectItem value="semestral">Semestral</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 pb-6 pt-4 border-t">
             <Button
               variant="outline"
               onClick={() => {
@@ -1404,18 +1455,41 @@ export default function EventosPage() {
             >
               Cancelar
             </Button>
-            <Button onClick={handleSubmitEvento} disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
+            <div className="flex gap-2">
+              {eventoFormStep > 1 ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setEventoFormStep((s) => s - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Voltar
+                </Button>
+              ) : null}
+              {eventoFormStep < EVENTO_FORM_STEPS ? (
+                <Button
+                  onClick={() => setEventoFormStep((s) => s + 1)}
+                  disabled={
+                    (eventoFormStep === 1 &&
+                      (!formData.titulo.trim() || !formData.categoria)) ||
+                    (eventoFormStep === 2 && !formData.data_inicio)
+                  }
+                >
+                  Próximo
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
               ) : (
-                <>
-                  {editingEvento ? "Atualizar" : "Criar"}
-                </>
+                <Button onClick={handleSubmitEvento} disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>{editingEvento ? "Atualizar" : "Criar"}</>
+                  )}
+                </Button>
               )}
-            </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

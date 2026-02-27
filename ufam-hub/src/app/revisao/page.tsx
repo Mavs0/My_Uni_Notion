@@ -319,13 +319,13 @@ export default function RevisaoPage() {
           {/* Lista de todos os flashcards */}
           {flashcards.length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold mb-4">
+              <h2 className="text-xl font-semibold mb-6">
                 Todos os Flashcards ({flashcards.length})
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {flashcardsPaginados.map((fc) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {flashcardsPaginados.map((fc, index) => (
                   <Card
-                    key={fc.id}
+                    key={fc.id ?? `flashcard-${index}`}
                     className="hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => {
                       setFlashcardPreview(fc);
@@ -366,7 +366,7 @@ export default function RevisaoPage() {
 
               {/* Controles de Paginação */}
               {totalPaginas > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-6">
+                <div className="flex items-center justify-center gap-4 mt-8">
                   <Button
                     variant="outline"
                     size="sm"
@@ -713,7 +713,7 @@ function CriarFlashcardForm({
       </div>
       <div>
         <label htmlFor="frente" className="text-sm font-medium">
-          Pergunta / Frente
+          Pergunta / Frente <span className="text-red-500">*</span>
         </label>
         <textarea
           id="frente"
@@ -726,7 +726,7 @@ function CriarFlashcardForm({
       </div>
       <div>
         <label htmlFor="verso" className="text-sm font-medium">
-          Resposta / Verso
+          Resposta / Verso <span className="text-red-500">*</span>
         </label>
         <textarea
           id="verso"

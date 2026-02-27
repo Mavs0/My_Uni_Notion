@@ -2102,7 +2102,7 @@ export default function ConfiguracoesPage() {
               Adicionar Novo Domínio
             </DialogTitle>
             <DialogDescription className="pt-2">
-              Adicione um domínio para enviar emails personalizados. Após
+              Adicione um domínio para enviar emails personalizados. Campos com * são obrigatórios. Após
               adicionar, você precisará configurar os registros DNS conforme as
               instruções do Resend.
             </DialogDescription>
@@ -2110,12 +2110,13 @@ export default function ConfiguracoesPage() {
           <div className="space-y-4 py-4">
             <div>
               <label className="text-sm font-medium mb-2 block">
-                Nome do Domínio
+                Nome do Domínio <span className="text-red-500">*</span>
               </label>
               <Input
                 type="text"
                 placeholder="exemplo.com"
                 value={newDomainName}
+                required
                 onChange={(e) => setNewDomainName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !addingDomain) {

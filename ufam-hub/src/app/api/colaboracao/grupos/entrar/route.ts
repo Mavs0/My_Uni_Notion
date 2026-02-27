@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Faça login para entrar no grupo. Se já estiver logado, tente atualizar a página." },
+        { status: 401 }
+      );
     }
 
     let grupo = null;
@@ -139,6 +142,22 @@ export async function GET(request: NextRequest) {
     }
 
     if (statusInicial === "pendente") {
+      try {
+        await adminClient.from("notification_history").insert({
+          user_id: grupo.criador_id,
+          tipo: "solicitacao_grupo",
+          titulo: "Nova solicitação para entrar no grupo",
+          descricao: `${user.user_metadata?.nome || user.email || "Alguém"} quer entrar no grupo "${grupo.nome}". Aprove ou recuse em Grupos.`,
+          referencia_id: grupo.id,
+          referencia_tipo: "grupo",
+          metadata: {
+            grupo_nome: grupo.nome,
+            solicitante_id: user.id,
+          },
+        });
+      } catch (notifErr) {
+        console.warn("Aviso: não foi possível criar notificação para o admin:", notifErr);
+      }
       return NextResponse.json({
         success: true,
         pendente: true,

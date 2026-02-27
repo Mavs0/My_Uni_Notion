@@ -12,6 +12,7 @@ import {
   Loader2,
   UserPlus,
   UserCheck,
+  Users,
   MessageSquare,
   Heart,
   Sparkles,
@@ -62,6 +63,8 @@ const getNotificationIcon = (tipo: string) => {
       return <Lightbulb className="h-4 w-4 text-yellow-500" />;
     case "solicitacao_amizade":
       return <UserPlus className="h-4 w-4 text-blue-500" />;
+    case "solicitacao_grupo":
+      return <Users className="h-4 w-4 text-indigo-500" />;
     case "amizade_aceita":
       return <UserCheck className="h-4 w-4 text-green-500" />;
     case "novo_seguidor":
@@ -95,6 +98,10 @@ const getNotificationLink = (notificacao: any) => {
       return `/feed`;
     case "friend_request":
       return `/perfil/amizades`;
+    case "grupo":
+      return notificacao.referencia_id
+        ? `/grupos/${notificacao.referencia_id}`
+        : null;
     case "perfil":
       return notificacao.referencia_id
         ? `/perfil/${notificacao.referencia_id}`

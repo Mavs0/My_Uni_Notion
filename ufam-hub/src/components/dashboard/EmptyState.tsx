@@ -44,11 +44,11 @@ export function EmptyState({
         {description}
       </p>
       {action && (
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3 w-full min-w-0">
           <Button asChild variant="default" className="gap-2">
             <Link href={action.href}>
               {action.icon && (
-                <action.icon className="h-4 w-4" aria-hidden="true" />
+                <action.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
               )}
               {action.label}
             </Link>

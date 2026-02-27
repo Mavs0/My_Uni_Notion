@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,12 @@ import { AuthHeader } from "@/components/auth/AuthHeader";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = (() => {
+    const r = searchParams.get("redirect");
+    if (!r || !r.startsWith("/") || r.startsWith("//")) return "/dashboard";
+    return r;
+  })();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,11 +87,11 @@ export default function LoginPage() {
         data: { session },
       } = await supabase.auth.getSession();
       if (session) {
-        router.push("/dashboard");
+        router.push(redirectTo);
       }
     };
     checkAuth();
-  }, [router]);
+  }, [router, redirectTo]);
 
   const validateForm = () => {
     const errors: typeof fieldErrors = {};
@@ -258,7 +264,7 @@ export default function LoginPage() {
         }
 
         if (data.session) {
-          router.push("/dashboard");
+          router.push(redirectTo);
           router.refresh();
         } else {
           try {
@@ -307,10 +313,16 @@ export default function LoginPage() {
           }
         }
       } else {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL ||
+          process.env.NEXT_PUBLIC_SITE_URL ||
+          (typeof window !== "undefined" ? window.location.origin : "");
+        const emailRedirectTo = baseUrl ? `${baseUrl.replace(/\/$/, "")}/auth/confirm` : undefined;
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            emailRedirectTo: emailRedirectTo || undefined,
             data: {
               nome: name,
               curso: curso || "",
@@ -340,10 +352,6 @@ export default function LoginPage() {
         }
         if (data.user) {
           if (data.session === null && data.user.email) {
-            const baseUrl =
-              process.env.NEXT_PUBLIC_APP_URL ||
-              process.env.NEXT_PUBLIC_SITE_URL ||
-              (typeof window !== "undefined" ? window.location.origin : "");
             const confirmationLink = `${baseUrl.replace(/\/$/, "")}/auth/confirm?email=${encodeURIComponent(data.user.email)}`;
             try {
               await fetch("/api/auth/send-confirmation", {
@@ -430,7 +438,7 @@ export default function LoginPage() {
             return;
           }
           
-          router.push("/dashboard");
+          router.push(redirectTo);
           router.refresh();
         } else {
           setError("Erro ao completar login. Tente novamente.");

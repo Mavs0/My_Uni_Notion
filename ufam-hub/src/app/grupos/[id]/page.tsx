@@ -56,6 +56,7 @@ interface Mensagem {
 }
 interface Membro {
   id: string;
+  user_id?: string;
   role: string;
   usuario?: {
     id: string;
@@ -611,75 +612,6 @@ export default function GrupoDetailPage() {
         </div>
         {}
         <div className="space-y-4">
-          {grupoInfo?.requer_aprovacao &&
-            grupoInfo?.visibilidade === "privado" &&
-            solicitacoes.length > 0 && (
-              <Card className="border-orange-500/50 bg-orange-50 dark:bg-orange-950/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
-                    <UserPlus className="h-5 w-5" />
-                    Solicitações Pendentes ({solicitacoes.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {solicitacoes.map((solicitacao) => (
-                      <div
-                        key={solicitacao.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-background border"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs">
-                              {getInitials(
-                                solicitacao.usuario?.raw_user_meta_data?.nome,
-                                solicitacao.usuario?.raw_user_meta_data?.email
-                              )}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-medium">
-                              {solicitacao.usuario?.raw_user_meta_data?.nome ||
-                                solicitacao.usuario?.raw_user_meta_data
-                                  ?.email ||
-                                "Usuário"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(
-                                solicitacao.created_at
-                              ).toLocaleDateString("pt-BR")}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => {
-                              setSolicitacaoAprovar(solicitacao);
-                              setShowAprovacaoDialog(true);
-                            }}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Aprovar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleAprovarSolicitacao(solicitacao.id, false)
-                            }
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Recusar
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -760,6 +692,90 @@ export default function GrupoDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {currentUserId &&
+            grupoInfo?.visibilidade === "privado" &&
+            (grupoInfo?.criador_id === currentUserId ||
+              membros.find(
+                (m) =>
+                  m.user_id === currentUserId || m.usuario?.id === currentUserId
+              )?.role === "admin") && (
+              <Card className="border-orange-500/30 bg-orange-500/5 dark:bg-orange-950/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400 text-base">
+                    <UserPlus className="h-4 w-4" />
+                    Solicitações pendentes
+                    {solicitacoes.length > 0 && (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ({solicitacoes.length})
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {solicitacoes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {grupoInfo?.requer_aprovacao
+                        ? "Nenhuma solicitação pendente. Quem pedir para entrar no grupo aparecerá aqui."
+                        : "Nenhuma solicitação pendente. Para receber pedidos de entrada aqui, crie um novo grupo privado com a opção \"Requer aprovação do admin\" ativada."}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {solicitacoes.map((solicitacao) => (
+                        <div
+                          key={solicitacao.id}
+                          className="flex items-center justify-between gap-2 p-2 rounded-lg bg-background border"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Avatar className="h-7 w-7 shrink-0">
+                              <AvatarFallback className="text-xs">
+                                {getInitials(
+                                  solicitacao.usuario?.raw_user_meta_data?.nome,
+                                  solicitacao.usuario?.raw_user_meta_data?.email
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {solicitacao.usuario?.raw_user_meta_data?.nome ||
+                                  solicitacao.usuario?.raw_user_meta_data?.email ||
+                                  "Usuário"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="h-8 px-2"
+                              onClick={() => {
+                                setSolicitacaoAprovar(solicitacao);
+                                setShowAprovacaoDialog(true);
+                              }}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-2"
+                              onClick={() =>
+                                handleAprovarSolicitacao(solicitacao.id, false)
+                              }
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
         </div>
       </div>
       <Dialog open={showAprovacaoDialog} onOpenChange={setShowAprovacaoDialog}>

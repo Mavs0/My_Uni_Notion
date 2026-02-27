@@ -46,6 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/utils";
 interface Grupo {
   id: string;
   nome: string;
@@ -87,12 +88,31 @@ export default function GruposPage() {
     nome: "",
     descricao: "",
     visibilidade: "publico",
-    senha: "",
     requer_aprovacao: false,
     max_membros: 50,
   });
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const GRUPOS_PER_PAGE = 9;
+
   useEffect(() => {
     loadGrupos();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok && !cancelled) {
+          const { profile } = await res.json();
+          setCurrentUserId(profile?.id ?? null);
+        }
+      } catch {
+        if (!cancelled) setCurrentUserId(null);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
   const loadGrupos = async () => {
     try {
@@ -133,7 +153,6 @@ export default function GruposPage() {
           nome: "",
           descricao: "",
           visibilidade: "publico",
-          senha: "",
           requer_aprovacao: false,
           max_membros: 50,
         });
@@ -175,6 +194,7 @@ export default function GruposPage() {
           const linkConvite = linkMatch[1];
           const response = await fetch(
             `/api/colaboracao/grupos/entrar?link=${linkConvite}`,
+            { credentials: "include" }
           );
           const data = await response.json();
           if (response.ok) {
@@ -191,7 +211,14 @@ export default function GruposPage() {
             setTipoGrupoEntrar("");
             await loadGrupos();
           } else {
-            toast.error(data.error || "Erro ao entrar no grupo");
+            const message =
+              response.status === 401
+                ? data.error || "Faça login para entrar no grupo."
+                : data.error || "Erro ao entrar no grupo";
+            toast.error(message);
+            if (response.status === 401) {
+              window.location.href = `/login?redirect=${encodeURIComponent("/grupos")}`;
+            }
           }
         } else {
           toast.error(
@@ -201,6 +228,7 @@ export default function GruposPage() {
       } else if (tipoGrupoEntrar === "privado") {
         const response = await fetch(
           `/api/colaboracao/grupos/entrar?codigo=${codigoEntrar.trim()}`,
+          { credentials: "include" }
         );
         const data = await response.json();
         if (response.ok) {
@@ -217,7 +245,14 @@ export default function GruposPage() {
           setTipoGrupoEntrar("");
           await loadGrupos();
         } else {
-          toast.error(data.error || "Erro ao entrar no grupo");
+          const message =
+            response.status === 401
+              ? data.error || "Faça login para entrar no grupo."
+              : data.error || "Erro ao entrar no grupo";
+          toast.error(message);
+          if (response.status === 401) {
+            window.location.href = `/login?redirect=${encodeURIComponent("/grupos")}`;
+          }
         }
       }
     } catch (error) {
@@ -286,6 +321,19 @@ export default function GruposPage() {
     const matchAtivo = mostrarInativos ? true : grupo.ativo !== false;
     return matchSearch && matchAtivo;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredGrupos.length / GRUPOS_PER_PAGE));
+  const paginatedGrupos = filteredGrupos.slice(
+    (page - 1) * GRUPOS_PER_PAGE,
+    page * GRUPOS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, mostrarInativos]);
+
+  const isAdmin = (grupo: Grupo) => currentUserId !== null && grupo.criador_id === currentUserId;
+
   return (
     <main className="mx-auto max-w-6xl p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -307,7 +355,7 @@ export default function GruposPage() {
               <DialogHeader>
                 <DialogTitle>Entrar em Grupo</DialogTitle>
                 <DialogDescription>
-                  Selecione o tipo de grupo e informe os dados necessários
+                  Selecione o tipo de grupo e informe os dados necessários. Campos com * são obrigatórios.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -403,12 +451,14 @@ export default function GruposPage() {
               <DialogHeader>
                 <DialogTitle>Criar Novo Grupo</DialogTitle>
                 <DialogDescription>
-                  Crie um grupo de estudo para colaborar com seus colegas
+                  Crie um grupo de estudo para colaborar com seus colegas. Campos com * são obrigatórios.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Nome do Grupo</label>
+                  <label className="text-sm font-medium">
+                    Nome do Grupo <span className="text-red-500">*</span>
+                  </label>
                   <Input
                     value={formData.nome}
                     onChange={(e) =>
@@ -416,6 +466,7 @@ export default function GruposPage() {
                     }
                     placeholder="Ex: Grupo de Cálculo I"
                     className="mt-1"
+                    required
                   />
                 </div>
                 <div>
@@ -443,55 +494,37 @@ export default function GruposPage() {
                   </select>
                 </div>
                 {formData.visibilidade === "privado" && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium">
-                        Senha de Acesso (Opcional)
-                      </label>
-                      <Input
-                        type="password"
-                        value={formData.senha}
-                        onChange={(e) =>
-                          setFormData({ ...formData, senha: e.target.value })
-                        }
-                        placeholder="Deixe em branco para acesso sem senha"
-                        className="mt-1"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Membros precisarão desta senha para entrar no grupo
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="requer_aprovacao"
-                        checked={formData.requer_aprovacao}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            requer_aprovacao: e.target.checked,
-                          })
-                        }
-                        className="rounded border-gray-300"
-                      />
-                      <label
-                        htmlFor="requer_aprovacao"
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        Requer aprovação para entrar
-                      </label>
-                    </div>
-                  </>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="requer_aprovacao"
+                      checked={formData.requer_aprovacao}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          requer_aprovacao: e.target.checked,
+                        })
+                      }
+                      className="rounded border-gray-300"
+                    />
+                    <label
+                      htmlFor="requer_aprovacao"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Requer aprovação do admin para entrar no grupo
+                    </label>
+                  </div>
                 )}
                 <div>
                   <label className="text-sm font-medium">
-                    Limite de Membros
+                    Limite de Membros <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="number"
                     min="2"
                     max="50"
                     value={formData.max_membros}
+                    required
                     onChange={(e) => {
                       const value = parseInt(e.target.value) || 50;
                       const clampedValue = Math.min(Math.max(value, 2), 50);
@@ -585,76 +618,96 @@ export default function GruposPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredGrupos.map((grupo) => (
+        <div className="grid gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {paginatedGrupos.map((grupo) => (
             <Card
               key={grupo.id}
-              className={`hover:shadow-md transition-shadow min-h-[280px] flex flex-col ${
-                grupo.ativo === false ? "opacity-60" : ""
-              }`}
+              className={cn(
+                "group flex flex-col min-h-0 transition-all duration-200 hover:shadow-lg hover:border-primary/15",
+                grupo.ativo === false && "opacity-60",
+                grupo.visibilidade === "privado"
+                  ? "border-l-4 border-l-primary/60"
+                  : "border-l-4 border-l-emerald-500/50"
+              )}
             >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{grupo.nome}</CardTitle>
-                      {grupo.ativo === false && (
-                        <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+              <CardHeader className="gap-3 pb-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-lg truncate pr-1">
+                        {grupo.nome}
+                      </CardTitle>
+                      {grupo.ativo === false ? (
+                        <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md shrink-0">
                           Arquivado
+                        </span>
+                      ) : (
+                        <span
+                          className={cn(
+                            "text-xs font-medium px-2 py-0.5 rounded-md shrink-0",
+                            grupo.visibilidade === "privado"
+                              ? "text-primary bg-primary/10 border border-primary/20"
+                              : "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30"
+                          )}
+                        >
+                          {grupo.visibilidade === "publico" ? "Público" : "Privado"}
                         </span>
                       )}
                     </div>
                     {grupo.descricao && (
-                      <CardDescription className="mt-1">
+                      <CardDescription className="mt-1.5 line-clamp-2">
                         {grupo.descricao}
                       </CardDescription>
                     )}
                   </div>
-                  <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={`h-8 w-8 ${
-                            grupo.ativo === false
-                              ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
-                              : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
-                          }`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleToggleAtivo(
-                              grupo.id,
-                              grupo.nome,
-                              grupo.ativo !== false,
-                            );
-                          }}
-                        >
-                          {grupo.ativo === false ? (
-                            <ArchiveRestore className="h-4 w-4" />
-                          ) : (
-                            <Archive className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          {grupo.ativo !== false
-                            ? "Arquivar grupo"
-                            : "Ativar grupo"}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  {isAdmin(grupo) && (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "h-8 w-8 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity",
+                              grupo.ativo === false
+                                ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                : "text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
+                            )}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleToggleAtivo(
+                                grupo.id,
+                                grupo.nome,
+                                grupo.ativo !== false,
+                              );
+                            }}
+                          >
+                            {grupo.ativo === false ? (
+                              <ArchiveRestore className="h-4 w-4" />
+                            ) : (
+                              <Archive className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {grupo.ativo !== false
+                              ? "Arquivar grupo"
+                              : "Ativar grupo"}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col min-h-0">
-                <div className="space-y-3 flex-1 flex flex-col">
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span>
+              <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
+                <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <User className="h-4 w-4 shrink-0 text-muted-foreground/80" />
+                      <span className="truncate">
                         {grupo.criador?.raw_user_meta_data?.nome ||
                           grupo.criador?.raw_user_meta_data?.email ||
                           "Criador"}
@@ -662,8 +715,8 @@ export default function GruposPage() {
                     </div>
                     {grupo.visibilidade === "privado" &&
                       grupo.codigo_acesso && (
-                        <div className="flex items-center gap-2">
-                          <Lock className="h-3 w-3" />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Lock className="h-3.5 w-3.5" />
                           <span className="font-mono text-xs font-semibold">
                             {grupo.codigo_acesso}
                           </span>
@@ -674,7 +727,7 @@ export default function GruposPage() {
                                   onClick={() =>
                                     handleCopyCodigo(grupo.codigo_acesso!)
                                   }
-                                  className="p-1 hover:bg-muted rounded"
+                                  className="p-1 hover:bg-muted rounded transition-colors"
                                 >
                                   {codigoCopiado === grupo.codigo_acesso ? (
                                     <Check className="h-3 w-3 text-green-500" />
@@ -692,49 +745,76 @@ export default function GruposPage() {
                       )}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
+                    <Calendar className="h-4 w-4 shrink-0 text-muted-foreground/80" />
                     <span>
                       {new Date(grupo.created_at).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
-                  <div className="flex gap-2 pt-2 mt-auto">
-                    <Button
-                      asChild
-                      variant="default"
-                      size="sm"
-                      className="min-w-[180px] h-9 shrink-0"
+                </div>
+                <div className="flex gap-2 pt-4 mt-auto">
+                  <Button
+                    asChild
+                    variant="default"
+                    size="sm"
+                    className="flex-1 h-9 min-w-0"
+                  >
+                    <Link
+                      href={`/grupos/${grupo.id}`}
+                      className="flex items-center justify-center gap-2"
                     >
-                      <Link href={`/grupos/${grupo.id}`}>
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Abrir
-                      </Link>
-                    </Button>
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 w-9 shrink-0"
-                            onClick={() => {
-                              const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
-                              navigator.clipboard.writeText(link);
-                              toast.success("Link de convite copiado!");
-                            }}
-                          >
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Copiar link de convite</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
+                      <MessageSquare className="h-4 w-4 shrink-0" />
+                      Abrir
+                    </Link>
+                  </Button>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 shrink-0"
+                          onClick={() => {
+                            const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
+                            navigator.clipboard.writeText(link);
+                            toast.success("Link de convite copiado!");
+                          }}
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Copiar link de convite</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {!loading && filteredGrupos.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground px-2">
+            Página {page} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+          >
+            Próxima
+          </Button>
         </div>
       )}
 

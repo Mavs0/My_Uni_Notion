@@ -904,7 +904,7 @@ export default function PerfilPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">
-                  Senha Atual
+                  Senha Atual <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="password"
@@ -915,7 +915,7 @@ export default function PerfilPage() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">
-                  Nova Senha
+                  Nova Senha <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="password"
@@ -981,7 +981,7 @@ export default function PerfilPage() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">
-                  Confirmar Nova Senha
+                  Confirmar Nova Senha <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="password"
