@@ -19,6 +19,16 @@ export async function GET(request: NextRequest) {
       .from("flashcards")
       .select(
         `
+        id,
+        user_id,
+        disciplina_id,
+        frente,
+        verso,
+        tags,
+        dificuldade,
+        gerado_por_ia,
+        created_at,
+        updated_at,
         disciplinas (
           id,
           nome

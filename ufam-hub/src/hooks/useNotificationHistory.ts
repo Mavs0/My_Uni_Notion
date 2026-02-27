@@ -44,7 +44,10 @@ export function useNotificationHistory() {
         } else {
           setNotifications([]);
           setTotalNaoLidas(0);
-          console.error("Erro ao carregar histórico:", response.status, response.statusText);
+          // 401 é esperado quando não há sessão (ex.: após logout); não poluir o console
+          if (response.status !== 401) {
+            console.error("Erro ao carregar histórico:", response.status, response.statusText);
+          }
         }
       } catch (error) {
         console.error("Erro ao carregar histórico:", error);

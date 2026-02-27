@@ -335,7 +335,7 @@ export default function RevisaoPage() {
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-base line-clamp-2">
-                          {fc.frente}
+                          {fc.frente?.trim() || "(Sem conteúdo na frente)"}
                         </CardTitle>
                         {fc.gerado_por_ia && (
                           <Sparkles className="size-4 text-primary flex-shrink-0 ml-2" />
@@ -349,7 +349,7 @@ export default function RevisaoPage() {
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
-                        {fc.verso}
+                        {fc.verso?.trim() || "(Sem conteúdo no verso)"}
                       </p>
                       {fc.revisao && (
                         <div className="text-xs text-muted-foreground">
@@ -566,7 +566,9 @@ export default function RevisaoPage() {
                   Pergunta / Frente
                 </div>
                 <div className="p-6 bg-muted rounded-lg text-lg min-h-[120px] flex items-center">
-                  <p className="w-full">{flashcardPreview.frente}</p>
+                  <p className="w-full text-muted-foreground">
+                    {flashcardPreview.frente?.trim() || "(Sem conteúdo na frente)"}
+                  </p>
                 </div>
               </div>
 
@@ -577,7 +579,9 @@ export default function RevisaoPage() {
                   Resposta / Verso
                 </div>
                 <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-lg text-lg min-h-[120px] flex items-center">
-                  <p className="w-full">{flashcardPreview.verso}</p>
+                  <p className="w-full text-muted-foreground">
+                    {flashcardPreview.verso?.trim() || "(Sem conteúdo no verso)"}
+                  </p>
                 </div>
               </div>
 
