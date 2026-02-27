@@ -34,7 +34,9 @@ import {
   MoreVertical,
   Palette,
   Check,
+  Pencil,
 } from "lucide-react";
+import { EditDisciplinaDialog } from "@/components/EditDisciplinaDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -173,9 +175,20 @@ function Section({
   );
 }
 
+function isValidDisciplinaId(id: string | undefined): id is string {
+  return !!id && id !== "undefined" && id.length > 0;
+}
+
 export default function DisciplinaDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isValidDisciplinaId(id)) {
+      router.replace("/disciplinas");
+    }
+  }, [id, router]);
+
   const {
     disciplinas,
     loading: loadingDisc,
@@ -188,7 +201,7 @@ export default function DisciplinaDetailPage() {
     createAvaliacao,
     deleteAvaliacao,
   } = useAvaliacoes({
-    disciplinaId: id,
+    disciplinaId: isValidDisciplinaId(id) ? id : undefined,
   });
   const {
     tarefas,
@@ -198,7 +211,7 @@ export default function DisciplinaDetailPage() {
     deleteTarefa,
     toggleConcluida,
   } = useTarefas({
-    disciplinaId: id,
+    disciplinaId: isValidDisciplinaId(id) ? id : undefined,
   });
   const {
     notas,
@@ -207,7 +220,7 @@ export default function DisciplinaDetailPage() {
     updateNota,
     deleteNota,
   } = useNotas({
-    disciplinaId: id,
+    disciplinaId: isValidDisciplinaId(id) ? id : undefined,
   });
 
   const disciplina = useMemo(() => {
@@ -221,6 +234,7 @@ export default function DisciplinaDetailPage() {
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [blocosAssistidos, setBlocosAssistidos] = useState<number>(0);
   const [notaToDelete, setNotaToDelete] = useState<string | null>(null);
+  const [editDisciplinaOpen, setEditDisciplinaOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(storeKey("materials"));
@@ -353,7 +367,7 @@ export default function DisciplinaDetailPage() {
                   <span className={badgeTipo(disciplina.tipo)}>
                     {disciplina.tipo}
                   </span>
-                  {/* Seletor de Cor */}
+                  {/* Seletor de Cor e Editar */}
                   <TooltipProvider delayDuration={300}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -382,6 +396,21 @@ export default function DisciplinaDetailPage() {
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Alterar cor da disciplina</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEditDisciplinaOpen(true)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Editar disciplina</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -942,6 +971,12 @@ export default function DisciplinaDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <EditDisciplinaDialog
+        open={editDisciplinaOpen}
+        disciplina={disciplina}
+        onOpenChange={setEditDisciplinaOpen}
+        onSaved={() => setEditDisciplinaOpen(false)}
+      />
     </main>
   );
 }

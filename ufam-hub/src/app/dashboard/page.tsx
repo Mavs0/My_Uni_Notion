@@ -729,7 +729,7 @@ export default function DashboardPage() {
         }
       });
     });
-    return hojeHorarios.sort((a, b) => a.inicio.localeCompare(b.inicio));
+    return hojeHorarios.sort((a, b) => (a.inicio ?? "").localeCompare(b.inicio ?? ""));
   }, [hoje, disciplinas]);
   const proximasAvaliacoes = useMemo(() => {
     const base = avaliacoes

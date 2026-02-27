@@ -79,8 +79,8 @@ export class GoogleCalendarService {
         q: options.q,
       });
       return {
-        events: response.data.items || [],
-        nextPageToken: response.data.nextPageToken,
+        events: (response.data.items || []) as CalendarEvent[],
+        nextPageToken: response.data.nextPageToken ?? undefined,
       };
     } catch (error) {
       console.error("Erro ao listar eventos:", error);
@@ -103,9 +103,9 @@ export class GoogleCalendarService {
       }
       const response = await this.calendar.events.insert({
         calendarId,
-        resource: event,
+        requestBody: event as calendar_v3.Schema$Event,
       });
-      return response.data;
+      return response.data as CalendarEvent;
     } catch (error: unknown) {
       console.error("Erro ao criar evento:", error);
       const err = error as { code?: number; message?: string; response?: { data?: { error?: { message?: string } } } };
@@ -132,9 +132,9 @@ export class GoogleCalendarService {
       const response = await this.calendar.events.update({
         calendarId,
         eventId,
-        resource: event,
+        requestBody: event as calendar_v3.Schema$Event,
       });
-      return response.data;
+      return response.data as CalendarEvent;
     } catch (error) {
       console.error("Erro ao atualizar evento:", error);
       throw new Error("Falha ao atualizar evento no calendário");
@@ -163,7 +163,7 @@ export class GoogleCalendarService {
         calendarId,
         eventId,
       });
-      return response.data;
+      return response.data as CalendarEvent;
     } catch (error) {
       console.error("Erro ao buscar evento:", error);
       throw new Error("Falha ao buscar evento do calendário");

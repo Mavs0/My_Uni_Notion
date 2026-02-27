@@ -331,7 +331,7 @@ export default function ChatPage() {
       } else if (sortBy === "oldest") {
         return a.updatedAt - b.updatedAt;
       } else {
-        return a.title.localeCompare(b.title, "pt-BR");
+        return (a.title ?? "").localeCompare(b.title ?? "", "pt-BR");
       }
     });
     filtered.sort((a, b) => {

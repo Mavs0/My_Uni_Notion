@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
           mes,
           media: dados.soma / dados.count,
         }))
-        .sort((a, b) => a.mes.localeCompare(b.mes));
+        .sort((a, b) => (a.mes ?? "").localeCompare(b.mes ?? ""));
       return {
         disciplinaId: disc.id,
         disciplinaNome: disc.nome,
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
     });
     const horasPorSemanaArray = Object.entries(horasPorSemana)
       .map(([semana, horas]) => ({ semana, horas }))
-      .sort((a, b) => a.semana.localeCompare(b.semana));
+      .sort((a, b) => (a.semana ?? "").localeCompare(b.semana ?? ""));
     const distribuicaoCarga = (disciplinas || []).map((disc) => ({
       nome: disc.nome,
       horasSemana: disc.horas_semana || 0,

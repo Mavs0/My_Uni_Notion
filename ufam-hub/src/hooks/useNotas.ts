@@ -21,8 +21,9 @@ export function useNotas(filters?: { disciplinaId?: string }) {
       setLoading(true);
       setError(null);
       const params = new URLSearchParams();
-      if (filters?.disciplinaId) {
-        params.append("disciplina_id", filters.disciplinaId);
+      const discId = filters?.disciplinaId;
+      if (discId && discId !== "undefined") {
+        params.append("disciplina_id", discId);
       }
       const response = await fetch(
         `/api/notas${params.toString() ? `?${params.toString()}` : ""}`

@@ -15,6 +15,18 @@ export async function GET(request: NextRequest) {
       .from("disciplinas")
       .select(
         `
+        id,
+        nome,
+        tipo,
+        horas_semana,
+        professor,
+        local,
+        ativo,
+        ordem,
+        favorito,
+        cor,
+        created_at,
+        updated_at,
         horarios (
           id,
           dia_semana,
@@ -52,7 +64,8 @@ export async function GET(request: NextRequest) {
         hora_fim: string;
       }>;
     };
-    const formatted = ((disciplinas || []) as DiscRow[]).map((disc) => ({
+    const list: DiscRow[] = Array.isArray(disciplinas) ? (disciplinas as DiscRow[]) : [];
+    const formatted = list.map((disc) => ({
         id: disc.id,
         nome: disc.nome,
         tipo: disc.tipo,

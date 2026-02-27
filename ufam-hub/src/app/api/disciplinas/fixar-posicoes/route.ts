@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         return aOrdem - bOrdem;
       }
 
-      return a.nome.localeCompare(b.nome, "pt-BR");
+      return (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR");
     });
 
     const updates = disciplinasOrdenadas.map((disc, index) => ({
