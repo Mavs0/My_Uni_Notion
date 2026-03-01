@@ -61,6 +61,8 @@ interface PomodoroContextValue {
   completedPomodoros: number;
   toggleTimer: () => void;
   resetTimer: () => void;
+  switchToStudy: () => void;
+  switchToBreak: () => void;
   getProgress: () => number;
   getPhaseLabel: () => string;
   getPhaseColor: () => string;
@@ -211,6 +213,18 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     else setTimeLeft(settings.longBreakTime);
   }, [phase, settings]);
 
+  const switchToStudy = useCallback(() => {
+    setIsRunning(false);
+    setPhase("study");
+    setTimeLeft(settings.studyTime);
+  }, [settings.studyTime]);
+
+  const switchToBreak = useCallback(() => {
+    setIsRunning(false);
+    setPhase("break");
+    setTimeLeft(settings.breakTime);
+  }, [settings.breakTime]);
+
   const getProgress = useCallback(() => {
     const total = phase === "study" ? settings.studyTime : phase === "break" ? settings.breakTime : settings.longBreakTime;
     return ((total - timeLeft) / total) * 100;
@@ -250,6 +264,8 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     completedPomodoros,
     toggleTimer,
     resetTimer,
+    switchToStudy,
+    switchToBreak,
     getProgress,
     getPhaseLabel,
     getPhaseColor,

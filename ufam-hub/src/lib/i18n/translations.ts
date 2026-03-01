@@ -99,6 +99,15 @@ export interface Translations {
     formatoData: string;
     dadosArmazenados: string;
     limparDados: string;
+    conviteUsuario: string;
+    conviteUsuarioDesc: string;
+    emailPlaceholder: string;
+    enviarConvite: string;
+    conviteEnviado: string;
+    conviteErro: string;
+    conviteRateLimitTitulo: string;
+    conviteRateLimitDesc: string;
+    conviteTentarMaisTarde: string;
   };
   comum: {
     salvar: string;
@@ -220,6 +229,15 @@ export const translations: Record<Locale, Translations> = {
       formatoData: "Formato de Data",
       dadosArmazenados: "Dados Armazenados Localmente",
       limparDados: "Limpar Dados Locais",
+      conviteUsuario: "Convidar usuário",
+      conviteUsuarioDesc: "Envie um convite por e-mail para alguém entrar na plataforma.",
+      emailPlaceholder: "email@exemplo.com",
+      enviarConvite: "Enviar convite",
+      conviteEnviado: "Convite enviado com sucesso.",
+      conviteErro: "Erro ao enviar convite.",
+      conviteRateLimitTitulo: "Limite de envio de e-mails",
+      conviteRateLimitDesc: "Aguarde alguns minutos e tente novamente.",
+      conviteTentarMaisTarde: "Tentar mais tarde",
     },
     comum: {
       salvar: "Salvar",
@@ -340,6 +358,15 @@ export const translations: Record<Locale, Translations> = {
       formatoData: "Date Format",
       dadosArmazenados: "Locally Stored Data",
       limparDados: "Clear Local Data",
+      conviteUsuario: "Invite user",
+      conviteUsuarioDesc: "Send an email invite for someone to join the platform.",
+      emailPlaceholder: "email@example.com",
+      enviarConvite: "Send invite",
+      conviteEnviado: "Invite sent successfully.",
+      conviteErro: "Error sending invite.",
+      conviteRateLimitTitulo: "Email rate limit",
+      conviteRateLimitDesc: "Wait a few minutes and try again.",
+      conviteTentarMaisTarde: "Retry later",
     },
     comum: {
       salvar: "Save",

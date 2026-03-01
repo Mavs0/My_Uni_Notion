@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { AuthHeader } from "@/components/auth/AuthHeader";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function EsqueciSenhaPage() {
   const router = useRouter();
@@ -227,6 +228,10 @@ export default function EsqueciSenhaPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="fixed bottom-6 right-6 z-50">
+        <ThemeToggle variant="floating" />
       </div>
     </div>
   );

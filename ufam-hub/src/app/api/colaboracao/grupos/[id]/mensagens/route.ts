@@ -3,6 +3,18 @@ import {
   createSupabaseServer,
   createSupabaseAdmin,
 } from "@/lib/supabase/server";
+async function grupoArquivado(grupoId: string): Promise<boolean> {
+  const { createSupabaseServer, createSupabaseAdmin } = await import("@/lib/supabase/server");
+  const supabase = await createSupabaseServer();
+  const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? createSupabaseAdmin() : supabase;
+  const { data } = await client
+    .from("grupos_estudo")
+    .select("ativo")
+    .eq("id", grupoId)
+    .single();
+  return data?.ativo === false;
+}
+
 function extractMentions(mensagem: string): string[] {
   const mentionRegex = /@(\w+)/g;
   const mentions: string[] = [];
@@ -172,6 +184,12 @@ export async function POST(
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
+    if (await grupoArquivado(grupo_id)) {
+      return NextResponse.json(
+        { error: "Grupo arquivado. Desarquive para acessar.", codigo: "GRUPO_ARQUIVADO" },
+        { status: 403 }
+      );
+    }
     let membro;
 
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -325,6 +343,12 @@ export async function GET(
     } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+    if (await grupoArquivado(grupo_id)) {
+      return NextResponse.json(
+        { error: "Grupo arquivado. Desarquive para acessar.", codigo: "GRUPO_ARQUIVADO" },
+        { status: 403 }
+      );
     }
     let membro;
 

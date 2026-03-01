@@ -4,7 +4,16 @@ import { Input } from "./input";
 import { Button } from "./button";
 import { Avatar, AvatarImage, AvatarFallback } from "./avatar";
 import { ThemeToggle } from "./theme-toggle";
-import { Search, User, LogOut, Settings, LogIn, Menu, Accessibility, Focus } from "lucide-react";
+import {
+  Search,
+  User,
+  LogOut,
+  Settings,
+  LogIn,
+  Menu,
+  Accessibility,
+  Focus,
+} from "lucide-react";
 import * as React from "react";
 import { useCommandPalette, CommandPalette } from "./command-palette";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -38,7 +47,11 @@ function TopBar() {
   const { t } = useI18n();
   const { setMobileMenuOpen } = useMobileMenu();
   const focusMode = useFocusMode();
-  const { isActive: isFocusModeActive, activate, deactivate } = focusMode || {
+  const {
+    isActive: isFocusModeActive,
+    activate,
+    deactivate,
+  } = focusMode || {
     isActive: false,
     activate: () => {},
     deactivate: () => {},
@@ -211,7 +224,7 @@ function TopBar() {
                       <Focus
                         className={cn(
                           "h-4 w-4",
-                          isFocusModeActive && "text-primary-foreground"
+                          isFocusModeActive && "text-primary-foreground",
                         )}
                       />
                     </Button>
@@ -271,7 +284,7 @@ function TopBar() {
                     </p>
                   )}
                   <DropdownMenuSeparator />
-                  
+
                   {/* Perfil */}
                   <DropdownMenuItem asChild>
                     <Link
@@ -282,7 +295,7 @@ function TopBar() {
                       <span>{t.nav.perfil}</span>
                     </Link>
                   </DropdownMenuItem>
-                  
+
                   {/* Configurações */}
                   <DropdownMenuItem asChild>
                     <Link
@@ -293,9 +306,9 @@ function TopBar() {
                       <span>{t.nav.configuracoes}</span>
                     </Link>
                   </DropdownMenuItem>
-                  
+
                   <DropdownMenuSeparator />
-                  
+
                   {/* Acessibilidade */}
                   <DropdownMenuItem asChild>
                     <Link
@@ -306,9 +319,9 @@ function TopBar() {
                       <span>Acessibilidade</span>
                     </Link>
                   </DropdownMenuItem>
-                  
+
                   <DropdownMenuSeparator />
-                  
+
                   {/* Sair */}
                   <DropdownMenuItem
                     onClick={handleLogout}
@@ -330,7 +343,7 @@ function TopBar() {
           </div>
         </div>
       </header>
-      <CommandPalette open={open} setOpen={setOpen} />
+      <CommandPalette open={open} setOpenAction={setOpen} />
     </>
   );
 }

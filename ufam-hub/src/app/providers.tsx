@@ -83,7 +83,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
               toastOptions={{
                 classNames: {
                   toast:
-                    "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-lg group-[.toaster]:backdrop-blur-sm group-[.toaster]:p-4 group-[.toaster]:min-w-[320px] group-[.toaster]:max-w-[420px]",
+                    "group toast toast-with-progress group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-lg group-[.toaster]:backdrop-blur-sm group-[.toaster]:p-4 group-[.toaster]:min-w-[320px] group-[.toaster]:max-w-[420px] group-[.toaster]:overflow-hidden group-[.toaster]:relative",
                   description:
                     "group-[.toast]:text-muted-foreground group-[.toast]:text-sm group-[.toast]:mt-1",
                   actionButton:

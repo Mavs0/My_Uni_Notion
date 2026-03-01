@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDisciplinas } from "@/hooks/useDisciplinas";
@@ -182,12 +182,37 @@ function isValidDisciplinaId(id: string | undefined): id is string {
 export default function DisciplinaDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const [disciplinaArquivada, setDisciplinaArquivada] = useState(false);
 
   useEffect(() => {
     if (!isValidDisciplinaId(id)) {
       router.replace("/disciplinas");
     }
   }, [id, router]);
+
+  useEffect(() => {
+    if (!isValidDisciplinaId(id)) return;
+    let cancelled = false;
+    fetch(`/api/disciplinas/${id}`)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === 403) return res.json();
+        return null;
+      })
+      .then((data) => {
+        if (cancelled || !data) return;
+        if (data.codigo === "DISCIPLINA_ARQUIVADA") {
+          setDisciplinaArquivada(true);
+          toast.info("Disciplina arquivada. Desarquive para acessar.");
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
+
+  useLayoutEffect(() => {
+    if (disciplinaArquivada) router.replace("/disciplinas");
+  }, [disciplinaArquivada, router]);
 
   const {
     disciplinas,
@@ -228,6 +253,13 @@ export default function DisciplinaDetailPage() {
     return disciplinas.find((d) => d.id === id) ?? null;
   }, [disciplinas, id]);
 
+  useLayoutEffect(() => {
+    if (disciplina && disciplina.ativo === false) {
+      toast.info("Disciplina arquivada. Desarquive para acessar.");
+      router.replace("/disciplinas");
+    }
+  }, [disciplina, router]);
+
   const corDisciplina = disciplina?.cor || "#6366f1";
 
   const storeKey = (k: string) => `disc:${id}:${k}`;
@@ -267,6 +299,18 @@ export default function DisciplinaDetailPage() {
   useEffect(() => {
     localStorage.setItem(storeKey("blocks"), String(blocosAssistidos));
   }, [blocosAssistidos, id]);
+
+  if (disciplinaArquivada) {
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <div className="flex flex-col items-center justify-center py-16">
+          <GraduationCap className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Redirecionando...</p>
+        </div>
+      </main>
+    );
+  }
+
   if (loadingDisc) {
     return (
       <main className="mx-auto max-w-6xl p-6">
@@ -320,6 +364,17 @@ export default function DisciplinaDetailPage() {
             A disciplina pode ter sido removida ou você não tem permissão para
             acessá-la.
           </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (disciplina.ativo === false) {
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <div className="flex flex-col items-center justify-center py-16">
+          <GraduationCap className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Redirecionando...</p>
         </div>
       </main>
     );

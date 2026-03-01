@@ -32,6 +32,8 @@ import {
   Maximize2,
   X,
   Star,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -102,6 +104,29 @@ export default function MaterialDetailPage() {
     minhaNota: number | null;
   }>({ media: 0, total: 0, minhaNota: null });
   const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
+
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("biblioteca-pinned");
+      setPinnedIds(raw ? JSON.parse(raw) : []);
+    } catch {}
+  }, [materialId]);
+
+  const togglePin = () => {
+    if (!materialId) return;
+    setPinnedIds((prev) => {
+      const next = prev.includes(materialId)
+        ? prev.filter((id) => id !== materialId)
+        : [...prev, materialId];
+      try {
+        localStorage.setItem("biblioteca-pinned", JSON.stringify(next));
+      } catch (e) {}
+      if (next.includes(materialId)) toast.success("Material fixado");
+      else toast.success("Material desfixado");
+      return next;
+    });
+  };
 
   useEffect(() => {
     loadMaterial();
@@ -383,6 +408,20 @@ export default function MaterialDetailPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Link>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={togglePin}
+          className={pinnedIds.includes(materialId) ? "text-primary" : ""}
+          title={pinnedIds.includes(materialId) ? "Desfixar" : "Fixar na biblioteca"}
+        >
+          {pinnedIds.includes(materialId) ? (
+            <PinOff className="h-4 w-4 mr-2" />
+          ) : (
+            <Pin className="h-4 w-4 mr-2" />
+          )}
+          {pinnedIds.includes(materialId) ? "Desfixar" : "Fixar"}
         </Button>
         <h1 className="text-3xl font-bold">Detalhes do Material</h1>
       </div>

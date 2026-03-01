@@ -37,8 +37,6 @@ export function Logo({
     <div className={cn("flex items-center gap-3", className)}>
       <div className="relative">
         <LogoIcon size={iconSize} />
-        {/* Efeito de brilho animado */}
-        <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
       </div>
       {showText && (
         <div className="flex flex-col">
@@ -63,7 +61,7 @@ export function Logo({
 
 function LogoIcon({ size = 32 }: { size?: number }) {
   const uniqueId = useId();
-  
+  // Estilo Notion: bloco geométrico (cubo isométrico) com "H" de Hub integrado — organização, modularidade
   return (
     <svg
       width={size}
@@ -74,144 +72,55 @@ function LogoIcon({ size = 32 }: { size?: number }) {
       className="relative z-10"
     >
       <defs>
-        {/* Gradiente principal mais vibrante */}
-        <linearGradient id={`logoGradient-${uniqueId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id={`logoBlock-${uniqueId}`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="hsl(var(--primary))" />
-          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
         </linearGradient>
-        
-        {/* Gradiente de destaque */}
-        <linearGradient id={`accentGradient-${uniqueId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="white" stopOpacity="0.1" />
+        <linearGradient id={`logoTop-${uniqueId}`} x1="0%" y1="100%" x2="0%" y2="0%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.75" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" />
         </linearGradient>
-        
-        {/* Gradiente para o capelo */}
-        <linearGradient id={`capGradient-${uniqueId}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="white" stopOpacity="1" />
-          <stop offset="100%" stopColor="white" stopOpacity="0.9" />
+        <linearGradient id={`logoSide-${uniqueId}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
         </linearGradient>
       </defs>
-
-      {/* Círculo de fundo com gradiente e sombra */}
-      <circle
-        cx="32"
-        cy="32"
-        r="30"
-        fill={`url(#logoGradient-${uniqueId})`}
-        className="drop-shadow-lg"
+      {/* Cubo isométrico: face superior */}
+      <path
+        d="M32 14 L52 26 L32 38 L12 26 Z"
+        fill={`url(#logoTop-${uniqueId})`}
+        stroke="hsl(var(--primary))"
+        strokeWidth="1.5"
+        strokeOpacity="0.25"
+        fillOpacity="1"
       />
-      
-      {/* Anel decorativo externo */}
-      <circle
-        cx="32"
-        cy="32"
-        r="28"
-        fill="none"
-        stroke="white"
-        strokeWidth="0.5"
+      {/* Face lateral esquerda */}
+      <path
+        d="M12 26 L12 50 L32 62 L32 38 Z"
+        fill={`url(#logoSide-${uniqueId})`}
+        stroke="hsl(var(--primary))"
+        strokeWidth="1.5"
         strokeOpacity="0.2"
       />
-
-      {/* Capelo de formatura modernizado */}
-      <g className="drop-shadow-md">
-        {/* Corpo do capelo */}
-        <path
-          d="M18 30 L32 18 L46 30 L46 38 L18 38 Z"
-          fill={`url(#capGradient-${uniqueId})`}
-        />
-        
-        {/* Borda superior do capelo */}
-        <path
-          d="M18 30 L32 18 L46 30"
-          stroke="hsl(var(--primary))"
-          strokeWidth="2"
-          strokeOpacity="0.2"
-          fill="none"
-          strokeLinecap="round"
-        />
-        
-        {/* Linha de dobra do capelo */}
-        <path
-          d="M20 34 L44 34"
-          stroke="hsl(var(--primary))"
-          strokeWidth="0.5"
-          strokeOpacity="0.15"
-        />
-      </g>
-
-      {/* Borla do capelo com destaque */}
-      <g>
-        <circle cx="32" cy="30" r="4" fill="hsl(var(--primary))" opacity="0.9" />
-        <circle cx="32" cy="30" r="2.5" fill="white" />
-        <circle cx="32" cy="30" r="1" fill="hsl(var(--primary))" />
-      </g>
-
-      {/* Partículas de conhecimento (estrelas) */}
-      <g opacity="0.9">
-        <circle cx="22" cy="22" r="1.5" fill="white" />
-        <circle cx="42" cy="22" r="1.5" fill="white" />
-        <circle cx="26" cy="44" r="1.5" fill="white" />
-        <circle cx="38" cy="44" r="1.5" fill="white" />
-        {/* Estrelas menores */}
-        <circle cx="18" cy="36" r="1" fill="white" opacity="0.7" />
-        <circle cx="46" cy="36" r="1" fill="white" opacity="0.7" />
-      </g>
-
-      {/* Elementos de conexão/hub (ondas) */}
-      <g opacity="0.5">
-        <path
-          d="M12 32 Q18 26, 24 32"
-          stroke="white"
-          strokeWidth="2"
-          fill="none"
-          strokeLinecap="round"
-        />
-        <path
-          d="M40 32 Q46 26, 52 32"
-          stroke="white"
-          strokeWidth="2"
-          fill="none"
-          strokeLinecap="round"
-        />
-        {/* Linhas de conexão verticais */}
-        <path
-          d="M32 12 Q28 18, 32 24"
-          stroke="white"
-          strokeWidth="1.5"
-          fill="none"
-          strokeLinecap="round"
-          opacity="0.6"
-        />
-        <path
-          d="M32 40 Q28 46, 32 52"
-          stroke="white"
-          strokeWidth="1.5"
-          fill="none"
-          strokeLinecap="round"
-          opacity="0.6"
-        />
-      </g>
-
-      {/* Círculo central representando hub/conexão com efeito de brilho */}
-      <circle
-        cx="32"
-        cy="32"
-        r="10"
-        fill={`url(#accentGradient-${uniqueId})`}
-        className="animate-pulse"
-        opacity="0.6"
+      {/* Face frontal (onde fica o H) */}
+      <path
+        d="M32 38 L52 26 L52 50 L32 62 Z"
+        fill={`url(#logoBlock-${uniqueId})`}
+        stroke="hsl(var(--primary))"
+        strokeWidth="1.5"
+        strokeOpacity="0.3"
       />
-      
-      {/* Ponto central */}
-      <circle
-        cx="32"
-        cy="32"
-        r="2"
-        fill="white"
-        opacity="0.8"
-      />
+      {/* Letra H integrada ao bloco — usa primary-foreground para contraste em claro/escuro */}
+      <g
+        fill="hsl(var(--primary-foreground))"
+        stroke="hsl(var(--primary-foreground))"
+        strokeWidth="0.5"
+        strokeOpacity="0.4"
+      >
+        <path d="M36 36 L36 52 L40 52 L40 36 Z" fillOpacity="0.95" />
+        <path d="M44 36 L44 52 L48 52 L48 36 Z" fillOpacity="0.95" />
+        <path d="M36 42 L48 42 L48 44 L36 44 Z" fillOpacity="0.95" />
+      </g>
     </svg>
   );
 }

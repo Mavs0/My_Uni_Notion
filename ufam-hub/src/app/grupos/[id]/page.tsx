@@ -39,6 +39,13 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useGrupoMensagensRealtime } from "@/hooks/useGrupoMensagensRealtime";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 interface Mensagem {
   id: string;
   mensagem: string;
@@ -90,6 +97,7 @@ export default function GrupoDetailPage() {
   const [novaMensagem, setNovaMensagem] = useState("");
   const [loading, setLoading] = useState(true);
   const [grupoInfo, setGrupoInfo] = useState<any>(null);
+  const [grupoArquivado, setGrupoArquivado] = useState(false);
   const [showAprovacaoDialog, setShowAprovacaoDialog] = useState(false);
   const [solicitacaoAprovar, setSolicitacaoAprovar] =
     useState<Solicitacao | null>(null);
@@ -104,20 +112,39 @@ export default function GrupoDetailPage() {
   const mensagensEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const loadMensagensRef = useRef<() => void>(() => {});
+  const grupoOkRef = useRef(false);
 
   useGrupoMensagensRealtime(grupoId, () => loadMensagensRef.current());
 
   useEffect(() => {
-    loadCurrentUser();
-    loadGrupoInfo();
-    loadMensagens();
-    loadMembros();
-    loadSolicitacoes();
-    const interval = setInterval(() => {
-      loadSolicitacoes();
+    let cancelled = false;
+    const run = async () => {
+      loadCurrentUser();
+      const ok = await loadGrupoInfo();
+      if (cancelled) {
+        setLoading(false);
+        return;
+      }
+      grupoOkRef.current = !!ok;
+      if (!ok) {
+        setLoading(false);
+        return;
+      }
       loadMensagens();
+      loadMembros();
+      loadSolicitacoes();
+    };
+    run();
+    const interval = setInterval(() => {
+      if (!grupoOkRef.current) return;
+      loadMensagens();
+      loadSolicitacoes();
     }, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      grupoOkRef.current = false;
+      clearInterval(interval);
+    };
   }, [grupoId]);
 
   const loadCurrentUser = async () => {
@@ -136,17 +163,34 @@ export default function GrupoDetailPage() {
     mensagensEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens]);
 
-  const loadGrupoInfo = async () => {
+  const loadGrupoInfo = async (): Promise<boolean> => {
     try {
       const response = await fetch(`/api/colaboracao/grupos/${grupoId}`);
+      if (response.status === 403) {
+        const data = await response.json().catch(() => ({}));
+        if (data.codigo === "GRUPO_ARQUIVADO") {
+          setGrupoArquivado(true);
+          toast.info("Grupo arquivado. Desarquive para acessar.");
+          return false;
+        }
+      }
       if (response.ok) {
         const data = await response.json();
         setGrupoInfo(data.grupo || data.grupos?.[0]);
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Erro ao carregar informações do grupo:", error);
+      return false;
     }
   };
+
+  useEffect(() => {
+    if (grupoArquivado) {
+      router.replace("/grupos");
+    }
+  }, [grupoArquivado, router]);
 
   const loadMensagens = async () => {
     try {
@@ -187,6 +231,8 @@ export default function GrupoDetailPage() {
       if (response.ok) {
         const { solicitacoes: solicitacoesData } = await response.json();
         setSolicitacoes(solicitacoesData || []);
+      } else if (response.status === 403 || response.status === 404) {
+        setSolicitacoes([]);
       }
     } catch (error) {
       console.error("Erro ao carregar solicitações:", error);
@@ -402,40 +448,71 @@ export default function GrupoDetailPage() {
     const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
     return diffMinutes <= 5;
   };
+  if (grupoArquivado) {
+    return (
+      <main className="mx-auto max-w-6xl p-4">
+        <div className="flex flex-col items-center justify-center py-16">
+          <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Redirecionando...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="mx-auto max-w-6xl p-4 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
+    <main className="mx-auto max-w-6xl p-4 md:p-6 space-y-4">
+      {/* Botão Voltar acima da coluna esquerda */}
+      <div className="lg:max-w-[calc(66.666%-0.75rem)]">
+        <Button variant="ghost" size="sm" asChild className="shrink-0 -ml-2">
           <Link href="/grupos">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold">Grupo de Estudo</h1>
       </div>
-      <div className="grid gap-6 lg:grid-cols-3">
-        {}
-        <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
+
+      <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+        {/* Coluna do Chat */}
+        <div className="lg:col-span-2 space-y-3">
+          <header className="min-w-0 min-h-[3.5rem] flex flex-col justify-center">
+            <h1 className="text-xl md:text-2xl font-bold truncate">
+              {grupoInfo?.nome || "Grupo de Estudo"}
+            </h1>
+            {grupoInfo?.descricao && (
+              <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                {grupoInfo.descricao}
+              </p>
+            )}
+          </header>
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 border-b bg-muted/20">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MessageSquare className="h-5 w-5 text-primary" />
                 Chat do Grupo
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="h-[500px] overflow-y-auto space-y-4 pr-2 border rounded-lg p-4 bg-muted/30">
+            <CardContent className="p-0 flex flex-col">
+              <div className="h-[600px] min-h-[60vh] overflow-y-auto p-4 space-y-5 flex-1">
                 {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center h-full gap-3">
+                    <div className="h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    <p className="text-sm text-muted-foreground">
                       Carregando mensagens...
                     </p>
                   </div>
                 ) : mensagens.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground text-center">
-                      Nenhuma mensagem ainda. Seja o primeiro a escrever!
-                    </p>
+                  <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
+                    <div className="rounded-full bg-primary/10 p-5">
+                      <MessageSquare className="h-12 w-12 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">
+                        Nenhuma mensagem ainda
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Seja o primeiro a escrever e comece a conversa!
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -453,61 +530,70 @@ export default function GrupoDetailPage() {
                         const isEditing = editingMessageId === msg.id;
                         
                         return (
-                          <div key={msg.id} className="flex gap-3 group">
+                          <div
+                            key={msg.id}
+                            className={cn(
+                              "flex gap-3 group",
+                              isOwnMessage && "flex-row-reverse"
+                            )}
+                          >
                             <Avatar className="h-8 w-8 shrink-0">
                               <AvatarFallback className="text-xs">
                                 {getInitials(nomeUsuario, emailUsuario)}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center gap-2">
+                            <div className={cn("flex-1 space-y-1 min-w-0", isOwnMessage && "flex items-end flex-col")}>
+                              <div className={cn(
+                                "flex items-center gap-2 flex-wrap",
+                                isOwnMessage && "flex-row-reverse"
+                              )}>
                                 <span className="text-sm font-semibold">
                                   {nomeUsuario}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
                                   {new Date(msg.created_at).toLocaleTimeString(
                                     "pt-BR",
-                                    {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    }
+                                    { hour: "2-digit", minute: "2-digit" }
                                   )}
+                                  {msg.updated_at && " · editado"}
                                 </span>
-                                {msg.updated_at && (
-                                  <span className="text-xs text-muted-foreground italic">
-                                    (editado)
-                                  </span>
-                                )}
                                 {isOwnMessage && !isEditing && (
                                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {canEditMessage(msg) && (
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6"
+                                        className="h-7 w-7"
                                         onClick={() => handleEditMessage(msg)}
                                       >
-                                        <Edit className="h-3 w-3" />
+                                        <Edit className="h-3.5 w-3.5" />
                                       </Button>
                                     )}
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-6 w-6 text-destructive"
+                                      className="h-7 w-7 text-destructive hover:text-destructive"
                                       onClick={() => handleDeleteClick(msg)}
                                     >
-                                      <Trash2 className="h-3 w-3" />
+                                      <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   </div>
                                 )}
                               </div>
-                              <div className="rounded-lg bg-background border p-3 shadow-sm">
+                              <div
+                                className={cn(
+                                  "rounded-2xl px-4 py-2.5 max-w-[85%] shadow-sm",
+                                  isOwnMessage
+                                    ? "bg-primary text-primary-foreground rounded-br-md [&_.font-semibold]:text-primary-foreground [&_.bg-primary\\/10]:bg-white/20 [&_.text-primary]:text-primary-foreground"
+                                    : "bg-muted border border-border/50 rounded-bl-md text-foreground"
+                                )}
+                              >
                                 {isEditing ? (
                                   <div className="space-y-2">
                                     <Textarea
                                       value={editingText}
                                       onChange={(e) => setEditingText(e.target.value)}
-                                      className="min-h-[60px]"
+                                      className="min-h-[60px] bg-background"
                                     />
                                     <div className="flex gap-2 justify-end">
                                       <Button
@@ -521,17 +607,17 @@ export default function GrupoDetailPage() {
                                         <X className="h-4 w-4 mr-1" />
                                         Cancelar
                                       </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={handleSaveEdit}
-                                      >
+                                      <Button size="sm" onClick={handleSaveEdit}>
                                         <Check className="h-4 w-4 mr-1" />
                                         Salvar
                                       </Button>
                                     </div>
                                   </div>
                                 ) : (
-                                  <p className="text-sm whitespace-pre-wrap break-words">
+                                  <p className={cn(
+                                    "text-sm whitespace-pre-wrap break-words",
+                                    isOwnMessage ? "text-primary-foreground" : "text-foreground"
+                                  )}>
                                     {renderMessageWithMentions(msg.mensagem)}
                                   </p>
                                 )}
@@ -544,121 +630,137 @@ export default function GrupoDetailPage() {
                   </>
                 )}
               </div>
-              <div className="flex gap-2 pt-2 border-t relative">
-                <div className="flex-1 relative">
-                  <Textarea
-                    ref={inputRef}
-                    value={novaMensagem}
-                    onChange={handleMessageInputChange}
-                    onKeyDown={(e) => {
-                      if (showMentionSuggestions && e.key === "ArrowDown") {
-                        e.preventDefault();
-                      } else if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleEnviarMensagem();
-                      } else if (e.key === "Escape") {
-                        setShowMentionSuggestions(false);
-                      }
-                    }}
-                    placeholder="Digite sua mensagem... Use @ para mencionar alguém"
-                    className="min-h-[60px] resize-none"
-                    rows={2}
-                  />
-                  {showMentionSuggestions && (
-                    <div className="absolute bottom-full left-0 right-0 mb-2 bg-popover border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                      {getMentionSuggestions(mentionQuery).length > 0 ? (
-                        getMentionSuggestions(mentionQuery).map((membro) => {
-                          const nome =
-                            membro.usuario?.raw_user_meta_data?.nome ||
-                            membro.usuario?.raw_user_meta_data?.email ||
-                            "Usuário";
-                          return (
-                            <button
-                              key={membro.id}
-                              type="button"
-                              onClick={() => insertMention(membro)}
-                              className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
-                            >
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(
-                                    membro.usuario?.raw_user_meta_data?.nome,
-                                    membro.usuario?.raw_user_meta_data?.email
-                                  )}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{nome}</span>
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">
-                          Nenhum membro encontrado
-                        </div>
-                      )}
-                    </div>
-                  )}
+              <div className="relative p-4 pt-2 border-t bg-muted/10">
+                {showMentionSuggestions && (
+                  <div className="absolute left-4 right-4 bottom-full mb-2 bg-popover border rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                    {getMentionSuggestions(mentionQuery).length > 0 ? (
+                      getMentionSuggestions(mentionQuery).map((membro) => {
+                        const nome =
+                          membro.usuario?.raw_user_meta_data?.nome ||
+                          membro.usuario?.raw_user_meta_data?.email ||
+                          "Usuário";
+                        return (
+                          <button
+                            key={membro.id}
+                            type="button"
+                            onClick={() => insertMention(membro)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center gap-2 rounded-lg transition-colors"
+                          >
+                            <Avatar className="h-7 w-7">
+                              <AvatarFallback className="text-xs">
+                                {getInitials(
+                                  membro.usuario?.raw_user_meta_data?.nome,
+                                  membro.usuario?.raw_user_meta_data?.email
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">{nome}</span>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="px-3 py-2.5 text-sm text-muted-foreground">
+                        Nenhum membro encontrado
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1 relative">
+                    <Textarea
+                      ref={inputRef}
+                      value={novaMensagem}
+                      onChange={handleMessageInputChange}
+                      onKeyDown={(e) => {
+                        if (showMentionSuggestions && e.key === "ArrowDown") {
+                          e.preventDefault();
+                        } else if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleEnviarMensagem();
+                        } else if (e.key === "Escape") {
+                          setShowMentionSuggestions(false);
+                        }
+                      }}
+                      placeholder="Digite sua mensagem... Use @ para mencionar"
+                      className="min-h-[52px] resize-none rounded-2xl pr-12 border-2 focus-visible:ring-2"
+                      rows={2}
+                    />
+                    <Button
+                      size="icon"
+                      onClick={handleEnviarMensagem}
+                      disabled={!novaMensagem.trim()}
+                      className="absolute right-2 bottom-2 h-9 w-9 rounded-xl"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  onClick={handleEnviarMensagem}
-                  disabled={!novaMensagem.trim()}
-                  className="self-end"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
-        {}
-        <div className="space-y-4">
+
+        {/* Sidebar - alinhada ao topo do card do chat (altura do título + gap) */}
+        <div className="space-y-4 pt-[4.25rem] lg:pt-[4.25rem]">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between text-base">
                 <div className="flex items-center gap-2">
-                  <Library className="h-5 w-5" />
+                  <div className="rounded-lg bg-primary/10 p-1.5">
+                    <Library className="h-4 w-4 text-primary" />
+                  </div>
                   Materiais do Grupo
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    window.location.href = `/biblioteca?grupo_id=${grupoId}`;
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Adicionar
-                </Button>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-9 w-9 shrink-0"
+                        onClick={() => {
+                          window.location.href = `/biblioteca?grupo_id=${grupoId}`;
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Adicionar</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Materiais compartilhados neste grupo aparecerão aqui.
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    window.location.href = `/biblioteca?grupo_id=${grupoId}`;
-                  }}
-                >
-                  <Library className="h-4 w-4 mr-2" />
-                  Ver todos os materiais do grupo
-                </Button>
-              </div>
+            <CardContent className="pt-0">
+              <p className="text-sm text-muted-foreground mb-4">
+                Materiais compartilhados neste grupo aparecerão aqui.
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full rounded-lg"
+                onClick={() => {
+                  window.location.href = `/biblioteca?grupo_id=${grupoId}`;
+                }}
+              >
+                <Library className="h-4 w-4 mr-2" />
+                Ver todos os materiais
+              </Button>
             </CardContent>
           </Card>
+
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <div className="rounded-lg bg-primary/10 p-1.5">
+                  <Users className="h-4 w-4 text-primary" />
+                </div>
                 Membros ({membros.length})
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <CardContent className="pt-0">
+              <div className="space-y-1 max-h-[280px] overflow-y-auto">
                 {membros.map((membro) => {
                   const nomeUsuario =
                     membro.usuario?.raw_user_meta_data?.nome ||
@@ -669,20 +771,18 @@ export default function GrupoDetailPage() {
                   return (
                     <div
                       key={membro.id}
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-muted transition-colors"
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/60 transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
-                            {getInitials(nomeUsuario, emailUsuario)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">
-                          {nomeUsuario}
-                        </span>
-                      </div>
+                      <Avatar className="h-9 w-9 shrink-0">
+                        <AvatarFallback className="text-xs font-medium">
+                          {getInitials(nomeUsuario, emailUsuario)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium truncate flex-1 min-w-0">
+                        {nomeUsuario}
+                      </span>
                       {membro.role === "admin" && (
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md shrink-0">
                           Admin
                         </span>
                       )}
@@ -700,24 +800,26 @@ export default function GrupoDetailPage() {
                 (m) =>
                   m.user_id === currentUserId || m.usuario?.id === currentUserId
               )?.role === "admin") && (
-              <Card className="border-orange-500/30 bg-orange-500/5 dark:bg-orange-950/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400 text-base">
-                    <UserPlus className="h-4 w-4" />
+              <Card className="border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base text-amber-700 dark:text-amber-400">
+                    <div className="rounded-lg bg-amber-500/20 p-1.5">
+                      <UserPlus className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    </div>
                     Solicitações pendentes
                     {solicitacoes.length > 0 && (
-                      <span className="text-sm font-normal text-muted-foreground">
+                      <span className="text-sm font-normal text-amber-600/80 dark:text-amber-400/80">
                         ({solicitacoes.length})
                       </span>
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   {solicitacoes.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
                       {grupoInfo?.requer_aprovacao
                         ? "Nenhuma solicitação pendente. Quem pedir para entrar no grupo aparecerá aqui."
-                        : "Nenhuma solicitação pendente. Para receber pedidos de entrada aqui, crie um novo grupo privado com a opção \"Requer aprovação do admin\" ativada."}
+                        : "Para receber pedidos de entrada, crie um grupo privado com \"Requer aprovação do admin\" ativado."}
                     </p>
                   ) : (
                     <div className="space-y-2">

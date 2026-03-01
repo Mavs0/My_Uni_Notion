@@ -59,6 +59,7 @@ import {
   EyeOff,
   Save,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AccessibilitySettingsStandalone } from "@/components/AccessibilitySettings";
@@ -166,6 +167,8 @@ export default function ConfiguracoesPage() {
     domainName: string;
   }>({ open: false, domainId: "", domainName: "" });
   const [confirmClearData, setConfirmClearData] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
   useEffect(() => {
     setMounted(true);
     const savedNotifAval = localStorage.getItem(
@@ -611,6 +614,46 @@ export default function ConfiguracoesPage() {
       window.location.reload();
     }, 1500);
   };
+  const handleEnviarConvite = async () => {
+    const email = inviteEmail.trim();
+    if (!email) {
+      toast.error(t.configuracoes.conviteErro, {
+        description: locale === "pt-BR" ? "Informe um e-mail." : "Enter an email.",
+      });
+      return;
+    }
+    setInviteLoading(true);
+    try {
+      const res = await fetch("/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const isRateLimit = data.errorCode === "rate_limit";
+        if (isRateLimit) {
+          toast.warning(t.configuracoes.conviteRateLimitTitulo, {
+            description: t.configuracoes.conviteRateLimitDesc,
+            duration: 10_000,
+            action: {
+              label: t.configuracoes.conviteTentarMaisTarde,
+              onClick: () => {},
+            },
+          });
+        } else {
+          toast.error(t.configuracoes.conviteErro, {
+            description: data.error || (locale === "pt-BR" ? "Tente novamente." : "Try again."),
+          });
+        }
+        return;
+      }
+      toast.success(t.configuracoes.conviteEnviado);
+      setInviteEmail("");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
 
   const getIntegrationsStatusCount = () => {
     let count = 0;
@@ -879,6 +922,41 @@ export default function ConfiguracoesPage() {
               </CardContent>
             </Card>
           )}
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <div className="p-2 rounded-lg bg-emerald-500/10">
+                  <UserPlus className="h-5 w-5 text-emerald-500" />
+                </div>
+                {t.configuracoes.conviteUsuario}
+              </CardTitle>
+              <CardDescription className="text-base">
+                {t.configuracoes.conviteUsuarioDesc}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  type="email"
+                  placeholder={t.configuracoes.emailPlaceholder}
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleEnviarConvite}
+                  disabled={inviteLoading}
+                  className="shrink-0"
+                >
+                  {inviteLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  {t.configuracoes.enviarConvite}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           <Card className="border-2 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-xl">

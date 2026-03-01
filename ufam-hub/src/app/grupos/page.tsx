@@ -720,27 +720,36 @@ export default function GruposPage() {
                           <span className="font-mono text-xs font-semibold">
                             {grupo.codigo_acesso}
                           </span>
-                          <TooltipProvider delayDuration={300}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() =>
-                                    handleCopyCodigo(grupo.codigo_acesso!)
-                                  }
-                                  className="p-1 hover:bg-muted rounded transition-colors"
-                                >
-                                  {codigoCopiado === grupo.codigo_acesso ? (
-                                    <Check className="h-3 w-3 text-green-500" />
-                                  ) : (
-                                    <Copy className="h-3 w-3" />
-                                  )}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Copiar código</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          {grupo.ativo === false ? (
+                            <span
+                              className="p-1 rounded cursor-not-allowed opacity-50"
+                              title="Desarquive o grupo para copiar o código"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </span>
+                          ) : (
+                            <TooltipProvider delayDuration={300}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() =>
+                                      handleCopyCodigo(grupo.codigo_acesso!)
+                                    }
+                                    className="p-1 hover:bg-muted rounded transition-colors"
+                                  >
+                                    {codigoCopiado === grupo.codigo_acesso ? (
+                                      <Check className="h-3 w-3 text-green-500" />
+                                    ) : (
+                                      <Copy className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Copiar código</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                       )}
                   </div>
@@ -752,41 +761,82 @@ export default function GruposPage() {
                   </div>
                 </div>
                 <div className="flex gap-2 pt-4 mt-auto">
-                  <Button
-                    asChild
-                    variant="default"
-                    size="sm"
-                    className="flex-1 h-9 min-w-0"
-                  >
-                    <Link
-                      href={`/grupos/${grupo.id}`}
-                      className="flex items-center justify-center gap-2"
+                  {grupo.ativo === false ? (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="flex-1 h-9 min-w-0 pointer-events-none opacity-70"
+                            disabled
+                          >
+                            <MessageSquare className="h-4 w-4 shrink-0" />
+                            Abrir
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Desarquive o grupo para abrir</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <Button
+                      asChild
+                      variant="default"
+                      size="sm"
+                      className="flex-1 h-9 min-w-0"
                     >
-                      <MessageSquare className="h-4 w-4 shrink-0" />
-                      Abrir
-                    </Link>
-                  </Button>
-                  <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9 shrink-0"
-                          onClick={() => {
-                            const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
-                            navigator.clipboard.writeText(link);
-                            toast.success("Link de convite copiado!");
-                          }}
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Copiar link de convite</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                      <Link
+                        href={`/grupos/${grupo.id}`}
+                        className="flex items-center justify-center gap-2"
+                      >
+                        <MessageSquare className="h-4 w-4 shrink-0" />
+                        Abrir
+                      </Link>
+                    </Button>
+                  )}
+                  {grupo.ativo === false ? (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 shrink-0 pointer-events-none opacity-70"
+                            disabled
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Desarquive o grupo para compartilhar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 shrink-0"
+                            onClick={() => {
+                              const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
+                              navigator.clipboard.writeText(link);
+                              toast.success("Link de convite copiado!");
+                            }}
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Copiar link de convite</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               </CardContent>
             </Card>

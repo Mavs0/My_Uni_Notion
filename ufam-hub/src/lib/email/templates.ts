@@ -416,7 +416,7 @@ export function createConfirmacaoEmail(data: {
   const nomeFormatado = nome || "estudante";
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
-  const subject = "🎓 Confirme seu email - UFAM Hub";
+  const subject = "Confirme seu e-mail - UFAM Hub";
   const html = `
 <!DOCTYPE html>
 <html>
@@ -424,180 +424,143 @@ export function createConfirmacaoEmail(data: {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-color: #18181b;
+      padding: 32px 20px;
+      min-height: 100vh;
     }
-    .container {
+    .outer {
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: #27272a;
+      border-radius: 16px;
+      padding: 40px 24px 32px;
+    }
+    .logo-row {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fafafa;
+      letter-spacing: -0.02em;
+    }
+    .card {
       background-color: #ffffff;
       border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      padding: 40px 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
     }
-    .header {
+    .card-icon {
       text-align: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 2px solid #e5e5e5;
+      margin-bottom: 20px;
     }
-    .logo {
+    .card-icon span {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 64px;
-      height: 64px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      margin-bottom: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background-color: #f4f4f5;
+      color: #52525b;
+      font-size: 24px;
     }
-    .header h1 {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin: 0;
-      font-size: 28px;
+    .card h1 {
+      font-size: 22px;
       font-weight: 700;
+      color: #18181b;
+      text-align: center;
+      margin-bottom: 16px;
     }
-    .content {
-      margin-bottom: 30px;
+    .card p {
+      font-size: 15px;
+      color: #3f3f46;
+      margin-bottom: 12px;
     }
-    .welcome-text {
-      font-size: 18px;
-      color: #333;
+    .card .greeting {
       margin-bottom: 20px;
     }
-    .message-box {
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      border-left: 4px solid #667eea;
-      padding: 20px;
-      margin: 25px 0;
-      border-radius: 8px;
-    }
-    .message-box p {
-      margin: 0;
-      color: #333;
-      font-size: 15px;
-    }
-    .button-container {
+    .btn-wrap {
       text-align: center;
-      margin: 30px 0;
+      margin: 28px 0 24px;
     }
-    .button {
+    .btn {
       display: inline-block;
-      padding: 16px 32px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 14px 28px;
+      background-color: #18181b;
       color: #ffffff !important;
       text-decoration: none;
       border-radius: 8px;
       font-weight: 600;
-      font-size: 16px;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-      transition: transform 0.2s, box-shadow 0.2s;
+      font-size: 15px;
     }
-    .button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-    }
-    .info-box {
-      background-color: #f8f9fa;
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 20px 0;
-    }
-    .info-text {
+    .fallback {
       font-size: 13px;
-      color: #666;
-      margin: 5px 0;
+      color: #71717a;
+      margin-top: 20px;
+    }
+    .fallback-link {
+      word-break: break-all;
+      font-size: 12px;
+      color: #18181b;
+      margin-top: 8px;
+      display: block;
     }
     .footer {
       text-align: center;
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 2px solid #e5e5e5;
-      color: #666;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #3f3f46;
+    }
+    .footer p {
       font-size: 12px;
+      color: #a1a1aa;
+      margin: 4px 0;
     }
-    .footer a {
-      color: #667eea;
-      text-decoration: none;
-    }
-    .divider {
-      height: 1px;
-      background: linear-gradient(to right, transparent, #e5e5e5, transparent);
-      margin: 25px 0;
+    .footer .brand {
+      font-weight: 600;
+      color: #fafafa;
+      margin-bottom: 8px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="logo">
-        <span style="font-size: 32px; color: white;">🎓</span>
-      </div>
-      <h1>UFAM Hub</h1>
-      <p style="color: #666; margin-top: 8px;">Organizador acadêmico pessoal com IA</p>
+  <div class="outer">
+    <div class="logo-row">
+      <span class="logo-text">UFAM Hub</span>
     </div>
-    <div class="content">
-      <p class="welcome-text">Olá, <strong>${nomeFormatado}</strong>! 👋</p>
-      <p>Bem-vindo ao <strong>UFAM Hub</strong>! Estamos muito felizes em tê-lo conosco.</p>
-      <div class="message-box">
-        <p><strong>Por favor, confirme seu email</strong> para ativar sua conta e começar a organizar seus estudos.</p>
+    <div class="card">
+      <div class="card-icon">
+        <span>✉️</span>
       </div>
-      <p>Clique no botão abaixo para confirmar seu endereço de email:</p>
-      <div class="button-container">
-        <a href="${confirmationLink}" class="button">
-          Confirmar Email
-        </a>
+      <h1>Confirmar e-mail</h1>
+      <p class="greeting">Olá, <strong>${nomeFormatado}</strong>! Obrigado por se cadastrar no <strong>UFAM Hub</strong>. Por favor, confirme seu e-mail clicando no botão abaixo para ativar sua conta.</p>
+      <div class="btn-wrap">
+        <a href="${confirmationLink}" class="btn">Confirmar meu e-mail</a>
       </div>
-      <div class="divider"></div>
-      <div class="info-box">
-        <p class="info-text"><strong>Não consegue clicar no botão?</strong></p>
-        <p class="info-text">Você também pode confirmar seu email acessando a plataforma e fazendo login. O link de confirmação também foi enviado pelo Supabase.</p>
-        <p class="info-text" style="margin-top: 10px;">
-          Ou copie e cole o link abaixo no seu navegador:
-        </p>
-        <p class="info-text" style="word-break: break-all; color: #667eea; font-family: monospace; font-size: 11px; margin-top: 5px;">
-          ${confirmationLink}
-        </p>
-      </div>
-      <p style="margin-top: 25px; color: #666; font-size: 14px;">
-        <strong>Importante:</strong> Você receberá também um email do Supabase com o link oficial de confirmação. Use qualquer um dos dois links para confirmar sua conta.
-      </p>
-      <p style="margin-top: 15px; color: #666; font-size: 14px;">
-        Se você não criou uma conta no UFAM Hub, pode ignorar este email com segurança.
-      </p>
+      <p class="fallback">Ou clique no link abaixo se o botão não funcionar:</p>
+      <a href="${confirmationLink}" class="fallback-link">${confirmationLink}</a>
     </div>
     <div class="footer">
-      <p><strong>UFAM Hub</strong></p>
+      <p class="brand">UFAM Hub</p>
       <p>Organize seus estudos de forma inteligente</p>
-      <p style="margin-top: 15px;">
-        <a href="${appUrl}">Acessar plataforma</a>
-      </p>
-      <p style="margin-top: 20px; font-size: 11px; color: #999;">
-        Este é um email automático. Por favor, não responda.
-      </p>
+      <p style="margin-top: 12px;">&copy; ${new Date().getFullYear()} UFAM Hub. Todos os direitos reservados.</p>
     </div>
   </div>
 </body>
 </html>
   `;
   const text = `
-UFAM Hub - Confirmação de Email
+UFAM Hub - Confirmação de E-mail
 Olá, ${nomeFormatado}!
-Bem-vindo ao UFAM Hub! Estamos muito felizes em tê-lo conosco.
-Por favor, confirme seu email para ativar sua conta e começar a organizar seus estudos.
-Clique no link abaixo para confirmar seu endereço de email:
-${confirmationLink}
-Se você não conseguir clicar no link, copie e cole o endereço acima no seu navegador.
-Importante: Você receberá também um email do Supabase com o link oficial de confirmação. Use qualquer um dos dois links para confirmar sua conta.
-Se você não criou uma conta no UFAM Hub, pode ignorar este email com segurança.
+Obrigado por se cadastrar no UFAM Hub. Confirme seu e-mail para ativar sua conta.
+Link de confirmação: ${confirmationLink}
+Se você não criou uma conta no UFAM Hub, ignore este e-mail.
 ---
 UFAM Hub - Organize seus estudos de forma inteligente
 ${appUrl}

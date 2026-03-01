@@ -143,8 +143,8 @@ function DisciplinaCard({
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
+      draggable={!isArquivada}
+      onDragStart={isArquivada ? undefined : onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
@@ -162,7 +162,10 @@ function DisciplinaCard({
         {/* Header */}
         <div className="mb-4 flex items-start justify-between gap-3">
           {/* Drag Handle */}
-          <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground mt-1">
+          <div className={cn(
+            "mt-1 text-muted-foreground",
+            isArquivada ? "cursor-not-allowed opacity-50" : "cursor-grab active:cursor-grabbing hover:text-foreground"
+          )}>
             <GripVertical className="h-5 w-5" />
           </div>
 
@@ -314,6 +317,11 @@ function DisciplinaCard({
                 </div>
               )}
             </>
+          ) : isArquivada ? (
+            <span className="inline-flex items-center gap-1 text-muted-foreground">
+              <Plus className="h-3 w-3" />
+              Desarquive para editar horários e detalhes
+            </span>
           ) : (
             <Link
               href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}
@@ -327,17 +335,38 @@ function DisciplinaCard({
       </div>
       {/* Botão Abrir fixo no rodapé */}
       <div className="mt-auto pt-4 shrink-0">
-        <Button
-          asChild
-          variant="default"
-          size="sm"
-          className="w-full shadow-sm"
-        >
-          <a href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}>
-            <GraduationCap className="h-4 w-4 mr-2" />
-            Abrir
-          </a>
-        </Button>
+        {isArquivada ? (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full shadow-sm pointer-events-none opacity-70"
+                  disabled
+                >
+                  <GraduationCap className="h-4 w-4 mr-2" />
+                  Abrir
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Desarquive a disciplina para abrir</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <Button
+            asChild
+            variant="default"
+            size="sm"
+            className="w-full shadow-sm"
+          >
+            <a href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}>
+              <GraduationCap className="h-4 w-4 mr-2" />
+              Abrir
+            </a>
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -374,8 +403,8 @@ function DisciplinaCardList({
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
+      draggable={!isArquivada}
+      onDragStart={isArquivada ? undefined : onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
@@ -390,7 +419,10 @@ function DisciplinaCardList({
     >
       <div className="flex items-start gap-4">
         {/* Drag Handle */}
-        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground mt-1">
+        <div className={cn(
+          "mt-1 text-muted-foreground",
+          isArquivada ? "cursor-not-allowed opacity-50" : "cursor-grab active:cursor-grabbing hover:text-foreground"
+        )}>
           <GripVertical className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
@@ -446,19 +478,38 @@ function DisciplinaCardList({
             ) : !disciplina.professor &&
               !disciplina.local &&
               (!disciplina.horarios || disciplina.horarios.length === 0) ? (
-              <Link
-                href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}
-                className="text-muted-foreground hover:text-foreground hover:underline text-xs"
-              >
-                Adicione horários e detalhes
-              </Link>
+              isArquivada ? (
+                <span className="text-muted-foreground text-xs">Desarquive para editar</span>
+              ) : (
+                <Link
+                  href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}
+                  className="text-muted-foreground hover:text-foreground hover:underline text-xs"
+                >
+                  Adicione horários e detalhes
+                </Link>
+              )
             ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button asChild variant="outline" size="sm">
-            <a href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}>Abrir</a>
-          </Button>
+          {isArquivada ? (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" disabled className="pointer-events-none opacity-70">
+                    Abrir
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Desarquive a disciplina para abrir</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Button asChild variant="outline" size="sm">
+              <a href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}>Abrir</a>
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

@@ -23,6 +23,8 @@ import {
   FileText,
   Users,
   Library,
+  MoreVertical,
+  AlertCircle,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
@@ -39,6 +41,7 @@ import {
 } from "@/components/dashboard/DashboardSkeletons";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Button } from "@/components/ui/button";
+import { Card as UICard, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import {
   BarChart,
@@ -56,32 +59,66 @@ import {
   ResponsiveContainer,
 } from "recharts";
 const GoogleCalendarIntegration = dynamic(
-  () => import("@/components/GoogleCalendarIntegration").then((m) => m.GoogleCalendarIntegration),
-  { ssr: false, loading: () => <div className="rounded-lg border p-6 animate-pulse"><div className="h-32 bg-muted rounded" /></div> }
+  () =>
+    import("@/components/GoogleCalendarIntegration").then(
+      (m) => m.GoogleCalendarIntegration,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-lg border p-6 animate-pulse">
+        <div className="h-32 bg-muted rounded" />
+      </div>
+    ),
+  },
 );
 const SyncDisciplinasWithCalendar = dynamic(
-  () => import("@/components/GoogleCalendarIntegration").then((m) => m.SyncDisciplinasWithCalendar),
-  { ssr: false }
+  () =>
+    import("@/components/GoogleCalendarIntegration").then(
+      (m) => m.SyncDisciplinasWithCalendar,
+    ),
+  { ssr: false },
 );
 import {
   useDisciplinas,
   type Disciplina,
 } from "@/hooks/useDisciplinasOptimized";
 import { useAvaliacoes, type Avaliacao } from "@/hooks/useAvaliacoesOptimized";
+import { useTarefas, type Tarefa } from "@/hooks/useTarefas";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 const WidgetGrid = dynamic(
   () => import("@/components/dashboard/WidgetGrid").then((m) => m.WidgetGrid),
-  { ssr: false, loading: () => <div className="rounded-lg border p-6 animate-pulse"><div className="h-48 bg-muted rounded" /></div> }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-lg border p-6 animate-pulse">
+        <div className="h-48 bg-muted rounded" />
+      </div>
+    ),
+  },
 );
 import { Widget } from "@/components/dashboard/DashboardWidget";
+import { DashboardLayoutNew } from "@/components/dashboard/DashboardLayoutNew";
 const RecommendationsWidget = dynamic(
-  () => import("@/components/RecommendationsWidget").then((m) => m.RecommendationsWidget),
-  { ssr: false }
+  () =>
+    import("@/components/RecommendationsWidget").then(
+      (m) => m.RecommendationsWidget,
+    ),
+  { ssr: false },
 );
 const WidgetSelector = dynamic(
-  () => import("@/components/dashboard/WidgetSelector").then((m) => m.WidgetSelector),
-  { ssr: false }
+  () =>
+    import("@/components/dashboard/WidgetSelector").then(
+      (m) => m.WidgetSelector,
+    ),
+  { ssr: false },
 );
-
 
 type TTipo = "obrigatoria" | "eletiva" | "optativa";
 
@@ -94,7 +131,7 @@ function daysUntil(dtISO: string) {
   const now = new Date();
   const target = new Date(dtISO);
   const diff = Math.ceil(
-    (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
   );
   return diff;
 }
@@ -229,7 +266,7 @@ const GradeSemanalCompacta = memo(function GradeSemanalCompacta({
   }
   function inSlot(
     a: { inicio: string; fim: string },
-    slot: { inicio: string; fim: string }
+    slot: { inicio: string; fim: string },
   ) {
     return a.inicio === slot.inicio && a.fim === slot.fim;
   }
@@ -268,7 +305,7 @@ const GradeSemanalCompacta = memo(function GradeSemanalCompacta({
               {DIAS.slice(1, 7).map((_, idx) => {
                 const dia = idx + 1;
                 const aulasDoDia = aulas.filter(
-                  (a) => a.dia === dia && inSlot(a, slot)
+                  (a) => a.dia === dia && inSlot(a, slot),
                 );
                 return (
                   <div
@@ -282,7 +319,7 @@ const GradeSemanalCompacta = memo(function GradeSemanalCompacta({
                             key={a.id}
                             href={`/disciplinas/${a.disciplinaId}`}
                             className={`block rounded border p-1.5 text-[10px] leading-tight hover:opacity-80 transition-opacity ${typeClass(
-                              a.tipo
+                              a.tipo,
                             )}`}
                             title={`${a.nome} - ${a.inicio}–${a.fim}${
                               a.local ? ` • ${a.local}` : ""
@@ -350,7 +387,7 @@ const EventosSemana = memo(function EventosSemana({
       return data >= hoje && data <= fimSemana;
     })
     .sort(
-      (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+      (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime(),
     )
     .slice(0, 5);
   const proximasAulas = useMemo(() => {
@@ -399,7 +436,7 @@ const EventosSemana = memo(function EventosSemana({
     });
     return aulas
       .sort(
-        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime(),
       )
       .slice(0, 5);
   }, [disciplinas]);
@@ -424,7 +461,7 @@ const EventosSemana = memo(function EventosSemana({
       cor: "zinc" as const,
     })),
   ].sort(
-    (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+    (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime(),
   );
   if (todosEventos.length === 0) {
     return (
@@ -458,7 +495,7 @@ const EventosSemana = memo(function EventosSemana({
         dataEvento.setHours(0, 0, 0, 0);
         const isHoje = dataEvento.getTime() === hoje.getTime();
         const dias = Math.ceil(
-          (data.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+          (data.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
         );
         const corMap: Record<string, string> = {
           red: "border-red-500/30 bg-red-500/10",
@@ -518,7 +555,7 @@ const EventosSemana = memo(function EventosSemana({
                   <div className="mt-1">
                     <span
                       className={`text-xs px-1.5 py-0.5 rounded border ${tipoBadgeAvaliacao(
-                        evento.subtitulo as "prova" | "trabalho" | "seminario"
+                        evento.subtitulo as "prova" | "trabalho" | "seminario",
                       )}`}
                     >
                       {evento.subtitulo}
@@ -597,18 +634,30 @@ export default function DashboardPage() {
     error: errorDisc,
   } = useDisciplinas();
   const { avaliacoes, loading: loadingAv, error: errorAv } = useAvaliacoes();
+  const { tarefas, loading: loadingTarefas, toggleConcluida } = useTarefas();
+
+  const { data: profileData } = useQuery({
+    queryKey: ["profile", "dashboard"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile");
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.profile || null;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
   const { data: estatisticas, isLoading: loadingEstatisticas } = useQuery({
     queryKey: ["estatisticas", periodoEstatisticas],
     queryFn: async () => {
       const res = await fetch(
-        `/api/estatisticas?periodo=${periodoEstatisticas}`
+        `/api/estatisticas?periodo=${periodoEstatisticas}`,
       );
       if (!res.ok) throw new Error("Erro ao buscar estatísticas");
       return res.json();
     },
     staleTime: 1000 * 60 * 5, // 5 minutos
-    enabled: showEstatisticas, // Só buscar quando necessário
+    enabled: true, // Carregar para o gráfico do novo dashboard
   });
 
   const { data: metasData, isLoading: loadingMetas } = useQuery({
@@ -682,9 +731,13 @@ export default function DashboardPage() {
         }),
       });
       if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+        const error = await res
+          .json()
+          .catch(() => ({ error: "Erro desconhecido" }));
         console.error("Erro ao salvar widgets:", error);
-        throw new Error(error.details || error.error || "Erro ao salvar widgets");
+        throw new Error(
+          error.details || error.error || "Erro ao salvar widgets",
+        );
       }
       return res.json();
     },
@@ -697,8 +750,8 @@ export default function DashboardPage() {
     if (isNewUser) {
       setShowChecklist(true);
       const timer = setTimeout(() => {
-              setShowTour(true);
-            }, 2000);
+        setShowTour(true);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [isNewUser]);
@@ -706,7 +759,7 @@ export default function DashboardPage() {
   const hoje = weekdayIndex();
   const disciplinasMap = useMemo(
     () => new Map(disciplinas.map((d) => [d.id, d])),
-    [disciplinas]
+    [disciplinas],
   );
   const hojeNaGrade = useMemo(() => {
     const hojeHorarios: Array<{
@@ -729,13 +782,15 @@ export default function DashboardPage() {
         }
       });
     });
-    return hojeHorarios.sort((a, b) => (a.inicio ?? "").localeCompare(b.inicio ?? ""));
+    return hojeHorarios.sort((a, b) =>
+      (a.inicio ?? "").localeCompare(b.inicio ?? ""),
+    );
   }, [hoje, disciplinas]);
   const proximasAvaliacoes = useMemo(() => {
     const base = avaliacoes
       .filter((a) => new Date(a.dataISO) > new Date())
       .sort(
-        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
+        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime(),
       );
     if (!search) return base;
     return base.filter((a) => {
@@ -746,8 +801,80 @@ export default function DashboardPage() {
   }, [search, disciplinasMap, avaliacoes]);
   const totalDisciplinas = disciplinas.length;
   const totalAvaliacoesSemana = proximasAvaliacoes.filter(
-    (a) => daysUntil(a.dataISO) <= 7
+    (a) => daysUntil(a.dataISO) <= 7,
   ).length;
+
+  const nomeUsuario =
+    profileData?.nome || profileData?.email?.split("@")[0] || "Estudante";
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return "Bom dia";
+    if (h >= 12 && h < 18) return "Boa tarde";
+    return "Boa noite";
+  })();
+
+  const hojeISO = useMemo(() => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const prioridadesHoje = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const amanha = new Date(hoje);
+    amanha.setDate(amanha.getDate() + 1);
+
+    const tarefasHoje = tarefas
+      .filter((t) => !t.concluida && t.dataVencimento)
+      .filter((t) => {
+        const v = new Date(t.dataVencimento!);
+        v.setHours(0, 0, 0, 0);
+        return v.getTime() <= amanha.getTime();
+      })
+      .map((t) => ({
+        type: "tarefa" as const,
+        id: t.id,
+        titulo: t.titulo,
+        subtitulo:
+          t.disciplina ||
+          disciplinasMap.get(t.disciplinaId || "")?.nome ||
+          "Tarefa",
+        data: t.dataVencimento!,
+        prioridade: t.prioridade,
+        concluida: t.concluida,
+        disciplinaId: t.disciplinaId,
+      }));
+
+    const avaliacoesHoje = avaliacoes
+      .filter((a) => {
+        const d = new Date(a.dataISO);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime() === hoje.getTime();
+      })
+      .map((a) => ({
+        type: "avaliacao" as const,
+        id: a.id,
+        titulo: a.descricao || a.tipo,
+        subtitulo: disciplinasMap.get(a.disciplinaId)?.nome || "Avaliação",
+        data: a.dataISO,
+        prioridade:
+          a.tipo === "prova"
+            ? "alta"
+            : a.tipo === "trabalho"
+              ? "media"
+              : "baixa",
+        disciplinaId: a.disciplinaId,
+      }));
+
+    const merged = [...tarefasHoje, ...avaliacoesHoje].sort((a, b) => {
+      const pa = a.prioridade === "alta" ? 3 : a.prioridade === "media" ? 2 : 1;
+      const pb = b.prioridade === "alta" ? 3 : b.prioridade === "media" ? 2 : 1;
+      if (pa !== pb) return pb - pa;
+      return new Date(a.data).getTime() - new Date(b.data).getTime();
+    });
+    return merged;
+  }, [tarefas, avaliacoes, disciplinasMap]);
   const progressoHoras = useMemo(() => {
     const tipos: Array<{
       tipo: "obrigatoria" | "eletiva" | "optativa";
@@ -769,6 +896,87 @@ export default function DashboardPage() {
       pct: (h.horasCumpridas / Math.max(1, h.horasNecessarias)) * 100,
     }));
   }, [disciplinas]);
+
+  const eventosSemana = useMemo(() => {
+    const hoje = new Date();
+    const fimSemana = new Date(hoje);
+    fimSemana.setDate(hoje.getDate() + 7);
+    const avaliacoesSemana = avaliacoes
+      .filter((a) => {
+        const data = new Date(a.dataISO);
+        return data >= hoje && data <= fimSemana;
+      })
+      .sort(
+        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime(),
+      );
+    const proximasAulas: Array<{
+      disciplinaId: string;
+      disciplina: string;
+      diaNome: string;
+      inicio: string;
+      fim: string;
+      dataISO: string;
+    }> = [];
+    disciplinas.forEach((disc) => {
+      disc.horarios?.forEach((h) => {
+        const diaAtual = hoje.getDay();
+        let diasParaProximo = (h.dia - diaAtual + 7) % 7;
+        if (diasParaProximo === 0 && h.dia === diaAtual) {
+          const [hora, minuto] = h.inicio.split(":").map(Number);
+          const horarioInicio = new Date(hoje);
+          horarioInicio.setHours(hora, minuto, 0, 0);
+          if (hoje < horarioInicio) diasParaProximo = 0;
+          else diasParaProximo = 7;
+        }
+        const proximaData = new Date(hoje);
+        proximaData.setDate(hoje.getDate() + diasParaProximo);
+        proximaData.setHours(0, 0, 0, 0);
+        if (proximaData <= fimSemana) {
+          proximasAulas.push({
+            disciplinaId: disc.id,
+            disciplina: disc.nome,
+            diaNome: DIAS[h.dia],
+            inicio: h.inicio,
+            fim: h.fim,
+            dataISO: proximaData.toISOString(),
+          });
+        }
+      });
+    });
+    const ordenado = [
+      ...avaliacoesSemana.map((a) => ({
+        id: a.id,
+        tipo: "avaliacao" as const,
+        titulo: disciplinasMap.get(a.disciplinaId)?.nome ?? "Avaliação",
+        subtitulo: a.tipo,
+        dataISO: a.dataISO,
+        cor: a.tipo === "prova" ? "red" : a.tipo === "trabalho" ? "blue" : "emerald",
+      })),
+      ...proximasAulas
+        .sort(
+          (a, b) =>
+            new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime(),
+        )
+        .map((a) => ({
+          id: `aula-${a.disciplinaId}-${a.dataISO}`,
+          tipo: "aula" as const,
+          titulo: a.disciplina,
+          subtitulo: `${a.diaNome} ${a.inicio}–${a.fim}`,
+          dataISO: a.dataISO,
+          cor: "zinc" as const,
+        })),
+    ].sort(
+      (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime(),
+    );
+    return ordenado;
+  }, [avaliacoes, disciplinas, disciplinasMap]);
+
+  const horasEstudadasStr =
+    estatisticas?.horasPorDisciplina?.reduce(
+      (acc: number, item: { horasEstudadas: number }) =>
+        acc + item.horasEstudadas,
+      0,
+    ) ?? 0;
 
   const widgets = useMemo<Widget[]>(() => {
     const defaultWidgets: Widget[] = [
@@ -829,8 +1037,8 @@ export default function DashboardPage() {
                       {dias > 0
                         ? `Em ${dias} ${dias === 1 ? "dia" : "dias"}`
                         : dias === 0
-                        ? "Hoje"
-                        : "Passou"}
+                          ? "Hoje"
+                          : "Passou"}
                     </div>
                   </div>
                 </div>
@@ -911,7 +1119,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   );
-                }
+                },
               )}
           </div>
         ) : null,
@@ -922,48 +1130,49 @@ export default function DashboardPage() {
         title: "Horas Estudadas por Semana",
         size: "medium",
         visible: !!estatisticas,
-        content: estatisticas && estatisticas.horasPorSemana ? (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={estatisticas.horasPorSemana}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                <XAxis 
-                  dataKey="semana" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="horas" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(var(--primary))", r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ) : loadingEstatisticas ? (
-          <div className="h-64 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <EmptyState
-            icon={BarChart3}
-            title="Sem dados de horas estudadas"
-            description="Comece a registrar suas horas de estudo para ver gráficos aqui."
-          />
-        ),
+        content:
+          estatisticas && estatisticas.horasPorSemana ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={estatisticas.horasPorSemana}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--muted))"
+                  />
+                  <XAxis
+                    dataKey="semana"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--background))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="horas"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : loadingEstatisticas ? (
+            <div className="h-64 flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <EmptyState
+              icon={BarChart3}
+              title="Sem dados de horas estudadas"
+              description="Comece a registrar suas horas de estudo para ver gráficos aqui."
+            />
+          ),
       },
       {
         id: "distribuicao-carga",
@@ -971,33 +1180,39 @@ export default function DashboardPage() {
         title: "Distribuição de Carga",
         size: "small",
         visible: !!estatisticas && estatisticas.distribuicaoCarga?.length > 0,
-        content: estatisticas && estatisticas.distribuicaoCarga?.length > 0 ? (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={estatisticas.distribuicaoCarga}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={(entry: any) => {
-                    const percent = entry.percent || 0;
-                    const nome = entry.nome || entry.name || "";
-                    return `${nome}: ${(percent * 100).toFixed(0)}%`;
-                  }}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="horasSemana"
-                >
-                  {estatisticas.distribuicaoCarga.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        ) : null,
+        content:
+          estatisticas && estatisticas.distribuicaoCarga?.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={estatisticas.distribuicaoCarga}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(entry: any) => {
+                      const percent = entry.percent || 0;
+                      const nome = entry.nome || entry.name || "";
+                      return `${nome}: ${(percent * 100).toFixed(0)}%`;
+                    }}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="horasSemana"
+                  >
+                    {estatisticas.distribuicaoCarga.map(
+                      (entry: any, index: number) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ),
+                    )}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : null,
       },
       {
         id: "produtividade",
@@ -1005,77 +1220,89 @@ export default function DashboardPage() {
         title: "Produtividade",
         size: "small",
         visible: !!estatisticas && estatisticas.produtividade,
-        content: estatisticas && estatisticas.produtividade ? (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Taxa de Conclusão</span>
-                <span className="font-semibold">
-                  {estatisticas.produtividade.taxaConclusao.toFixed(0)}%
-                </span>
-              </div>
-              <Progress value={estatisticas.produtividade.taxaConclusao} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-              <div>
-                <div className="text-2xl font-bold">
-                  {estatisticas.produtividade.tarefasConcluidas}
+        content:
+          estatisticas && estatisticas.produtividade ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Taxa de Conclusão
+                  </span>
+                  <span className="font-semibold">
+                    {estatisticas.produtividade.taxaConclusao.toFixed(0)}%
+                  </span>
                 </div>
-                <div className="text-xs text-muted-foreground">Concluídas</div>
+                <Progress value={estatisticas.produtividade.taxaConclusao} />
               </div>
-              <div>
-                <div className="text-2xl font-bold">
-                  {estatisticas.produtividade.tarefasTotal}
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                <div>
+                  <div className="text-2xl font-bold">
+                    {estatisticas.produtividade.tarefasConcluidas}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Concluídas
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">Total</div>
+                <div>
+                  <div className="text-2xl font-bold">
+                    {estatisticas.produtividade.tarefasTotal}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Total</div>
+                </div>
               </div>
             </div>
-          </div>
-        ) : null,
+          ) : null,
       },
       {
         id: "comparativo-desempenho",
         type: "comparativo-desempenho",
         title: "Comparativo de Desempenho",
         size: "medium",
-        visible: !!estatisticas && estatisticas.comparativoDesempenho?.length > 0,
-        content: estatisticas && estatisticas.comparativoDesempenho?.length > 0 ? (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={estatisticas.comparativoDesempenho.slice(0, 5)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                <XAxis 
-                  dataKey="disciplinaNome" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={10}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Bar 
-                  dataKey="media" 
-                  fill="hsl(var(--primary))"
-                  radius={[4, 4, 0, 0]}
-                >
-                  {estatisticas.comparativoDesempenho.slice(0, 5).map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ) : null,
+        visible:
+          !!estatisticas && estatisticas.comparativoDesempenho?.length > 0,
+        content:
+          estatisticas && estatisticas.comparativoDesempenho?.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={estatisticas.comparativoDesempenho.slice(0, 5)}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--muted))"
+                  />
+                  <XAxis
+                    dataKey="disciplinaNome"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--background))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Bar
+                    dataKey="media"
+                    fill="hsl(var(--primary))"
+                    radius={[4, 4, 0, 0]}
+                  >
+                    {estatisticas.comparativoDesempenho
+                      .slice(0, 5)
+                      .map((entry: any, index: number) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : null,
       },
       {
         id: "evolucao-medias",
@@ -1083,45 +1310,51 @@ export default function DashboardPage() {
         title: "Evolução de Médias",
         size: "large",
         visible: !!estatisticas && estatisticas.evolucaoMedias?.length > 0,
-        content: estatisticas && estatisticas.evolucaoMedias?.length > 0 ? (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                <XAxis 
-                  dataKey="mes" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  domain={[0, 10]}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Legend />
-                {estatisticas.evolucaoMedias.slice(0, 3).map((disciplina: any, index: number) => (
-                  <Line
-                    key={disciplina.disciplinaId}
-                    type="monotone"
-                    dataKey="media"
-                    data={disciplina.medias}
-                    name={disciplina.disciplinaNome}
-                    stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
+        content:
+          estatisticas && estatisticas.evolucaoMedias?.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--muted))"
                   />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ) : null,
+                  <XAxis
+                    dataKey="mes"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    domain={[0, 10]}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--background))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Legend />
+                  {estatisticas.evolucaoMedias
+                    .slice(0, 3)
+                    .map((disciplina: any, index: number) => (
+                      <Line
+                        key={disciplina.disciplinaId}
+                        type="monotone"
+                        dataKey="media"
+                        data={disciplina.medias}
+                        name={disciplina.disciplinaNome}
+                        stroke={COLORS[index % COLORS.length]}
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                      />
+                    ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : null,
       },
       {
         id: "calendario-mensal",
@@ -1133,7 +1366,10 @@ export default function DashboardPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-7 gap-1 text-xs">
               {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((dia) => (
-                <div key={dia} className="text-center font-medium text-muted-foreground py-1">
+                <div
+                  key={dia}
+                  className="text-center font-medium text-muted-foreground py-1"
+                >
                   {dia}
                 </div>
               ))}
@@ -1141,15 +1377,31 @@ export default function DashboardPage() {
             <div className="grid grid-cols-7 gap-1">
               {Array.from({ length: 35 }, (_, i) => {
                 const date = new Date();
-                const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+                const firstDay = new Date(
+                  date.getFullYear(),
+                  date.getMonth(),
+                  1,
+                ).getDay();
                 const day = i - firstDay + 1;
-                const isCurrentMonth = day > 0 && day <= new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+                const isCurrentMonth =
+                  day > 0 &&
+                  day <=
+                    new Date(
+                      date.getFullYear(),
+                      date.getMonth() + 1,
+                      0,
+                    ).getDate();
                 const isToday = isCurrentMonth && day === date.getDate();
-                const hasEvent = isCurrentMonth && avaliacoes.some((a) => {
-                  const avalDate = new Date(a.dataISO);
-                  return avalDate.getDate() === day && avalDate.getMonth() === date.getMonth();
-                });
-                
+                const hasEvent =
+                  isCurrentMonth &&
+                  avaliacoes.some((a) => {
+                    const avalDate = new Date(a.dataISO);
+                    return (
+                      avalDate.getDate() === day &&
+                      avalDate.getMonth() === date.getMonth()
+                    );
+                  });
+
                 return (
                   <div
                     key={i}
@@ -1192,7 +1444,9 @@ export default function DashboardPage() {
                   <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Você tem {proximasAvaliacoes.length} avaliação{proximasAvaliacoes.length > 1 ? "ões" : ""} próxima{proximasAvaliacoes.length > 1 ? "s" : ""}
+                      Você tem {proximasAvaliacoes.length} avaliação
+                      {proximasAvaliacoes.length > 1 ? "ões" : ""} próxima
+                      {proximasAvaliacoes.length > 1 ? "s" : ""}
                     </p>
                     <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
                       Revise seus materiais de estudo
@@ -1207,7 +1461,8 @@ export default function DashboardPage() {
                   <Calendar className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                      {hojeNaGrade.length} aula{hojeNaGrade.length > 1 ? "s" : ""} hoje
+                      {hojeNaGrade.length} aula
+                      {hojeNaGrade.length > 1 ? "s" : ""} hoje
                     </p>
                     <p className="text-xs text-green-700 dark:text-green-300 mt-1">
                       Não se esqueça de levar seus materiais
@@ -1216,30 +1471,34 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-            {metas.length > 0 && metas.some((m: any) => {
-              const progresso = m.valor_alvo > 0 ? (m.valor_atual / m.valor_alvo) * 100 : 0;
-              return progresso >= 80 && progresso < 100;
-            }) && (
-              <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 p-3">
-                <div className="flex items-start gap-2">
-                  <Target className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                      Você está próximo de alcançar suas metas!
-                    </p>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                      Continue assim para completá-las
-                    </p>
+            {metas.length > 0 &&
+              metas.some((m: any) => {
+                const progresso =
+                  m.valor_alvo > 0 ? (m.valor_atual / m.valor_alvo) * 100 : 0;
+                return progresso >= 80 && progresso < 100;
+              }) && (
+                <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 p-3">
+                  <div className="flex items-start gap-2">
+                    <Target className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                        Você está próximo de alcançar suas metas!
+                      </p>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                        Continue assim para completá-las
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            {(!proximasAvaliacoes.length && !hojeNaGrade.length && metas.length === 0) && (
-              <div className="text-center py-4 text-muted-foreground text-sm">
-                <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>Nenhum insight no momento</p>
-              </div>
-            )}
+              )}
+            {!proximasAvaliacoes.length &&
+              !hojeNaGrade.length &&
+              metas.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground text-sm">
+                  <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Nenhum insight no momento</p>
+                </div>
+              )}
           </div>
         ),
       },
@@ -1248,16 +1507,16 @@ export default function DashboardPage() {
     if (widgetsConfig?.widgets && widgetsConfig.widgets.length > 0) {
       const savedOrder = [...widgetsConfig.widgets].sort(
         (a: { position: number }, b: { position: number }) =>
-          a.position - b.position
+          a.position - b.position,
       );
 
       const defaultWidgetsMapById = new Map(
-        defaultWidgets.map((w) => [w.id, w])
+        defaultWidgets.map((w) => [w.id, w]),
       );
       const defaultWidgetsMapByType = new Map(
-        defaultWidgets.map((w) => [w.type, w])
+        defaultWidgets.map((w) => [w.type, w]),
       );
-      
+
       const shouldAddDefaults = !isNewUser;
 
       interface SavedWidget {
@@ -1275,14 +1534,15 @@ export default function DashboardPage() {
 
       const mappedWidgets = savedOrder
         .map((saved: SavedWidget) => {
-          const defaultWidget = 
+          const defaultWidget =
             (saved.id && defaultWidgetsMapById.get(saved.id)) ||
-            (saved.widget_type && defaultWidgetsMapByType.get(saved.widget_type));
-          
+            (saved.widget_type &&
+              defaultWidgetsMapByType.get(saved.widget_type));
+
           if (defaultWidget) {
             mappedWidgetIds.add(defaultWidget.id);
             mappedWidgetTypes.add(defaultWidget.type);
-            
+
             return {
               ...defaultWidget,
               size: (saved.size || defaultWidget.size || "medium") as
@@ -1295,26 +1555,28 @@ export default function DashboardPage() {
           }
           return null;
         })
-        .filter((w): w is NonNullable<typeof w> => w !== null && w.id !== undefined)
+        .filter(
+          (w): w is NonNullable<typeof w> => w !== null && w.id !== undefined,
+        )
         .map((w) => ({
           ...w,
           size: (w.size || "medium") as "small" | "medium" | "large",
         })) as Widget[];
 
-      const newWidgets = shouldAddDefaults 
+      const newWidgets = shouldAddDefaults
         ? defaultWidgets.filter(
-            (w) => !mappedWidgetIds.has(w.id) && !mappedWidgetTypes.has(w.type)
+            (w) => !mappedWidgetIds.has(w.id) && !mappedWidgetTypes.has(w.type),
           )
         : [];
-      
+
       const allWidgetsMap = new Map<string, Widget>();
-      
+
       mappedWidgets.forEach((w) => {
         if (!allWidgetsMap.has(w.id)) {
           allWidgetsMap.set(w.id, w);
         }
       });
-      
+
       newWidgets.forEach((w) => {
         if (!allWidgetsMap.has(w.id)) {
           allWidgetsMap.set(w.id, {
@@ -1323,14 +1585,14 @@ export default function DashboardPage() {
           });
         }
       });
-      
+
       return Array.from(allWidgetsMap.values());
     }
 
     if (isNewUser) {
       return [];
     }
-    
+
     return defaultWidgets.map((w) => ({
       ...w,
       size: (w.size || "medium") as "small" | "medium" | "large",
@@ -1357,7 +1619,7 @@ export default function DashboardPage() {
     async (newWidgets: Widget[]) => {
       await saveWidgetsMutation.mutateAsync(newWidgets);
     },
-    [saveWidgetsMutation]
+    [saveWidgetsMutation],
   );
 
   const allAvailableWidgets = useMemo(() => {
@@ -1475,7 +1737,9 @@ export default function DashboardPage() {
 
   const createWidgetFromType = useCallback(
     (widgetType: string): Widget | null => {
-      const widgetOption = allAvailableWidgets.find((w) => w.type === widgetType);
+      const widgetOption = allAvailableWidgets.find(
+        (w) => w.type === widgetType,
+      );
       if (!widgetOption) return null;
 
       const baseWidget: Widget = {
@@ -1489,7 +1753,7 @@ export default function DashboardPage() {
 
       return baseWidget;
     },
-    [allAvailableWidgets]
+    [allAvailableWidgets],
   );
 
   const handleAddWidget = useCallback(
@@ -1499,7 +1763,9 @@ export default function DashboardPage() {
         return; // Widget já existe
       }
 
-      const widgetOption = allAvailableWidgets.find((w) => w.type === widgetType);
+      const widgetOption = allAvailableWidgets.find(
+        (w) => w.type === widgetType,
+      );
       if (!widgetOption) return;
 
       const newWidget: Widget = {
@@ -1508,16 +1774,20 @@ export default function DashboardPage() {
         title: widgetOption.title,
         size: widgetOption.size,
         visible: true,
-        content: <div className="p-4 text-center text-muted-foreground">Carregando widget...</div>, // Placeholder temporário
+        content: (
+          <div className="p-4 text-center text-muted-foreground">
+            Carregando widget...
+          </div>
+        ), // Placeholder temporário
       };
 
       const updatedWidgets = [...widgets, newWidget];
       await handleReorder(updatedWidgets);
       setShowWidgetSelector(false);
-      
+
       queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] });
     },
-    [widgets, handleReorder, allAvailableWidgets, queryClient]
+    [widgets, handleReorder, allAvailableWidgets, queryClient],
   );
   if (loadingDisc || loadingAv) {
     return (
@@ -1556,37 +1826,40 @@ export default function DashboardPage() {
   }
   return (
     <main
-      className="mx-auto max-w-6xl space-y-6 p-6"
+      className="min-h-screen"
       data-tour="dashboard"
       role="main"
       aria-label="Dashboard principal"
     >
-      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {totalDisciplinas} disciplinas · {totalAvaliacoesSemana} avaliações esta semana
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/ajuda">
-              <HelpCircle className="h-4 w-4 mr-2" />
-              Ajuda
-            </Link>
-          </Button>
-          {isNewUser && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowTour(true)}
-              aria-label="Iniciar tour guiado do dashboard"
-            >
-              Iniciar Tour
-            </Button>
-          )}
-        </div>
-      </header>
+      <DashboardLayoutNew
+        greeting={greeting}
+        nomeUsuario={nomeUsuario}
+        dataHoje={new Date().toLocaleDateString("pt-BR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}
+        totalDisciplinas={totalDisciplinas}
+        totalAvaliacoesSemana={totalAvaliacoesSemana}
+        aulasHoje={hojeNaGrade.length}
+        horasEstudadas={
+          typeof horasEstudadasStr === "number"
+            ? `${horasEstudadasStr}h`
+            : "0h"
+        }
+        proximasAvaliacoes={proximasAvaliacoes}
+        disciplinasMap={disciplinasMap}
+        prioridadesHoje={prioridadesHoje}
+        toggleConcluida={toggleConcluida}
+        loadingTarefas={loadingTarefas}
+        loadingAv={loadingAv}
+        hojeNaGrade={hojeNaGrade}
+        estatisticas={estatisticas}
+        loadingEstatisticas={loadingEstatisticas}
+        profileData={profileData}
+        avaliacoes={avaliacoes}
+        eventosSemana={eventosSemana}
+      />
 
       {/* Checklist de Onboarding */}
       {showChecklist && <OnboardingChecklist />}
@@ -1605,376 +1878,6 @@ export default function DashboardPage() {
 
       {/* Dicas Contextuais Inteligentes */}
       <TipManager pagina="/dashboard" maxTips={1} />
-
-      {/* Estatísticas rápidas */}
-      {loadingDisc || loadingAv ? (
-        <StatsSkeleton />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <BookOpen className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <div className="text-xl font-bold">{totalDisciplinas}</div>
-              <div className="text-xs text-muted-foreground">Disciplinas</div>
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-              <GraduationCap className="h-5 w-5 text-amber-500" />
-            </div>
-            <div>
-              <div className="text-xl font-bold">{totalAvaliacoesSemana}</div>
-              <div className="text-xs text-muted-foreground">Avaliações (7d)</div>
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-              <Clock className="h-5 w-5 text-blue-500" />
-            </div>
-            <div>
-              <div className="text-xl font-bold">{hojeNaGrade.length}</div>
-              <div className="text-xs text-muted-foreground">Aulas hoje</div>
-            </div>
-          </div>
-          {estatisticas && (
-            <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">
-                  {estatisticas.horasPorDisciplina
-                    .reduce(
-                      (acc: number, item: { horasEstudadas: number }) =>
-                        acc + item.horasEstudadas,
-                      0
-                    )
-                    .toFixed(0)}
-                  h
-                </div>
-                <div className="text-xs text-muted-foreground">Estudadas</div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Widgets arrastáveis */}
-      <WidgetGrid
-        widgets={widgets}
-        onReorder={handleReorder}
-        onToggleVisibility={async (id) => {
-          const updated = widgets.map((w) =>
-            w.id === id ? { ...w, visible: !w.visible } : w
-          );
-          await handleReorder(updated);
-        }}
-        onAddWidget={() => setShowWidgetSelector(true)}
-        availableWidgets={allAvailableWidgets}
-      />
-
-      {/* Dialog de seleção de widgets */}
-      <WidgetSelector
-        availableWidgets={allAvailableWidgets}
-        currentWidgets={widgets}
-        onAddWidget={handleAddWidget}
-        open={showWidgetSelector}
-        onOpenChange={setShowWidgetSelector}
-      />
-      {}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <GoogleCalendarIntegration />
-        </div>
-        <div className="space-y-4">
-          <SyncDisciplinasWithCalendar />
-          <Card title="Esta Semana">
-            {loadingAv || loadingDisc ? (
-              <EventosSemanaSkeleton />
-            ) : (
-              <EventosSemana
-                avaliacoes={proximasAvaliacoes}
-                hojeNaGrade={hojeNaGrade}
-                disciplinasMap={disciplinasMap}
-                disciplinas={disciplinas}
-              />
-            )}
-          </Card>
-        </div>
-      </div>
-      {}
-      {loadingEstatisticas ? (
-        <EstatisticasSkeleton />
-      ) : estatisticas ? (
-        <Card title="Estatísticas de Estudo">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Visualize seu progresso e desempenho
-            </p>
-            <button
-              onClick={() => setShowEstatisticas(!showEstatisticas)}
-              className="text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
-              aria-label={
-                showEstatisticas
-                  ? "Ocultar estatísticas"
-                  : "Mostrar estatísticas"
-              }
-              aria-expanded={showEstatisticas}
-            >
-              {showEstatisticas ? "Ocultar" : "Mostrar"} estatísticas
-            </button>
-          </div>
-          {showEstatisticas && (
-            <div className="space-y-6 pt-4 border-t">
-              <div
-                className="flex gap-2"
-                role="group"
-                aria-label="Selecionar período das estatísticas"
-              >
-                <Button
-                  variant={periodoEstatisticas === 7 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPeriodoEstatisticas(7)}
-                  aria-pressed={periodoEstatisticas === 7}
-                  aria-label="Estatísticas dos últimos 7 dias"
-                >
-                  7 dias
-                </Button>
-                <Button
-                  variant={periodoEstatisticas === 30 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPeriodoEstatisticas(30)}
-                  aria-pressed={periodoEstatisticas === 30}
-                  aria-label="Estatísticas dos últimos 30 dias"
-                >
-                  30 dias
-                </Button>
-                <Button
-                  variant={periodoEstatisticas === 90 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPeriodoEstatisticas(90)}
-                  aria-pressed={periodoEstatisticas === 90}
-                  aria-label="Estatísticas dos últimos 90 dias"
-                >
-                  90 dias
-                </Button>
-              </div>
-              {loadingEstatisticas ? (
-                <EstatisticasSkeleton />
-              ) : estatisticas ? (
-                <>
-              <div className="grid grid-cols-3 gap-3">
-                {(() => {
-                  const mediasComNota =
-                    estatisticas.comparativoDesempenho.filter(
-                          (item: { media: number | null }) =>
-                            item.media !== null
-                    );
-                  const mediaGeral =
-                    mediasComNota.length > 0
-                      ? mediasComNota.reduce(
-                              (acc: number, item: { media: number | null }) =>
-                                acc + (item.media || 0),
-                          0
-                        ) / mediasComNota.length
-                      : null;
-                  return (
-                    <>
-                      <div className="rounded-lg border p-3 text-center">
-                        <div className="text-xl font-bold">
-                              {mediaGeral !== null
-                                ? mediaGeral.toFixed(1)
-                                : "—"}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Média Geral
-                        </div>
-                      </div>
-                      <div className="rounded-lg border p-3 text-center">
-                        <div className="text-xl font-bold">
-                          {estatisticas.produtividade.tarefasConcluidas}/
-                          {estatisticas.produtividade.tarefasTotal}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Tarefas
-                        </div>
-                      </div>
-                      <div className="rounded-lg border p-3 text-center">
-                        <div className="text-xl font-bold">
-                          {
-                            estatisticas.horasPorDisciplina.filter(
-                                  (d: { horasEstudadas: number }) =>
-                                    d.horasEstudadas > 0
-                            ).length
-                          }
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Ativas
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-              {estatisticas.horasPorDisciplina.length > 0 && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium mb-3">
-                      Horas por Disciplina
-                    </h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart
-                            data={estatisticas.horasPorDisciplina.map(
-                              (item: {
-                                disciplinaNome: string;
-                                horasEstudadas: number;
-                              }) => ({
-                          nome: item.disciplinaNome,
-                          horas: item.horasEstudadas,
-                              })
-                            )}
-                      >
-                            <CartesianGrid
-                              strokeDasharray="3 3"
-                              opacity={0.3}
-                            />
-                        <XAxis
-                          dataKey="nome"
-                          angle={-45}
-                          textAnchor="end"
-                          height={60}
-                          fontSize={11}
-                        />
-                        <YAxis fontSize={11} />
-                        <Tooltip />
-                        <Bar
-                          dataKey="horas"
-                          fill="#3b82f6"
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  {estatisticas.comparativoDesempenho.filter(
-                        (item: { media: number | null }) => item.media !== null
-                  ).length > 0 && (
-                    <div>
-                          <h3 className="text-sm font-medium mb-3">
-                            Desempenho
-                          </h3>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <BarChart
-                          data={estatisticas.comparativoDesempenho
-                                .filter(
-                                  (item: { media: number | null }) =>
-                                    item.media !== null
-                                )
-                                .map(
-                                  (item: {
-                                    disciplinaNome: string;
-                                    media: number | null;
-                                  }) => ({
-                              nome: item.disciplinaNome,
-                              media: item.media || 0,
-                                  })
-                                )
-                                .sort(
-                                  (
-                                    a: { media: number },
-                                    b: { media: number }
-                                  ) => b.media - a.media
-                                )}
-                          layout="vertical"
-                        >
-                              <CartesianGrid
-                                strokeDasharray="3 3"
-                                opacity={0.3}
-                              />
-                              <XAxis
-                                type="number"
-                                domain={[0, 10]}
-                                fontSize={11}
-                              />
-                          <YAxis
-                            dataKey="nome"
-                            type="category"
-                            width={80}
-                            fontSize={11}
-                          />
-                          <Tooltip />
-                          <Bar
-                            dataKey="media"
-                            fill="#10b981"
-                            radius={[0, 4, 4, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </div>
-              )}
-                </>
-              ) : null}
-            </div>
-          )}
-        </Card>
-      ) : null}
-      {}
-      <div className="space-y-4">
-          {loadingMetas ? (
-            <MetasSkeleton />
-          ) : metas.length > 0 ? (
-            <Card title="Metas de Estudo">
-              <div className="space-y-3">
-                {metas
-                  .slice(0, 3)
-                  .map(
-                    (meta: {
-                      id: string;
-                      descricao?: string;
-                      tipo: string;
-                      valor_atual: number;
-                      valor_alvo: number;
-                    }) => {
-                  const progresso =
-                    meta.valor_alvo > 0
-                      ? (meta.valor_atual / meta.valor_alvo) * 100
-                      : 0;
-                  return (
-                    <div key={meta.id} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-medium truncate">
-                          {meta.descricao || meta.tipo.replace("_", " ")}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {progresso.toFixed(0)}%
-                        </span>
-                      </div>
-                      <Progress value={Math.min(100, progresso)} />
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>
-                          {meta.valor_atual.toFixed(1)} / {meta.valor_alvo}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                    }
-                  )}
-                <Link
-                  href="/metas"
-                  className="text-xs text-primary hover:underline flex items-center gap-1"
-                >
-                  Ver todas as metas
-                  <LinkIcon className="h-3 w-3" />
-                </Link>
-              </div>
-            </Card>
-          ) : null}
-          <RecommendationsWidget limit={5} />
-      </div>
-      {}
     </main>
   );
 }

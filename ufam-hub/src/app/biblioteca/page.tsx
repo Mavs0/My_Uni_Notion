@@ -48,6 +48,10 @@ import {
   EyeOff,
   ChevronLeft,
   ChevronRight,
+  Pin,
+  PinOff,
+  FolderOpen,
+  Share2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -58,6 +62,34 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+const BIBLIOTECA_PINNED_KEY = "biblioteca-pinned";
+
+function getMaterialIcon(tipo: string) {
+  switch (tipo) {
+    case "link":
+      return LinkIcon;
+    case "anotacao":
+    case "flashcard":
+      return FileText;
+    default:
+      return FolderOpen;
+  }
+}
+
+function formatAgo(dateStr: string) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return "Hoje";
+  if (diffDays === 1) return "Ontem";
+  if (diffDays < 7) return `Há ${diffDays} dias`;
+  if (diffDays < 30) return `Há ${Math.floor(diffDays / 7)} semana(s)`;
+  return `Há ${Math.floor(diffDays / 30)} mês(es)`;
+}
+
 interface Material {
   id: string;
   titulo: string;
@@ -71,6 +103,7 @@ interface Material {
   downloads: number;
   ativo?: boolean;
   user_id?: string;
+  grupo_id?: string | null;
   curtidas: number;
   tags?: string[];
   created_at: string;
@@ -78,6 +111,7 @@ interface Material {
     id: string;
     nome: string;
   };
+  visibilidade?: string;
   usuario?: {
     id: string;
     raw_user_meta_data?: {
@@ -132,6 +166,21 @@ export default function BibliotecaPage() {
   const [dialogShake, setDialogShake] = useState(false);
   const [addMaterialStep, setAddMaterialStep] = useState(1);
 
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(BIBLIOTECA_PINNED_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [quickAccessMaterials, setQuickAccessMaterials] = useState<Material[]>([]);
+  const [recentTableMaterials, setRecentTableMaterials] = useState<Material[]>([]);
+  const [pinnedMaterials, setPinnedMaterials] = useState<Material[]>([]);
+  const [loadingQuick, setLoadingQuick] = useState(true);
+  const [loadingPinned, setLoadingPinned] = useState(false);
+
   useEffect(() => {
     if (grupoIdFromUrl && !filtroGrupo) {
       setFiltroGrupo(grupoIdFromUrl);
@@ -139,6 +188,65 @@ export default function BibliotecaPage() {
     loadGrupos();
     loadCurrentUser();
   }, [grupoIdFromUrl]);
+
+  const loadQuickAndRecent = useCallback(async () => {
+    setLoadingQuick(true);
+    try {
+      const res = await fetch(
+        `/api/colaboracao/biblioteca?ordenar=recentes&limit=10&offset=0`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = (data.materiais || []).filter((m: Material) => m.ativo !== false);
+      setQuickAccessMaterials(list.slice(0, 4));
+      setRecentTableMaterials(list);
+    } catch (e) {
+      console.error("Erro ao carregar acesso rápido/recentes:", e);
+    } finally {
+      setLoadingQuick(false);
+    }
+  }, []);
+
+  const loadPinned = useCallback(async () => {
+    if (pinnedIds.length === 0) {
+      setPinnedMaterials([]);
+      return;
+    }
+    setLoadingPinned(true);
+    try {
+      const res = await fetch(
+        `/api/colaboracao/biblioteca?ids=${pinnedIds.join(",")}&limit=20`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = (data.materiais || []).filter((m: Material) => m.ativo !== false);
+      setPinnedMaterials(list);
+    } catch (e) {
+      console.error("Erro ao carregar fixados:", e);
+    } finally {
+      setLoadingPinned(false);
+    }
+  }, [pinnedIds.join(",")]);
+
+  useEffect(() => {
+    loadQuickAndRecent();
+  }, [loadQuickAndRecent]);
+
+  useEffect(() => {
+    loadPinned();
+  }, [loadPinned]);
+
+  const togglePin = (materialId: string) => {
+    setPinnedIds((prev) => {
+      const next = prev.includes(materialId)
+        ? prev.filter((id) => id !== materialId)
+        : [...prev, materialId];
+      try {
+        localStorage.setItem(BIBLIOTECA_PINNED_KEY, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   const loadCurrentUser = async () => {
     try {
@@ -173,7 +281,7 @@ export default function BibliotecaPage() {
       ? gruposPublicos
       : [];
 
-  const ITEMS_PER_PAGE = 9;
+  const ITEMS_PER_PAGE = 6;
   const [page, setPage] = useState(1);
   const [materiaisInfinite, setMateriaisInfinite] = useState<Material[]>([]);
   const [loadingInfinite, setLoadingInfinite] = useState(false);
@@ -1253,6 +1361,207 @@ export default function BibliotecaPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Acesso rápido */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Acesso rápido</h2>
+        {loadingQuick ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="p-4">
+                <div className="animate-pulse flex flex-col gap-2">
+                  <div className="h-10 w-10 rounded-lg bg-muted" />
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/2" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : quickAccessMaterials.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {quickAccessMaterials.map((m) => {
+              const Icon = getMaterialIcon(m.tipo);
+              return (
+                <Card
+                  key={m.id}
+                  className="p-4 cursor-pointer hover:shadow-md transition-shadow border"
+                  onClick={() => (window.location.href = `/biblioteca/${m.id}`)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{m.titulo}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatAgo(m.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                    {(m.grupo?.nome || m.visibilidade === "publico") && (
+                      <Share2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Nenhum material recente. Adicione um material para ver aqui.
+          </p>
+        )}
+      </section>
+
+      {/* Materiais fixados */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Fixados</h2>
+        {loadingPinned && pinnedIds.length > 0 ? (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="flex-shrink-0 w-[200px] p-4">
+                <div className="animate-pulse flex flex-col gap-2">
+                  <div className="h-10 w-10 rounded-lg bg-muted" />
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/2" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : pinnedMaterials.length > 0 ? (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {pinnedMaterials.map((m) => {
+              const Icon = getMaterialIcon(m.tipo);
+              return (
+                <Card
+                  key={m.id}
+                  className="flex-shrink-0 w-[200px] p-4 cursor-pointer hover:shadow-md transition-shadow border relative"
+                  onClick={() => (window.location.href = `/biblioteca/${m.id}`)}
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 text-primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePin(m.id);
+                    }}
+                    title="Desfixar"
+                  >
+                    <PinOff className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-3 pr-8">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{m.titulo}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatAgo(m.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Fixe materiais para acessá-los rapidamente. Use o ícone de alfinete ao ver um material.
+          </p>
+        )}
+      </section>
+
+      {/* Editados recentemente (tabela) */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Editados recentemente</h2>
+        {loadingQuick ? (
+          <Card>
+            <CardContent className="p-4">
+              <div className="animate-pulse space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-12 bg-muted rounded" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : recentTableMaterials.length > 0 ? (
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left py-3 px-4 font-medium">Material</th>
+                    <th className="text-left py-3 px-4 font-medium">Atividade</th>
+                    <th className="text-left py-3 px-4 font-medium">Usuário</th>
+                    <th className="text-left py-3 px-4 font-medium">Última modificação</th>
+                    <th className="text-left py-3 px-4 font-medium">Compartilhado com</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTableMaterials.map((m) => {
+                    const Icon = getMaterialIcon(m.tipo);
+                    const nomeUsuario =
+                      m.usuario?.raw_user_meta_data?.nome ||
+                      m.usuario?.raw_user_meta_data?.email ||
+                      "—";
+                    const iniciais = nomeUsuario.slice(0, 2).toUpperCase();
+                    return (
+                      <tr
+                        key={m.id}
+                        className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => (window.location.href = `/biblioteca/${m.id}`)}
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded flex items-center justify-center bg-primary/10 flex-shrink-0">
+                              <Icon className="h-4 w-4 text-primary" />
+                            </div>
+                            <span className="font-medium truncate max-w-[180px]">{m.titulo}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {m.grupo_id ? "Compartilhado" : "Pessoal"}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs">{iniciais}</AvatarFallback>
+                            </Avatar>
+                            <span className="truncate max-w-[120px]">{nomeUsuario}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {formatAgo(m.created_at)}
+                        </td>
+                        <td className="py-3 px-4">
+                          {m.grupo ? (
+                            <span className="text-muted-foreground text-xs flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {m.grupo.nome}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Nenhum material recente.
+          </p>
+        )}
+      </section>
+
+      <div className="border-t pt-6 mt-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Todos os materiais</h2>
+      </div>
       {loadingInfinite && materiaisFiltrados.length === 0 ? (
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -1284,38 +1593,68 @@ export default function BibliotecaPage() {
             {totalMateriais === 1 ? "material" : "materiais"}
           </p>
         )}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {materiaisFiltrados.map((material) => (
-              <div key={material.id}>
+              <div key={material.id} className="flex min-h-[380px]">
                 <Card
-                  className={`hover:shadow-md transition-shadow cursor-pointer ${
+                  className={`flex flex-col h-full w-full min-h-[380px] hover:shadow-md transition-shadow cursor-pointer ${
                     material.ativo === false ? "opacity-60" : ""
                   }`}
                   onClick={() => {
                     window.location.href = `/biblioteca/${material.id}`;
                   }}
                 >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-lg">
+                  <CardHeader className="flex-shrink-0 space-y-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CardTitle className="text-lg line-clamp-2">
                             {material.titulo}
                           </CardTitle>
                           {material.ativo === false && (
-                            <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+                            <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded flex-shrink-0">
                               Arquivado
                             </span>
                           )}
                         </div>
-                        {material.descricao && (
-                          <CardDescription className="mt-1 line-clamp-2">
-                            {material.descricao}
-                          </CardDescription>
-                        )}
+                        <CardDescription className="mt-1 line-clamp-2 min-h-[2.5rem]">
+                          {material.descricao || "\u00A0"}
+                        </CardDescription>
                       </div>
                       <div className="flex items-center gap-2">
-                        {/* Botão de arquivar (só aparece para o dono) */}
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${
+                                  pinnedIds.includes(material.id)
+                                    ? "text-primary hover:bg-primary/10"
+                                    : "text-muted-foreground hover:text-primary"
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  togglePin(material.id);
+                                  if (!pinnedIds.includes(material.id)) {
+                                    toast.success("Material fixado");
+                                  } else {
+                                    toast.success("Material desfixado");
+                                  }
+                                }}
+                              >
+                                <Pin className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {pinnedIds.includes(material.id)
+                                  ? "Desfixar material"
+                                  : "Fixar material"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         {material.user_id === currentUserId && (
                           <TooltipProvider delayDuration={300}>
                             <Tooltip>
@@ -1372,9 +1711,9 @@ export default function BibliotecaPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <CardContent className="flex-1 flex flex-col pt-0">
+                    <div className="flex-1 flex flex-col space-y-3 min-h-0">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground flex-shrink-0">
                         <div className="flex items-center gap-1">
                           <Eye className="h-4 w-4" />
                           <span>{material.visualizacoes || 0}</span>
@@ -1388,45 +1727,49 @@ export default function BibliotecaPage() {
                           <span>{material.curtidas || 0}</span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        {material.usuario && (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <User className="h-4 w-4" />
-                            <span>
+                      <div className="flex items-center justify-between text-sm flex-shrink-0">
+                        {material.usuario ? (
+                          <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                            <User className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">
                               {material.usuario.raw_user_meta_data?.nome ||
                                 material.usuario.raw_user_meta_data?.email ||
                                 "Usuário"}
                             </span>
                           </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                         {material.grupo && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
+                          <div className="flex items-center gap-1 text-muted-foreground flex-shrink-0">
                             <Users className="h-3 w-3" />
-                            <span className="text-xs">
+                            <span className="text-xs truncate max-w-[100px]">
                               {material.grupo.nome}
                             </span>
                           </div>
                         )}
                       </div>
-                      {material.tags && material.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {material.tags.slice(0, 3).map((tag, idx) => (
-                            <span
-                              key={idx}
-                              className="text-xs bg-muted px-2 py-0.5 rounded flex items-center gap-1"
-                            >
-                              <Tag className="h-3 w-3" />
-                              {tag}
-                            </span>
-                          ))}
-                          {material.tags.length > 3 && (
-                            <span className="text-xs text-muted-foreground">
-                              +{material.tags.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex flex-wrap gap-1 min-h-[1.75rem] overflow-hidden">
+                        {material.tags && material.tags.length > 0 ? (
+                          <>
+                            {material.tags.slice(0, 3).map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="text-xs bg-muted px-2 py-0.5 rounded flex items-center gap-1"
+                              >
+                                <Tag className="h-3 w-3" />
+                                {tag}
+                              </span>
+                            ))}
+                            {material.tags.length > 3 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{material.tags.length - 3}
+                              </span>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+                      <div className="flex gap-2 pt-2 mt-auto flex-shrink-0">
                         <Button
                           variant="default"
                           size="sm"

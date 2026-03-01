@@ -50,6 +50,16 @@ export async function GET(
       );
     }
 
+    if (grupo.ativo === false) {
+      return NextResponse.json(
+        {
+          error: "Grupo arquivado. Desarquive para acessar.",
+          codigo: "GRUPO_ARQUIVADO",
+        },
+        { status: 403 }
+      );
+    }
+
     let membro;
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const adminClient = createSupabaseAdmin();

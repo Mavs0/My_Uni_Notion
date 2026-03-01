@@ -3,7 +3,13 @@ import { useTheme } from "next-themes";
 import { Moon, Sun, Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "./button";
-export function ThemeToggle() {
+import { cn } from "@/lib/utils";
+
+interface ThemeToggleProps {
+  variant?: "default" | "floating";
+}
+
+export function ThemeToggle({ variant = "default" }: ThemeToggleProps) {
   const { setTheme, theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -31,29 +37,33 @@ export function ThemeToggle() {
       console.error("Erro ao salvar preferência de tema:", error);
     }
   };
+  const iconSize = variant === "floating" ? "h-6 w-6" : "h-5 w-5";
   const getIcon = () => {
     if (theme === "system") {
-      return <Monitor className="h-5 w-5" />;
+      return <Monitor className={iconSize} />;
     }
     return resolvedTheme === "dark" ? (
-      <Sun className="h-5 w-5" />
+      <Sun className={iconSize} />
     ) : (
-      <Moon className="h-5 w-5" />
+      <Moon className={iconSize} />
     );
   };
   return (
     <Button
-      variant="ghost"
-      size="icon"
+      variant={variant === "floating" ? "default" : "ghost"}
+      size={variant === "floating" ? "lg" : "icon"}
       onClick={cycleTheme}
       aria-label="Alternar tema"
       title={
         theme === "system"
           ? "Tema do sistema (clique para mudar)"
           : theme === "dark"
-          ? "Tema escuro (clique para mudar)"
-          : "Tema claro (clique para mudar)"
+            ? "Tema escuro (clique para mudar)"
+            : "Tema claro (clique para mudar)"
       }
+      className={cn(
+        variant === "floating" && "h-14 w-14 rounded-full shadow-lg p-0",
+      )}
     >
       {getIcon()}
     </Button>

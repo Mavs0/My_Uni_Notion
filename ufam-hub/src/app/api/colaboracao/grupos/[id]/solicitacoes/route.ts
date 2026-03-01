@@ -28,7 +28,7 @@ export async function GET(
       const adminClient = createSupabaseAdmin();
       const result = await adminClient
         .from("grupos_estudo")
-        .select("criador_id, visibilidade, requer_aprovacao")
+        .select("criador_id, visibilidade, requer_aprovacao, ativo")
         .eq("id", grupo_id)
         .single();
       grupo = result.data;
@@ -36,7 +36,7 @@ export async function GET(
     } else {
       const result = await supabase
         .from("grupos_estudo")
-        .select("criador_id, visibilidade, requer_aprovacao")
+        .select("criador_id, visibilidade, requer_aprovacao, ativo")
         .eq("id", grupo_id)
         .single();
       grupo = result.data;
@@ -47,6 +47,13 @@ export async function GET(
       return NextResponse.json(
         { error: "Grupo não encontrado" },
         { status: 404 }
+      );
+    }
+
+    if (grupo.ativo === false) {
+      return NextResponse.json(
+        { error: "Grupo arquivado. Desarquive para acessar.", codigo: "GRUPO_ARQUIVADO" },
+        { status: 403 }
       );
     }
 

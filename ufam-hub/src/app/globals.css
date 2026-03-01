@@ -7,6 +7,31 @@
   20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 
+/* Barra de progresso em todos os toasts (indica tempo até fechar) */
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.toast-with-progress {
+  position: relative;
+  overflow: hidden;
+}
+
+.toast-with-progress::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.3;
+  transform-origin: left;
+  animation: toast-progress var(--toast-duration, 4s) linear forwards;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
 /* Modo Foco Styles */
 body.focus-mode-active {
   overflow: hidden;

@@ -3,6 +3,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, lazy, Suspense } from "react";
 import TopBar from "../components/ui/topbar";
 import { Sidebar } from "../components/ui/sidebar";
+import { CommandPaletteProvider } from "../components/ui/command-palette";
 import { MobileMenuProvider } from "../components/ui/mobile-menu-context";
 import { SkipLink } from "../components/SkipLink";
 import { useGlobalShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -52,7 +53,7 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
   const { isActive: isFocusModeActive, settings } = useFocusMode();
 
   return (
-    <>
+    <CommandPaletteProvider>
       <FocusMode />
       {!isFocusModeActive && (
         <>
@@ -93,7 +94,7 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
         </Suspense>
       )}
       <PomodoroFloatingWidget />
-    </>
+    </CommandPaletteProvider>
   );
 }
 

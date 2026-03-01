@@ -154,6 +154,8 @@ export async function GET(request: NextRequest) {
     const ordenar = searchParams.get("ordenar") || "recentes"; // recentes | visualizacoes | downloads | curtidas
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
+    const idsParam = searchParams.get("ids"); // ids=id1,id2 para fixados
+    const ids = idsParam ? idsParam.split(",").map((id) => id.trim()).filter(Boolean) : null;
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -224,6 +226,10 @@ export async function GET(request: NextRequest) {
       const tagsArray = tags.split(",");
       query = query.contains("tags", tagsArray);
       countQuery = countQuery.contains("tags", tagsArray);
+    }
+    if (ids && ids.length > 0) {
+      query = query.in("id", ids);
+      countQuery = countQuery.in("id", ids);
     }
     console.log("🔍 Buscando materiais com filtros:", {
       tipo,
@@ -296,6 +302,9 @@ export async function GET(request: NextRequest) {
       if (tags) {
         const tagsArray = tags.split(",");
         adminQuery = adminQuery.contains("tags", tagsArray);
+      }
+      if (ids && ids.length > 0) {
+        adminQuery = adminQuery.in("id", ids);
       }
 
       const result = await adminQuery;
