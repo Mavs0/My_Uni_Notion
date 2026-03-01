@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 interface TaskListPanelProps {
   tasks: PomodoroTask[];
   currentTaskId: string | null;
-  onAddTask: (task: Parameters<typeof AddTaskModal>[0]["onAdd"]) => void;
+  onAddTask: (task: Parameters<React.ComponentProps<typeof AddTaskModal>["onAdd"]>[0]) => void;
   onUpdateTask: (id: string, updates: Partial<PomodoroTask>) => void;
   onDeleteTask: (id: string) => void;
   onSelectTask: (id: string | null) => void;
@@ -45,7 +45,7 @@ export function TaskListPanel({
   }, [tasks, search]);
 
   const handleAdd = React.useCallback(
-    (data: Parameters<typeof AddTaskModal>[0]["onAdd"] extends (t: infer T) => void ? T : never) => {
+    (data: Parameters<React.ComponentProps<typeof AddTaskModal>["onAdd"]>[0]) => {
       onAddTask({
         title: data.title,
         category: data.category,
