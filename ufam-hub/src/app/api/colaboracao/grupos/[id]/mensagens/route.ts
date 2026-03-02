@@ -176,7 +176,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -336,7 +336,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

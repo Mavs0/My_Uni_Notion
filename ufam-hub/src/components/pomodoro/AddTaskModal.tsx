@@ -68,7 +68,7 @@ export function AddTaskModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md rounded-2xl">
+      <DialogContent className="sm:max-w-md rounded-2xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="text-lg">Adicionar Tarefa</DialogTitle>
         </DialogHeader>

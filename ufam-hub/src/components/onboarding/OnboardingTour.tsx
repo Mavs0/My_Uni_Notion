@@ -217,6 +217,7 @@ export function OnboardingTour({ open, onComplete, onSkip }: OnboardingTourProps
             phase === "welcome" ? "sm:max-w-md" : "sm:max-w-lg"
           )}
           showCloseButton={false}
+          aria-describedby={undefined}
         >
           <DialogTitle className="sr-only">
             {phase === "welcome" ? "Bem-vindo ao UFAM Hub" : stepData?.title ?? "Tour"}

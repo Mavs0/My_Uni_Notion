@@ -33,6 +33,7 @@ import {
   Trash2,
   X,
   Check,
+  Video,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -102,7 +103,9 @@ export default function GrupoDetailPage() {
   const [solicitacaoAprovar, setSolicitacaoAprovar] =
     useState<Solicitacao | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [mensagemToDelete, setMensagemToDelete] = useState<Mensagem | null>(null);
+  const [mensagemToDelete, setMensagemToDelete] = useState<Mensagem | null>(
+    null,
+  );
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -195,7 +198,7 @@ export default function GrupoDetailPage() {
   const loadMensagens = async () => {
     try {
       const response = await fetch(
-        `/api/colaboracao/grupos/${grupoId}/mensagens`
+        `/api/colaboracao/grupos/${grupoId}/mensagens`,
       );
       if (response.ok) {
         const { mensagens: mensagensData } = await response.json();
@@ -212,7 +215,7 @@ export default function GrupoDetailPage() {
   const loadMembros = async () => {
     try {
       const response = await fetch(
-        `/api/colaboracao/grupos/${grupoId}/membros`
+        `/api/colaboracao/grupos/${grupoId}/membros`,
       );
       if (response.ok) {
         const { membros: membrosData } = await response.json();
@@ -226,7 +229,7 @@ export default function GrupoDetailPage() {
   const loadSolicitacoes = async () => {
     try {
       const response = await fetch(
-        `/api/colaboracao/grupos/${grupoId}/solicitacoes`
+        `/api/colaboracao/grupos/${grupoId}/solicitacoes`,
       );
       if (response.ok) {
         const { solicitacoes: solicitacoesData } = await response.json();
@@ -247,7 +250,7 @@ export default function GrupoDetailPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mensagem: novaMensagem }),
-        }
+        },
       );
       if (response.ok) {
         setNovaMensagem("");
@@ -264,7 +267,7 @@ export default function GrupoDetailPage() {
 
   const handleAprovarSolicitacao = async (
     solicitacaoId: string,
-    aprovar: boolean
+    aprovar: boolean,
   ) => {
     try {
       const response = await fetch(
@@ -273,11 +276,11 @@ export default function GrupoDetailPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ aprovado: aprovar }),
-        }
+        },
       );
       if (response.ok) {
         toast.success(
-          aprovar ? "Solicitação aprovada!" : "Solicitação recusada"
+          aprovar ? "Solicitação aprovada!" : "Solicitação recusada",
         );
         setShowAprovacaoDialog(false);
         setSolicitacaoAprovar(null);
@@ -338,13 +341,15 @@ export default function GrupoDetailPage() {
       .slice(0, 5);
   };
 
-  const handleMessageInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleMessageInputChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
     const value = e.target.value;
     const cursorPos = e.target.selectionStart;
-    
+
     const textBeforeCursor = value.substring(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-    
+
     if (mentionMatch) {
       setMentionQuery(mentionMatch[1]);
       setShowMentionSuggestions(true);
@@ -355,7 +360,7 @@ export default function GrupoDetailPage() {
     } else {
       setShowMentionSuggestions(false);
     }
-    
+
     setNovaMensagem(value);
   };
 
@@ -384,7 +389,7 @@ export default function GrupoDetailPage() {
 
   const handleSaveEdit = async () => {
     if (!editingMessageId || !editingText.trim()) return;
-    
+
     try {
       const response = await fetch(
         `/api/colaboracao/grupos/${grupoId}/mensagens/${editingMessageId}`,
@@ -392,9 +397,9 @@ export default function GrupoDetailPage() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mensagem: editingText }),
-        }
+        },
       );
-      
+
       if (response.ok) {
         toast.success("Mensagem editada com sucesso!");
         setEditingMessageId(null);
@@ -417,15 +422,15 @@ export default function GrupoDetailPage() {
 
   const handleDeleteMessage = async () => {
     if (!mensagemToDelete) return;
-    
+
     try {
       const response = await fetch(
         `/api/colaboracao/grupos/${grupoId}/mensagens/${mensagemToDelete.id}`,
         {
           method: "DELETE",
-        }
+        },
       );
-      
+
       if (response.ok) {
         toast.success("Mensagem deletada com sucesso!");
         setShowDeleteDialog(false);
@@ -528,13 +533,13 @@ export default function GrupoDetailPage() {
                           msg.usuario?.raw_user_meta_data?.email || "";
                         const isOwnMessage = msg.user_id === currentUserId;
                         const isEditing = editingMessageId === msg.id;
-                        
+
                         return (
                           <div
                             key={msg.id}
                             className={cn(
                               "flex gap-3 group",
-                              isOwnMessage && "flex-row-reverse"
+                              isOwnMessage && "flex-row-reverse",
                             )}
                           >
                             <Avatar className="h-8 w-8 shrink-0">
@@ -542,18 +547,25 @@ export default function GrupoDetailPage() {
                                 {getInitials(nomeUsuario, emailUsuario)}
                               </AvatarFallback>
                             </Avatar>
-                            <div className={cn("flex-1 space-y-1 min-w-0", isOwnMessage && "flex items-end flex-col")}>
-                              <div className={cn(
-                                "flex items-center gap-2 flex-wrap",
-                                isOwnMessage && "flex-row-reverse"
-                              )}>
+                            <div
+                              className={cn(
+                                "flex-1 space-y-1 min-w-0",
+                                isOwnMessage && "flex items-end flex-col",
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "flex items-center gap-2 flex-wrap",
+                                  isOwnMessage && "flex-row-reverse",
+                                )}
+                              >
                                 <span className="text-sm font-semibold">
                                   {nomeUsuario}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
                                   {new Date(msg.created_at).toLocaleTimeString(
                                     "pt-BR",
-                                    { hour: "2-digit", minute: "2-digit" }
+                                    { hour: "2-digit", minute: "2-digit" },
                                   )}
                                   {msg.updated_at && " · editado"}
                                 </span>
@@ -585,14 +597,16 @@ export default function GrupoDetailPage() {
                                   "rounded-2xl px-4 py-2.5 max-w-[85%] shadow-sm",
                                   isOwnMessage
                                     ? "bg-primary text-primary-foreground rounded-br-md [&_.font-semibold]:text-primary-foreground [&_.bg-primary\\/10]:bg-white/20 [&_.text-primary]:text-primary-foreground"
-                                    : "bg-muted border border-border/50 rounded-bl-md text-foreground"
+                                    : "bg-muted border border-border/50 rounded-bl-md text-foreground",
                                 )}
                               >
                                 {isEditing ? (
                                   <div className="space-y-2">
                                     <Textarea
                                       value={editingText}
-                                      onChange={(e) => setEditingText(e.target.value)}
+                                      onChange={(e) =>
+                                        setEditingText(e.target.value)
+                                      }
                                       className="min-h-[60px] bg-background"
                                     />
                                     <div className="flex gap-2 justify-end">
@@ -607,17 +621,24 @@ export default function GrupoDetailPage() {
                                         <X className="h-4 w-4 mr-1" />
                                         Cancelar
                                       </Button>
-                                      <Button size="sm" onClick={handleSaveEdit}>
+                                      <Button
+                                        size="sm"
+                                        onClick={handleSaveEdit}
+                                      >
                                         <Check className="h-4 w-4 mr-1" />
                                         Salvar
                                       </Button>
                                     </div>
                                   </div>
                                 ) : (
-                                  <p className={cn(
-                                    "text-sm whitespace-pre-wrap break-words",
-                                    isOwnMessage ? "text-primary-foreground" : "text-foreground"
-                                  )}>
+                                  <p
+                                    className={cn(
+                                      "text-sm whitespace-pre-wrap break-words",
+                                      isOwnMessage
+                                        ? "text-primary-foreground"
+                                        : "text-foreground",
+                                    )}
+                                  >
                                     {renderMessageWithMentions(msg.mensagem)}
                                   </p>
                                 )}
@@ -650,7 +671,7 @@ export default function GrupoDetailPage() {
                               <AvatarFallback className="text-xs">
                                 {getInitials(
                                   membro.usuario?.raw_user_meta_data?.nome,
-                                  membro.usuario?.raw_user_meta_data?.email
+                                  membro.usuario?.raw_user_meta_data?.email,
                                 )}
                               </AvatarFallback>
                             </Avatar>
@@ -702,6 +723,33 @@ export default function GrupoDetailPage() {
 
         {/* Sidebar - alinhada ao topo do card do chat (altura do título + gap) */}
         <div className="space-y-4 pt-[4.25rem] lg:pt-[4.25rem]">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <div className="rounded-lg bg-primary/10 p-1.5">
+                  <Video className="h-4 w-4 text-primary" />
+                </div>
+                Sala de chamada
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-sm text-muted-foreground mb-4">
+                Entre em uma chamada de voz ou vídeo com o grupo.
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full rounded-lg"
+                asChild
+              >
+                <Link href={`/grupos/${grupoId}/chamada`}>
+                  <Video className="h-4 w-4 mr-2" />
+                  Entrar na chamada
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-base">
@@ -798,7 +846,8 @@ export default function GrupoDetailPage() {
             (grupoInfo?.criador_id === currentUserId ||
               membros.find(
                 (m) =>
-                  m.user_id === currentUserId || m.usuario?.id === currentUserId
+                  m.user_id === currentUserId ||
+                  m.usuario?.id === currentUserId,
               )?.role === "admin") && (
               <Card className="border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/20">
                 <CardHeader className="pb-2">
@@ -819,7 +868,7 @@ export default function GrupoDetailPage() {
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {grupoInfo?.requer_aprovacao
                         ? "Nenhuma solicitação pendente. Quem pedir para entrar no grupo aparecerá aqui."
-                        : "Para receber pedidos de entrada, crie um grupo privado com \"Requer aprovação do admin\" ativado."}
+                        : 'Para receber pedidos de entrada, crie um grupo privado com "Requer aprovação do admin" ativado.'}
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -833,18 +882,23 @@ export default function GrupoDetailPage() {
                               <AvatarFallback className="text-xs">
                                 {getInitials(
                                   solicitacao.usuario?.raw_user_meta_data?.nome,
-                                  solicitacao.usuario?.raw_user_meta_data?.email
+                                  solicitacao.usuario?.raw_user_meta_data
+                                    ?.email,
                                 )}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">
-                                {solicitacao.usuario?.raw_user_meta_data?.nome ||
-                                  solicitacao.usuario?.raw_user_meta_data?.email ||
+                                {solicitacao.usuario?.raw_user_meta_data
+                                  ?.nome ||
+                                  solicitacao.usuario?.raw_user_meta_data
+                                    ?.email ||
                                   "Usuário"}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}
+                                {new Date(
+                                  solicitacao.created_at,
+                                ).toLocaleDateString("pt-BR")}
                               </p>
                             </div>
                           </div>
@@ -962,10 +1016,7 @@ export default function GrupoDetailPage() {
             >
               Cancelar
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteMessage}
-            >
+            <Button variant="destructive" onClick={handleDeleteMessage}>
               <Trash2 className="h-4 w-4 mr-2" />
               Deletar
             </Button>

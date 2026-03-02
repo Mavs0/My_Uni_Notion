@@ -409,3 +409,55 @@ body[data-focus-font-size="extra-large"] .focus-mode-content-wrapper h3 {
 .animation-delay-4000 {
   animation-delay: 4s;
 }
+
+/* Sala de chamada: integrar tema do projeto com LiveKit */
+.chamada-room {
+  --lk-font-family: var(--font-family, inherit);
+  --lk-border-radius: var(--radius);
+}
+.chamada-room[data-lk-theme="default"],
+.chamada-room [data-lk-theme="default"] {
+  --lk-bg: var(--background);
+  --lk-bg2: var(--muted);
+  --lk-bg3: var(--accent);
+  --lk-fg: var(--foreground);
+  --lk-border-color: var(--border);
+  --lk-danger: var(--destructive);
+  --lk-danger-fg: var(--primary-foreground);
+  --lk-accent-bg: var(--primary);
+  --lk-accent-fg: var(--primary-foreground);
+  --lk-control-bg: var(--muted);
+  --lk-control-hover-bg: var(--accent);
+}
+.chamada-room .lk-disconnect-button {
+  border-radius: var(--radius);
+}
+.chamada-room .lk-participant-tile {
+  border-radius: var(--radius);
+}
+.chamada-room .lk-chat {
+  border-left: none;
+  background-color: transparent;
+}
+.chamada-room .lk-chat-header .lk-close-button {
+  display: none;
+}
+.chamada-room .lk-control-bar {
+  border-top: none;
+  background: transparent;
+}
+.chamada-room .lk-grid-layout {
+  padding: 0.5rem;
+  gap: 0.5rem;
+}
+/* Chat embaixo: área de mensagens com scroll */
+.chamada-room .lk-chat-messages {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.chamada-room .lk-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}

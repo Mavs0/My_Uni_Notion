@@ -94,7 +94,7 @@ export function useDisciplinas() {
             errorMessage = errorData.error || errorMessage;
           } else {
             if (response.status === 401) {
-              errorMessage = "Não autorizado. Faça login novamente.";
+              errorMessage = "Sessão expirada ou não autenticado. Faça login novamente.";
             } else if (response.status === 500) {
               errorMessage =
                 "Erro interno do servidor. Verifique se o banco de dados está configurado.";
@@ -104,7 +104,7 @@ export function useDisciplinas() {
           }
         } catch (parseError) {
           if (response.status === 401) {
-            errorMessage = "Não autorizado. Faça login novamente.";
+            errorMessage = "Sessão expirada ou não autenticado. Faça login novamente.";
           } else if (response.status === 500) {
             errorMessage =
               "Erro interno do servidor. Verifique se o banco de dados está configurado.";
@@ -113,9 +113,17 @@ export function useDisciplinas() {
           }
         }
 
+        if (response.status === 401) {
+          errorMessage = "Sessão expirada ou não autenticado. Faça login novamente.";
+          if (typeof console !== "undefined" && console.warn) {
+            console.warn("Disciplinas: não autenticado. Faça login novamente.");
+          }
+        } else {
+          console.error("Erro ao buscar disciplinas:", errorMessage);
+        }
+
         setError(errorMessage);
         setDisciplinas([]);
-        console.error("Erro ao buscar disciplinas:", errorMessage);
         return;
       }
 

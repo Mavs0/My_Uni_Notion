@@ -27,7 +27,7 @@ export function TaskDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-2xl">
+      <DialogContent className="sm:max-w-md rounded-2xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="sr-only">Detalhes da tarefa</DialogTitle>
         </DialogHeader>

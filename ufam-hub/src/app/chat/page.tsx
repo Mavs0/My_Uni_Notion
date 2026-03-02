@@ -2610,7 +2610,7 @@ export default function ChatPage() {
       </section>
       {}
       <Dialog open={showNewThreadDialog} onOpenChange={setShowNewThreadDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Nova Conversa</DialogTitle>
           </DialogHeader>
