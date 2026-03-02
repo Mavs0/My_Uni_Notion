@@ -593,28 +593,28 @@ export default function PerfilPage() {
       
       {/* Tabs de Configurações */}
       <Tabs defaultValue="informacoes" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
-          <TabsTrigger value="informacoes" className="flex items-center gap-2">
+        <TabsList className="flex w-full overflow-x-auto overflow-y-hidden gap-0.5 p-1 mb-6 min-h-10 h-auto justify-start md:grid md:grid-cols-5 md:justify-stretch [&>button]:shrink-0 [&>button]:px-2 sm:[&>button]:px-3">
+          <TabsTrigger value="informacoes" className="flex items-center gap-1.5 sm:gap-2">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Informações</span>
             <span className="sm:hidden">Info</span>
           </TabsTrigger>
-          <TabsTrigger value="senha" className="flex items-center gap-2">
-            <Lock className="h-4 w-4" />
+          <TabsTrigger value="senha" className="flex items-center gap-1.5 sm:gap-2">
+            <Lock className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Alterar Senha</span>
             <span className="sm:hidden">Senha</span>
           </TabsTrigger>
-          <TabsTrigger value="seguranca" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
+          <TabsTrigger value="seguranca" className="flex items-center gap-1.5 sm:gap-2">
+            <Shield className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Segurança</span>
             <span className="sm:hidden">2FA</span>
           </TabsTrigger>
-          <TabsTrigger value="amizades" className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4" />
+          <TabsTrigger value="amizades" className="flex items-center gap-1.5 sm:gap-2">
+            <UserPlus className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Solicitações</span>
             <span className="sm:hidden">Amigos</span>
           </TabsTrigger>
-          <TabsTrigger value="logins" className="flex items-center gap-2">
+          <TabsTrigger value="logins" className="flex items-center gap-1.5 sm:gap-2">
             <Chrome className="h-4 w-4" />
             <span className="hidden sm:inline">Outros Logins</span>
             <span className="sm:hidden">Logins</span>
@@ -625,8 +625,8 @@ export default function PerfilPage() {
         <TabsContent value="informacoes" className="space-y-6">
           <Card className="animate-in fade-in slide-in-from-bottom-6 duration-700">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <CardTitle>Informações Pessoais</CardTitle>
               <CardDescription>
                 Suas informações de perfil e contato
@@ -637,6 +637,7 @@ export default function PerfilPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditing(true)}
+                className="shrink-0 w-full sm:w-auto"
               >
                 <Edit2 className="h-4 w-4 mr-2" />
                 Editar

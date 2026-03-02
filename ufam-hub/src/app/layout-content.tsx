@@ -66,8 +66,8 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           className={cn(
-            "flex-1 w-full",
-            !isFocusModeActive && "p-4 max-w-6xl mx-auto",
+            "flex-1 w-full min-h-0",
+            !isFocusModeActive && "p-4 max-w-6xl mx-auto pb-24 md:pb-4",
             isFocusModeActive && "h-full overflow-auto pt-12"
           )}
           role="main"

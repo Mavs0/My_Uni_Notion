@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
 import "./globals.css";
 import LayoutContent from "./layout-content";
@@ -15,6 +15,12 @@ export const metadata: Metadata = {
   title: "UFAM Hub",
   description: "Organizador acadêmico pessoal com IA",
   manifest: "/site.webmanifest",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 export default function RootLayout({
   children,

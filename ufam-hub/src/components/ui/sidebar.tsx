@@ -226,23 +226,35 @@ export function Sidebar() {
                           side="right"
                           align="start"
                           sideOffset={8}
+                          className="rounded-xl border border-border/60 bg-card/95 shadow-lg p-0 min-w-[11rem] overflow-hidden"
                         >
-                          <DropdownMenuLabel>{item.title}</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {item.items.map((sub) => {
-                            const SubIcon = sub.icon;
-                            return (
-                              <DropdownMenuItem key={sub.href} asChild>
-                                <Link
-                                  href={sub.href}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
-                                  <SubIcon className="h-4 w-4" />
-                                  {sub.title}
-                                </Link>
-                              </DropdownMenuItem>
-                            );
-                          })}
+                          <DropdownMenuLabel className="px-3 py-2 border-b border-border/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground rounded-t-xl focus:bg-transparent">
+                            {item.title}
+                          </DropdownMenuLabel>
+                          <div className="p-1.5 space-y-0.5">
+                            {item.items.map((sub) => {
+                              const SubIcon = sub.icon;
+                              const isActive =
+                                pathname === sub.href ||
+                                pathname.startsWith(sub.href + "/");
+                              return (
+                                <DropdownMenuItem key={sub.href} asChild>
+                                  <Link
+                                    href={sub.href}
+                                    className={cn(
+                                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer",
+                                      isActive
+                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                        : "text-muted-foreground focus:bg-accent focus:text-accent-foreground",
+                                    )}
+                                  >
+                                    <SubIcon className="h-4 w-4 shrink-0 opacity-80" />
+                                    {sub.title}
+                                  </Link>
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </div>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     );
@@ -277,33 +289,40 @@ export function Sidebar() {
                         )}
                       </button>
                       {isOpen && (!collapsed || isMobile) && (
-                        <div className="ml-4 mt-1 space-y-0.5 border-l border-muted pl-2">
-                          {item.items.map((sub) => {
-                            const SubIcon = sub.icon;
-                            const isActive =
-                              pathname === sub.href ||
-                              pathname.startsWith(sub.href + "/");
-                            return (
-                              <Link
-                                key={sub.href}
-                                href={sub.href}
-                                onClick={
-                                  isMobile
-                                    ? () => setMobileMenuOpen(false)
-                                    : undefined
-                                }
-                                className={cn(
-                                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                                  isActive
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                                )}
-                              >
-                                <SubIcon className="h-4 w-4 shrink-0" />
-                                <span>{sub.title}</span>
-                              </Link>
-                            );
-                          })}
+                        <div className="ml-2 mt-2 rounded-xl border border-border/60 bg-muted/30 overflow-hidden">
+                          <div className="px-3 py-2 border-b border-border/60">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {item.title}
+                            </p>
+                          </div>
+                          <div className="p-1.5 space-y-0.5">
+                            {item.items.map((sub) => {
+                              const SubIcon = sub.icon;
+                              const isActive =
+                                pathname === sub.href ||
+                                pathname.startsWith(sub.href + "/");
+                              return (
+                                <Link
+                                  key={sub.href}
+                                  href={sub.href}
+                                  onClick={
+                                    isMobile
+                                      ? () => setMobileMenuOpen(false)
+                                      : undefined
+                                  }
+                                  className={cn(
+                                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                                    isActive
+                                      ? "bg-primary text-primary-foreground shadow-sm"
+                                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                                  )}
+                                >
+                                  <SubIcon className="h-4 w-4 shrink-0 opacity-80" />
+                                  <span>{sub.title}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>

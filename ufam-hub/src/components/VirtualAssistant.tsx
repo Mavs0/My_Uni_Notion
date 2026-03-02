@@ -300,7 +300,7 @@ export function VirtualAssistant() {
   };
   if (!isOpen) {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed z-50 right-[max(1.5rem,env(safe-area-inset-right))] bottom-[max(1.5rem,env(safe-area-inset-bottom))]">
         <Button
           onClick={() => setIsOpen(true)}
           size="lg"
@@ -312,7 +312,7 @@ export function VirtualAssistant() {
     );
   }
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-3rem)]">
+    <div className="fixed z-50 right-[max(1.5rem,env(safe-area-inset-right))] bottom-[max(1.5rem,env(safe-area-inset-bottom))] w-96 max-w-[calc(100vw-3rem)]">
       <Card className="flex flex-col h-[600px] max-h-[calc(100vh-8rem)] shadow-2xl border-2">
         {}
         <div className="flex items-center justify-between p-4 border-b bg-muted/30">
