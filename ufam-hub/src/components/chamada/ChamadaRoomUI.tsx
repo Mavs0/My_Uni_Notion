@@ -10,6 +10,7 @@ import {
   useTracks,
   usePinnedTracks,
   useParticipants,
+  useRoomContext,
   GridLayout,
   FocusLayoutContainer,
   FocusLayout,
@@ -20,8 +21,9 @@ import {
   ConnectionStateToast,
 } from "@livekit/components-react";
 import { ChamadaChatMeet } from "./ChamadaChatMeet";
+import { ChamadaTranscricao } from "./ChamadaTranscricao";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Users, X } from "lucide-react";
+import { MessageCircle, Users, Mic, MicOff, Video, VideoOff, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function isSameTrack(
@@ -40,15 +42,33 @@ function isSameTrack(
   return true;
 }
 
+type SidebarTab = "chat" | "transcricao" | "atividade";
+
+function formatElapsed(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 function ChamadaRoomInner() {
   const layoutContext = useCreateLayoutContext();
   const pinnedTracks = usePinnedTracks(layoutContext);
   const focusTrack = pinnedTracks?.[0];
   const participants = useParticipants();
+  const room = useRoomContext();
   const lastAutoFocusedScreenRef = React.useRef<TrackReferenceOrPlaceholder | null>(null);
 
-  const [showChat, setShowChat] = React.useState(false);
-  const [showPeople, setShowPeople] = React.useState(false);
+  const [sidebarTab, setSidebarTab] = React.useState<SidebarTab>("chat");
+  const [elapsedMs, setElapsedMs] = React.useState(0);
+  const startTimeRef = React.useRef<number>(Date.now());
+
+  React.useEffect(() => {
+    const t = setInterval(() => {
+      setElapsedMs(Date.now() - startTimeRef.current);
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const tracks = useTracks(
     [
@@ -88,28 +108,36 @@ function ChamadaRoomInner() {
     focusTrack?.publication?.trackSid,
   ]);
 
+  const tabs: { id: SidebarTab; label: string; icon: React.ReactNode }[] = [
+    { id: "chat", label: "Chat", icon: <MessageCircle className="h-4 w-4" /> },
+    { id: "transcricao", label: "Transcrição", icon: null },
+    { id: "atividade", label: "Atividade", icon: null },
+  ];
+
   return (
     <LayoutContextProvider value={layoutContext}>
       <div className="flex h-full flex-col min-h-0 overflow-hidden bg-background chamada-meet-layout">
-        {/* Área principal: vídeo + painéis laterais (estilo Meet) */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Conteúdo central: grid ou foco */}
+          {/* Área de vídeo (cerca de 2/3) */}
           <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
             {!focusTrack ? (
               <GridLayout tracks={tracks} className="h-full flex-1 min-h-0">
                 <ParticipantTile />
               </GridLayout>
             ) : (
+              /* Estilo Meet: tela grande em cima, participantes embaixo */
               <FocusLayoutContainer className="lk-focus-layout chamada-focus-layout h-full flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-2 p-2 overflow-hidden">
-                  <div className="flex-1 min-h-0 rounded-lg overflow-hidden bg-muted/30 border border-border">
+                <div className="flex flex-1 min-h-0 flex flex-col gap-2 p-2 overflow-hidden">
+                  {/* Área principal em cima: tela compartilhada ou vídeo em foco */}
+                  <div className="chamada-focus-main flex-1 min-h-0 rounded-lg overflow-hidden bg-muted/30 border border-border flex flex-col">
                     {focusTrack && <FocusLayout trackRef={focusTrack} />}
                   </div>
-                  <div className="flex flex-row md:flex-col gap-2 shrink-0 md:w-40 lg:w-48 overflow-x-auto md:overflow-y-auto p-1">
+                  {/* Faixa de participantes embaixo (quem não está apresentando) */}
+                  <div className="shrink-0 flex flex-row gap-2 overflow-x-auto overflow-y-hidden py-1 px-1 min-h-[120px] max-h-[180px]">
                     <CarouselLayout
                       tracks={carouselTracks}
                       orientation="horizontal"
-                      className="!flex !flex-row md:!flex-col !gap-2 !p-0"
+                      className="!flex !flex-row !gap-2 !p-0 !min-h-0"
                     >
                       <ParticipantTile />
                     </CarouselLayout>
@@ -119,66 +147,101 @@ function ChamadaRoomInner() {
             )}
           </div>
 
-          {/* Painel Pessoas (estilo Meet) */}
-          {showPeople && (
-            <aside className="chamada-sidebar chamada-sidebar-people w-72 shrink-0 border-l border-border bg-card flex flex-col">
-              <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border">
-                <h2 className="text-sm font-semibold">Pessoas</h2>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowPeople(false)}>
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Fechar</span>
+          {/* Sidebar direita unificada: Participantes + abas (Chat, Transcrição, Atividade) */}
+          <aside className="chamada-sidebar flex w-full max-w-sm flex-col border-l border-border bg-card shrink-0 md:w-[340px] lg:w-[380px]">
+            <div className="shrink-0 border-b border-border px-4 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Participantes
+                </h2>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg text-xs shrink-0">
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Adicionar +
                 </Button>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1.5">
-                  Na chamada ({participants.length})
-                </p>
-                <ul className="space-y-0.5">
-                  {participants.map((p) => (
-                    <li
-                      key={p.identity}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/60"
-                    >
-                      <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center text-sm font-medium text-primary shrink-0">
-                        {(p.name || p.identity || "?").charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">
-                          {p.isLocal ? "Você" : p.name || p.identity}
-                        </p>
-                        {p.isLocal && (
-                          <p className="text-xs text-muted-foreground">Participante</p>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </aside>
-          )}
+              <ul className="mt-3 space-y-1 max-h-32 overflow-y-auto">
+                {participants.map((p) => (
+                  <li
+                    key={p.identity}
+                    className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/50"
+                  >
+                    <div className="h-8 w-8 shrink-0 rounded-full bg-primary/15 flex items-center justify-center text-xs font-medium text-primary">
+                      {(p.name || p.identity || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">
+                        {p.isLocal ? "Você" : p.name || p.identity}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {p.isLocal ? "Participante" : "Participante"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {p.isMicrophoneEnabled ? (
+                        <Mic className="h-4 w-4 text-primary" />
+                      ) : (
+                        <MicOff className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      {p.isCameraEnabled ? (
+                        <Video className="h-4 w-4 text-primary" />
+                      ) : (
+                        <VideoOff className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Painel Chat (estilo Meet) */}
-          {showChat && (
-            <aside className="chamada-sidebar chamada-sidebar-chat w-80 sm:w-96 shrink-0 border-l border-border bg-card flex flex-col min-h-0">
-              <div className="shrink-0 flex items-center justify-end px-2 py-2 border-b border-border">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowChat(false)}>
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Fechar chat</span>
-                </Button>
-              </div>
-              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <ChamadaChatMeet />
-              </div>
-            </aside>
-          )}
+            {/* Abas: Chat | Transcrição | Atividade */}
+            <div className="shrink-0 flex border-b border-border">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSidebarTab(tab.id)}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-medium transition-colors",
+                    sidebarTab === tab.id
+                      ? "border-b-2 border-primary text-primary bg-primary/5"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  )}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {sidebarTab === "chat" && (
+                <div className="flex flex-col h-full min-h-0">
+                  <ChamadaChatMeet />
+                </div>
+              )}
+              {sidebarTab === "transcricao" && (
+                <ChamadaTranscricao />
+              )}
+              {sidebarTab === "atividade" && (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <Users className="h-6 w-6" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">Atividade</p>
+                  <p className="text-xs text-muted-foreground">Em breve: indicador de atividade na aula.</p>
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
 
-        {/* Barra de controles estilo Google Meet */}
-        <div className="chamada-control-bar shrink-0 flex items-center justify-between w-full px-4 py-3 bg-muted/90 dark:bg-zinc-900/95 border-t border-border">
-          <div className="w-32 sm:w-40 shrink-0 flex items-center">
-            <span className="text-xs sm:text-sm text-muted-foreground truncate">
-              Sala de chamada
+        {/* Barra inferior: timer | controles | Encerrar chamada */}
+        <div className="chamada-control-bar flex items-center justify-between gap-4 w-full px-4 py-3 bg-muted/90 dark:bg-zinc-900/95 border-t border-border">
+          <div className="flex min-w-0 shrink-0 items-center gap-2 w-28 sm:w-36">
+            <span className="text-sm font-medium tabular-nums text-foreground">
+              {formatElapsed(elapsedMs)}
             </span>
+            <span className="text-muted-foreground text-xs">/ 1:00:00</span>
           </div>
           <div className="flex items-center justify-center gap-1 sm:gap-2">
             <ControlBar
@@ -188,38 +251,20 @@ function ChamadaRoomInner() {
                 camera: true,
                 screenShare: true,
                 chat: false,
-                leave: true,
+                leave: false,
                 settings: false,
               }}
-              className="!gap-1 sm:!gap-2 [&_button]:rounded-full [&_button]:h-11 [&_button]:w-11 [&_button[data-lk-source=disconnect]]:!bg-destructive [&_button[data-lk-source=disconnect]]:!text-destructive-foreground"
+              className="!gap-1 sm:!gap-2 [&_button]:rounded-full [&_button]:h-11 [&_button]:w-11"
             />
           </div>
-          <div className="w-32 sm:w-40 shrink-0 flex items-center justify-end gap-1">
+          <div className="flex shrink-0 items-center gap-1 w-28 sm:w-36 justify-end">
             <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "h-11 w-11 rounded-full",
-                showChat && "bg-muted"
-              )}
-              onClick={() => setShowChat((c) => !c)}
-              title="Chat com todos"
+              variant="destructive"
+              size="sm"
+              className="rounded-lg px-4 h-11 font-medium"
+              onClick={() => room.disconnect()}
             >
-              <MessageCircle className="h-5 w-5" />
-              <span className="sr-only">Mensagens</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "h-11 w-11 rounded-full",
-                showPeople && "bg-muted"
-              )}
-              onClick={() => setShowPeople((p) => !p)}
-              title="Pessoas na chamada"
-            >
-              <Users className="h-5 w-5" />
-              <span className="sr-only">Pessoas</span>
+              Encerrar chamada
             </Button>
           </div>
         </div>

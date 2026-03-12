@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Video, Bell, MessageCircle, User } from "lucide-react";
 import dynamic from "next/dynamic";
 import "@livekit/components-styles";
 
@@ -18,6 +18,12 @@ const ChamadaRoomUI = dynamic(
   { ssr: false },
 );
 
+function formatSchedule() {
+  const now = new Date();
+  const end = new Date(now.getTime() + 60 * 60 * 1000);
+  return `${now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
 export default function GrupoChamadaPage() {
   const params = useParams();
   const router = useRouter();
@@ -27,6 +33,7 @@ export default function GrupoChamadaPage() {
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [grupoNome, setGrupoNome] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +84,18 @@ export default function GrupoChamadaPage() {
     };
   }, [grupoId]);
 
+  useEffect(() => {
+    if (!grupoId || !token) return;
+    let cancelled = false;
+    fetch(`/api/colaboracao/grupos/${grupoId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data?.nome) setGrupoNome(data.nome);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [grupoId, token]);
+
   const handleDisconnected = () => {
     router.push(`/grupos/${grupoId}`);
   };
@@ -117,19 +136,45 @@ export default function GrupoChamadaPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col bg-background">
-      <header className="shrink-0 h-12 flex items-center px-3 border-b border-border bg-background/95 backdrop-blur">
-        <Button variant="ghost" size="sm" asChild className="shrink-0 -ml-1">
-          <Link href={`/grupos/${grupoId}`}>
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Voltar ao grupo
-          </Link>
-        </Button>
-        <h1 className="flex-1 text-center text-sm font-medium truncate px-2">Sala de chamada</h1>
-        <div className="w-[88px] shrink-0" />
+    <main className="flex h-screen flex-col bg-background">
+      {/* Top bar — título da reunião, horário, ícones e avatar (estilo anexos) */}
+      <header className="shrink-0 flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="h-9 w-9 shrink-0 rounded-lg">
+            <Link href={`/grupos/${grupoId}`}>
+              <ArrowLeft className="h-5 w-5" />
+              <span className="sr-only">Voltar ao grupo</span>
+            </Link>
+          </Button>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Video className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-foreground">
+              {grupoNome || "Chamada"}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {formatSchedule()}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" title="Notificações">
+            <Bell className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" title="Chat">
+            <MessageCircle className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" title="Participantes">
+            <User className="h-5 w-5" />
+          </Button>
+          <div className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
+            ?
+          </div>
+        </div>
       </header>
 
-      <div className="flex-1 min-h-0 flex flex-col" style={{ height: "calc(100vh - 3rem)" }}>
+      <div className="flex min-h-0 flex-1 flex-col">
         <LiveKitRoom
           token={token}
           serverUrl={serverUrl}

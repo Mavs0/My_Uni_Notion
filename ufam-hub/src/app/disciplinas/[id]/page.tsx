@@ -100,8 +100,10 @@ function badgeTipo(tipo: TTipo) {
   };
   return cn("rounded px-2 py-0.5 text-xs border capitalize", map[tipo]);
 }
-function fmtDate(dt: string | Date) {
+function fmtDate(dt: string | Date | null | undefined) {
+  if (dt == null) return "—";
   const d = typeof dt === "string" ? new Date(dt) : dt;
+  if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 function toLocalInputValue(d: Date) {
@@ -110,11 +112,13 @@ function toLocalInputValue(d: Date) {
     d.getHours()
   )}:${pad(d.getMinutes())}`;
 }
-function daysUntil(dtISO: string) {
+function daysUntil(dtISO: string | null | undefined) {
+  if (dtISO == null) return NaN;
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const target = new Date(dtISO);
   target.setHours(0, 0, 0, 0);
+  if (Number.isNaN(target.getTime())) return NaN;
   const diff = Math.ceil(
     (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   );
@@ -158,14 +162,14 @@ function Section({
 }) {
   return (
     <section
-      className="rounded-xl border bg-card p-5 shadow-sm hover:shadow-md transition-shadow"
+      className="rounded-xl border border-border bg-card p-6 shadow-sm transition-shadow lg:p-7 hover:shadow-md"
       style={{
         borderLeftWidth: cor ? "4px" : "1px",
         borderLeftColor: cor || undefined,
       }}
     >
-      <header className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+      <header className="mb-5 flex items-center justify-between gap-4">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
           {icon && <span style={{ color: cor }}>{icon}</span>}
           {title}
         </h2>
@@ -388,20 +392,20 @@ export default function DisciplinaDetailPage() {
     Math.round((horasAssistidas / Math.max(1, disciplina.horasSemana)) * 100)
   );
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6">
-      {/* Header melhorado */}
-      <header className="space-y-4">
+    <main className="mx-auto max-w-5xl space-y-8 px-6 py-8 lg:px-8">
+      {/* Cabeçalho da disciplina */}
+      <header className="space-y-6">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.push("/disciplinas")}
-          className="text-muted-foreground hover:text-foreground"
+          className="gap-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="h-4 w-4" />
           Voltar para disciplinas
         </Button>
 
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
           {/* Info da disciplina */}
           <div className="flex-1">
             <div className="flex items-start gap-4">
@@ -513,15 +517,17 @@ export default function DisciplinaDetailPage() {
 
           {/* Card de progresso semanal */}
           <div
-            className="lg:w-[320px] rounded-xl border bg-card p-4 shadow-sm transition-all"
+            className="lg:w-[320px] shrink-0 rounded-xl border border-border bg-card p-5 shadow-sm transition-all lg:p-6"
             style={{
               borderLeftWidth: "4px",
               borderLeftColor: corDisciplina,
             }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <Target className="h-4 w-4" style={{ color: corDisciplina }} />
-              <h3 className="text-sm font-semibold">Progresso Semanal</h3>
+            <div className="mb-4 flex items-center gap-2">
+              <Target className="h-4 w-4 shrink-0" style={{ color: corDisciplina }} />
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Progresso Semanal
+              </h3>
             </div>
             <div className="mb-2 flex justify-between text-sm">
               <span className="text-muted-foreground">Horas assistidas</span>
@@ -538,7 +544,7 @@ export default function DisciplinaDetailPage() {
                 }}
               />
             </div>
-            <div className="mt-1 text-right">
+            <div className="mt-2 text-right">
               <span
                 className="text-xs font-medium"
                 style={{ color: corDisciplina }}
@@ -546,7 +552,7 @@ export default function DisciplinaDetailPage() {
                 {pctSemana}% concluído
               </span>
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-4 flex gap-2">
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -556,7 +562,7 @@ export default function DisciplinaDetailPage() {
                       onClick={() =>
                         setBlocosAssistidos((v) => Math.max(0, v - 1))
                       }
-                      className="flex-1"
+                      className="flex-1 rounded-lg"
                     >
                       − 1 bloco
                     </Button>
@@ -571,7 +577,7 @@ export default function DisciplinaDetailPage() {
                       variant="default"
                       size="sm"
                       onClick={() => setBlocosAssistidos((v) => v + 1)}
-                      className="flex-1"
+                      className="flex-1 rounded-lg"
                       style={{
                         backgroundColor: corDisciplina,
                         borderColor: corDisciplina,
@@ -589,7 +595,7 @@ export default function DisciplinaDetailPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setBlocosAssistidos(0)}
-                className="w-full mt-2 text-xs text-muted-foreground"
+                className="mt-3 w-full rounded-lg text-xs text-muted-foreground hover:bg-muted"
               >
                 Zerar progresso
               </Button>
@@ -603,9 +609,9 @@ export default function DisciplinaDetailPage() {
         icon={<BookOpen className="h-4 w-4" />}
         cor={corDisciplina}
         right={
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="rounded-lg gap-2">
             <Link href={`/disciplinas/${id}/notas/nova`}>
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               Nova Nota
             </Link>
           </Button>
@@ -619,12 +625,12 @@ export default function DisciplinaDetailPage() {
             </span>
           </div>
         ) : notas.length === 0 ? (
-          <div className="text-center py-8">
-            <BookOpen className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground">
+          <div className="py-10 text-center">
+            <BookOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
               Nenhuma anotação ainda.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-2 text-sm text-muted-foreground/80">
               Crie sua primeira anotação para esta disciplina
             </p>
           </div>
@@ -656,12 +662,12 @@ export default function DisciplinaDetailPage() {
         }
       >
         {materiais.length === 0 ? (
-          <div className="text-center py-8">
-            <Folder className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground">
+          <div className="py-10 text-center">
+            <Folder className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
               Sem materiais ainda.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-2 text-sm text-muted-foreground/80">
               Adicione links ou arquivos para esta disciplina
             </p>
           </div>
@@ -792,12 +798,12 @@ export default function DisciplinaDetailPage() {
             </span>
           </div>
         ) : tarefas.length === 0 ? (
-          <div className="text-center py-8">
-            <ClipboardList className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground">
+          <div className="py-10 text-center">
+            <ClipboardList className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
               Nenhuma tarefa cadastrada.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-2 text-sm text-muted-foreground/80">
               Crie tarefas para organizar seus estudos
             </p>
           </div>
@@ -886,26 +892,27 @@ export default function DisciplinaDetailPage() {
             </span>
           </div>
         ) : avaliacoes.length === 0 ? (
-          <div className="text-center py-8">
-            <Calendar className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground">
+          <div className="py-10 text-center">
+            <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
               Sem avaliações cadastradas para esta disciplina.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-2 text-sm text-muted-foreground/80">
               Adicione provas, trabalhos e seminários
             </p>
           </div>
         ) : (
           <ul className="space-y-3">
             {avaliacoes
-              .sort(
-                (a, b) =>
-                  new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
-              )
+              .sort((a, b) => {
+                const ta = a.dataISO ? new Date(a.dataISO).getTime() : 0;
+                const tb = b.dataISO ? new Date(b.dataISO).getTime() : 0;
+                return ta - tb;
+              })
               .map((a) => {
                 const dias = daysUntil(a.dataISO);
-                const isPast = dias < 0;
-                const isUrgent = dias >= 0 && dias <= 3;
+                const isPast = !Number.isNaN(dias) && dias < 0;
+                const isUrgent = !Number.isNaN(dias) && dias >= 0 && dias <= 3;
 
                 return (
                   <li

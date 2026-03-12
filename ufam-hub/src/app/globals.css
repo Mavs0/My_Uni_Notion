@@ -515,6 +515,20 @@ body[data-focus-font-size="extra-large"] .focus-mode-content-wrapper h3 {
   flex-direction: column;
   min-height: 0;
 }
+/* Área grande em cima (tela compartilhada) preenche o espaço; vídeo/tela em foco ocupa 100% */
+.chamada-room .chamada-focus-layout .chamada-focus-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.chamada-room .chamada-focus-layout .chamada-focus-main > *,
+.chamada-room .chamada-focus-layout .chamada-focus-main [data-lk-source] {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+}
 .chamada-room .chamada-clear-pin {
   cursor: pointer;
 }

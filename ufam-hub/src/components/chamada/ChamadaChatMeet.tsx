@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useChat } from "@livekit/components-react";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Send, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function ChamadaChatMeet() {
@@ -124,24 +124,27 @@ export function ChamadaChatMeet() {
         )}
       </div>
 
-      {/* Input estilo Meet */}
+      {/* Input: "Digite algo..." com anexo e enviar (estilo anexos) */}
       <form
         onSubmit={handleSubmit}
         className="shrink-0 flex items-center gap-2 p-3 border-t border-border bg-background/50"
       >
+        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-lg" title="Anexar">
+          <Paperclip className="h-4 w-4 text-muted-foreground" />
+        </Button>
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Envie uma mensagem para todos..."
+          placeholder="Digite uma mensagem..."
           disabled={isSending}
-          className="flex-1 min-w-0 h-10 px-4 rounded-full border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
+          className="flex-1 min-w-0 h-10 px-4 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
         />
         <Button
           type="submit"
           size="icon"
           disabled={!input.trim() || isSending}
-          className="h-10 w-10 rounded-full shrink-0"
+          className="h-10 w-10 rounded-lg shrink-0"
         >
           <Send className="h-4 w-4" />
           <span className="sr-only">Enviar</span>
