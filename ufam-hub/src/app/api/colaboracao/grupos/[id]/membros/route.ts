@@ -3,6 +3,20 @@ import {
   createSupabaseServer,
   createSupabaseAdmin,
 } from "@/lib/supabase/server";
+
+function buildUserMetaForDisplay(user: {
+  user_metadata?: Record<string, unknown>;
+  email?: string;
+}): Record<string, unknown> {
+  const meta = user.user_metadata || {};
+  const email = user.email;
+  const nome =
+    (meta.nome as string) ||
+    (meta.full_name as string) ||
+    (email ? email.split("@")[0] : "Usuário");
+  return { ...meta, email, nome };
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -140,7 +154,7 @@ export async function GET(
               if (!userError && userData?.user) {
                 usuariosMap.set(userId, {
                   id: userData.user.id,
-                  raw_user_meta_data: userData.user.user_metadata || {},
+                  raw_user_meta_data: buildUserMetaForDisplay(userData.user),
                 });
               }
             } catch (err) {

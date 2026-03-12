@@ -324,17 +324,15 @@ export async function GET(request: NextRequest) {
         );
 
         data = data.filter((material: any) => {
-          if (
-            material.visibilidade === "publico" ||
-            material.visibilidade === "geral"
-          ) {
+          const vis = material.visibilidade ?? "publico";
+          if (vis === "publico" || vis === "geral") {
             return true;
           }
           if (material.user_id === user.id) {
             return true;
           }
           if (
-            material.visibilidade === "privado" &&
+            vis === "privado" &&
             material.grupo_id &&
             gruposDoUsuario.has(material.grupo_id)
           ) {

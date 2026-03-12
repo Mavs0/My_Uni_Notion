@@ -1,5 +1,11 @@
+import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer, createSupabaseAdmin } from "@/lib/supabase/server";
+
+function gerarLinkUnico(): string {
+  return `share_${randomBytes(16).toString("base64url").replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -19,7 +25,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -39,12 +45,31 @@ export async function POST(request: NextRequest) {
         { status: 404 },
       );
     }
-    const link_compartilhamento = `share_${Buffer.from(
-      `${user.id}-${Date.now()}`,
-    )
-      .toString("base64")
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .substring(0, 20)}`;
+
+    const client =
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? createSupabaseAdmin()
+        : supabase;
+
+    const { data: existente } = await client
+      .from("notas_compartilhadas")
+      .select("id, link_compartilhamento")
+      .eq("nota_id", nota_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existente) {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
+      return NextResponse.json({
+        success: true,
+        compartilhada: existente,
+        link: `${baseUrl}/compartilhado/${existente.link_compartilhamento}`,
+        codigo_acesso: null,
+      });
+    }
+
+    const link_compartilhamento = gerarLinkUnico();
 
     let codigo_acesso = null;
     if (visibilidade === "privado") {
@@ -71,15 +96,19 @@ export async function POST(request: NextRequest) {
       insertData.codigo_acesso = codigo_acesso;
     }
 
-    const { data: compartilhada, error: shareError } = await supabase
+    const { data: compartilhada, error: shareError } = await client
       .from("notas_compartilhadas")
       .insert(insertData)
       .select()
       .single();
     if (shareError) {
       console.error("Erro ao compartilhar anotação:", shareError);
+      const message =
+        shareError.code === "42P01"
+          ? "Tabela de compartilhamento não existe. Crie a tabela notas_compartilhadas no Supabase."
+          : shareError.message || "Erro ao compartilhar anotação";
       return NextResponse.json(
-        { error: "Erro ao compartilhar anotação" },
+        { error: message, details: process.env.NODE_ENV === "development" ? shareError : undefined },
         { status: 500 },
       );
     }
@@ -94,7 +123,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Erro na API de compartilhamento:", error);
     return NextResponse.json(
-      { error: "Erro interno do servidor" },
+      {
+        error: "Erro interno do servidor",
+        details: process.env.NODE_ENV === "development" ? error?.message : undefined,
+      },
       { status: 500 },
     );
   }

@@ -26,61 +26,77 @@ export async function GET(request: NextRequest) {
 
     const allUserIds = new Set<string>();
 
-    const { data: activities } = await supabase
+    const { data: activities, error: activitiesError } = await supabase
       .from("user_activities")
       .select("user_id")
       .neq("user_id", user.id)
       .limit(500);
 
-    activities?.forEach((activity) => {
-      if (activity.user_id) {
-        allUserIds.add(activity.user_id);
-      }
-    });
+    if (!activitiesError && activities) {
+      activities.forEach((activity) => {
+        if (activity.user_id) allUserIds.add(activity.user_id);
+      });
+    }
 
-    const { data: followers } = await supabase
+    const { data: followers, error: followersError } = await supabase
       .from("followers")
       .select("following_id, follower_id")
       .limit(500);
 
-    followers?.forEach((f) => {
-      if (f.following_id && f.following_id !== user.id) {
-        allUserIds.add(f.following_id);
-      }
-      if (f.follower_id && f.follower_id !== user.id) {
-        allUserIds.add(f.follower_id);
-      }
-    });
-
-    try {
-      const { data: disciplinas } = await supabase
-        .from("disciplinas")
-        .select("user_id")
-        .neq("user_id", user.id)
-        .limit(200);
-
-      disciplinas?.forEach((d: any) => {
-        if (d.user_id) {
-          allUserIds.add(d.user_id);
+    if (!followersError && followers) {
+      followers.forEach((f) => {
+        if (f.following_id && f.following_id !== user.id) {
+          allUserIds.add(f.following_id);
+        }
+        if (f.follower_id && f.follower_id !== user.id) {
+          allUserIds.add(f.follower_id);
         }
       });
-    } catch (e) {
     }
 
-    const userIdsToProcess = Array.from(allUserIds).slice(0, limit + 50);
+    const { data: disciplinas } = await supabase
+      .from("disciplinas")
+      .select("user_id")
+      .neq("user_id", user.id)
+      .limit(200);
 
-    console.log(
-      `📊 Encontrados ${userIdsToProcess.length} IDs de usuários para processar`
-    );
+    if (disciplinas) {
+      disciplinas.forEach((d: { user_id?: string }) => {
+        if (d.user_id) allUserIds.add(d.user_id);
+      });
+    }
+
+    let userIdsToProcess = Array.from(allUserIds).slice(0, limit + 50);
+
+    let adminClient;
+    try {
+      adminClient = createSupabaseAdmin();
+    } catch (adminErr: any) {
+      console.error("createSupabaseAdmin falhou:", adminErr?.message || adminErr);
+      return NextResponse.json(
+        {
+          error:
+            adminErr?.message?.includes("SERVICE_ROLE")
+              ? "Serviço não configurado. Configure SUPABASE_SERVICE_ROLE_KEY."
+              : "Erro ao conectar ao banco.",
+        },
+        { status: 503 }
+      );
+    }
 
     if (userIdsToProcess.length === 0) {
-      console.log(
-        "⚠️ Nenhum usuário encontrado através das fontes disponíveis"
-      );
-      return NextResponse.json({ users: [] });
+      const { data: listData } = await adminClient.auth.admin.listUsers({
+        page: 1,
+        perPage: 100,
+      });
+      const others = (listData?.users || []).filter((u) => u.id !== user.id);
+      userIdsToProcess = others.map((u) => u.id).slice(0, limit + 50);
     }
 
-    const adminClient = createSupabaseAdmin();
+    if (userIdsToProcess.length === 0) {
+      return NextResponse.json({ users: [], total: 0 });
+    }
+
     const usersArray: any[] = [];
 
     for (const userId of userIdsToProcess.slice(0, limit + 20)) {
@@ -191,9 +207,8 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Erro ao buscar usuários:", error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
+    const message =
+      error?.message || error?.error_description || "Erro interno do servidor";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

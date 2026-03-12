@@ -85,6 +85,7 @@ export default function DiscoverPage() {
   const [periodo, setPeriodo] = useState("");
   const [sort, setSort] = useState<"seguidores" | "nome" | "recent">("seguidores");
   const [page, setPage] = useState(0);
+  const [inviteNome, setInviteNome] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DiscoverUser | null>(null);
@@ -110,14 +111,25 @@ export default function DiscoverPage() {
 
       const response = await fetch(`/api/users/discover?${params.toString()}`);
 
-      if (!response.ok) throw new Error("Erro ao carregar usuários");
+      const data = await response.json().catch(() => ({}));
 
-      const data = await response.json();
+      if (!response.ok) {
+        const message =
+          data?.error ||
+          (response.status === 401
+            ? "Faça login para ver a listagem de usuários."
+            : "Erro ao carregar usuários.");
+        toast.error(message);
+        setUsers([]);
+        setTotal(0);
+        return;
+      }
+
       setUsers(data.users || []);
       setTotal(data.total ?? 0);
     } catch (error) {
       console.error("Erro ao carregar usuários:", error);
-      toast.error("Erro ao carregar usuários");
+      toast.error("Erro ao carregar usuários. Tente novamente.");
       setUsers([]);
       setTotal(0);
     } finally {
@@ -173,7 +185,14 @@ export default function DiscoverPage() {
   };
 
   const handleEnviarConvite = async () => {
+    const nome = inviteNome.trim();
     const email = inviteEmail.trim();
+    if (!nome || nome.length < 2) {
+      toast.error(t.configuracoes.conviteErro, {
+        description: locale === "pt-BR" ? "Informe o nome (mín. 2 caracteres)." : "Enter name (min. 2 characters).",
+      });
+      return;
+    }
     if (!email) {
       toast.error(t.configuracoes.conviteErro, {
         description: locale === "pt-BR" ? "Informe um e-mail." : "Enter an email.",
@@ -185,7 +204,7 @@ export default function DiscoverPage() {
       const res = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ nome, email }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -207,6 +226,7 @@ export default function DiscoverPage() {
         return;
       }
       toast.success(t.configuracoes.conviteEnviado);
+      setInviteNome("");
       setInviteEmail("");
       setInviteDialogOpen(false);
     } finally {
@@ -686,14 +706,33 @@ export default function DiscoverPage() {
               {t.configuracoes.conviteUsuarioDesc}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3 pt-2">
-            <Input
-              type="email"
-              placeholder={t.configuracoes.emailPlaceholder}
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
-            />
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="invite-nome" className="text-sm font-medium">
+                {locale === "pt-BR" ? "Nome" : "Name"}
+              </Label>
+              <Input
+                id="invite-nome"
+                type="text"
+                placeholder={locale === "pt-BR" ? "Nome completo do convidado" : "Full name"}
+                value={inviteNome}
+                onChange={(e) => setInviteNome(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-email" className="text-sm font-medium">
+                E-mail
+              </Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder={t.configuracoes.emailPlaceholder}
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
+              />
+            </div>
             <Button
               onClick={handleEnviarConvite}
               disabled={inviteLoading}

@@ -72,6 +72,17 @@ export default function LoginPage() {
   const [signupStep, setSignupStep] = useState(1);
 
   useEffect(() => {
+    const signup = searchParams.get("signup");
+    const emailParam = searchParams.get("email");
+    if (signup === "1") {
+      setIsLogin(false);
+      if (emailParam && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailParam)) {
+        setEmail(decodeURIComponent(emailParam));
+      }
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         const checkResponse = await fetch("/api/auth/cleanup-cookies");

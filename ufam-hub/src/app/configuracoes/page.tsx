@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -167,6 +168,7 @@ export default function ConfiguracoesPage() {
     domainName: string;
   }>({ open: false, domainId: "", domainName: "" });
   const [confirmClearData, setConfirmClearData] = useState(false);
+  const [inviteNome, setInviteNome] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   useEffect(() => {
@@ -615,7 +617,14 @@ export default function ConfiguracoesPage() {
     }, 1500);
   };
   const handleEnviarConvite = async () => {
+    const nome = inviteNome.trim();
     const email = inviteEmail.trim();
+    if (!nome || nome.length < 2) {
+      toast.error(t.configuracoes.conviteErro, {
+        description: locale === "pt-BR" ? "Informe o nome (mín. 2 caracteres)." : "Enter name (min. 2 characters).",
+      });
+      return;
+    }
     if (!email) {
       toast.error(t.configuracoes.conviteErro, {
         description: locale === "pt-BR" ? "Informe um e-mail." : "Enter an email.",
@@ -627,7 +636,7 @@ export default function ConfiguracoesPage() {
       const res = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ nome, email }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -649,6 +658,7 @@ export default function ConfiguracoesPage() {
         return;
       }
       toast.success(t.configuracoes.conviteEnviado);
+      setInviteNome("");
       setInviteEmail("");
     } finally {
       setInviteLoading(false);
@@ -934,27 +944,45 @@ export default function ConfiguracoesPage() {
                 {t.configuracoes.conviteUsuarioDesc}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2">
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="config-invite-nome" className="text-sm font-medium">
+                  {locale === "pt-BR" ? "Nome" : "Name"}
+                </Label>
                 <Input
+                  id="config-invite-nome"
+                  type="text"
+                  placeholder={locale === "pt-BR" ? "Nome completo do convidado" : "Full name"}
+                  value={inviteNome}
+                  onChange={(e) => setInviteNome(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="config-invite-email" className="text-sm font-medium">
+                  E-mail
+                </Label>
+                <Input
+                  id="config-invite-email"
                   type="email"
                   placeholder={t.configuracoes.emailPlaceholder}
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
-                  className="flex-1"
+                  className="w-full"
                 />
-                <Button
-                  onClick={handleEnviarConvite}
-                  disabled={inviteLoading}
-                  className="shrink-0"
-                >
-                  {inviteLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : null}
-                  {t.configuracoes.enviarConvite}
-                </Button>
               </div>
+              <Button
+                onClick={handleEnviarConvite}
+                disabled={inviteLoading}
+                className="w-full sm:w-auto"
+              >
+                {inviteLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                {t.configuracoes.enviarConvite}
+              </Button>
             </CardContent>
           </Card>
           <Card className="border-2 shadow-lg">

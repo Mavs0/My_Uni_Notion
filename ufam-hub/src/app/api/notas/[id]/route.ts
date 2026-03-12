@@ -1,6 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: notaId } = await params;
+  try {
+    const supabase = await createSupabaseServer(request);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+    const { data, error } = await supabase
+      .from("notas")
+      .select("id, disciplina_id, titulo, content_md, created_at, updated_at")
+      .eq("id", notaId)
+      .eq("user_id", user.id)
+      .single();
+    if (error || !data) {
+      return NextResponse.json(
+        { error: "Nota não encontrada" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({
+      nota: {
+        id: data.id,
+        disciplinaId: data.disciplina_id,
+        titulo: data.titulo,
+        content_md: data.content_md ?? "",
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      },
+    });
+  } catch (e) {
+    console.error("Erro na API de notas (GET):", e);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

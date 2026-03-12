@@ -1,8 +1,10 @@
-import { mailjet, EMAIL_CONFIG } from "./config";
+import { mailjet, resend, EMAIL_CONFIG } from "./config";
 import {
   createAvaliacaoProximaEmail,
   createEventoProximoEmail,
   createConfirmacaoEmail,
+  createConviteEmail,
+  createConviteComSenhaEmail,
   createTarefaEmail,
   createLembreteEmail,
   createConquistaEmail,
@@ -159,6 +161,62 @@ export async function sendConfirmacaoEmail(data: {
     confirmationLink: data.confirmationLink,
   });
   return sendEmail({ to: data.to, template });
+}
+
+export async function sendConviteEmail(data: {
+  to: string;
+  cadastroUrl: string;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!resend) {
+    return {
+      success: false,
+      error: "Envio de e-mail não configurado (RESEND_API_KEY).",
+    };
+  }
+  if (!data.to || !data.to.includes("@")) {
+    return { success: false, error: "E-mail destinatário inválido." };
+  }
+  try {
+    const template = createConviteEmail({ cadastroUrl: data.cadastroUrl });
+    const from = EMAIL_CONFIG.from;
+    const { data: result, error } = await resend.emails.send({
+      from,
+      to: data.to,
+      subject: template.subject,
+      html: template.html,
+    });
+    if (error) {
+      console.error("Resend invite error:", error);
+      return { success: false, error: error.message || "Falha ao enviar e-mail." };
+    }
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Erro ao enviar convite.";
+    console.error("Erro ao enviar convite:", err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function sendConviteComSenhaEmail(data: {
+  to: string;
+  nome: string;
+  loginUrl: string;
+  senhaTemporaria: string;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!data.to || !data.to.includes("@")) {
+    return { success: false, error: "E-mail destinatário inválido." };
+  }
+  const template = createConviteComSenhaEmail({
+    nome: data.nome,
+    loginUrl: data.loginUrl,
+    senhaTemporaria: data.senhaTemporaria,
+  });
+  const result = await sendEmail({ to: data.to, template });
+  if (result.success) return { success: true };
+  return {
+    success: false,
+    error: result.error || "Falha ao enviar e-mail com senha temporária.",
+  };
 }
 
 export async function sendTarefaNotification(data: {

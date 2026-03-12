@@ -31,6 +31,23 @@ export async function GET(
         .from("biblioteca_materiais")
         .select(
           `
+          id,
+          titulo,
+          descricao,
+          tipo,
+          categoria,
+          arquivo_url,
+          arquivo_tipo,
+          arquivo_tamanho,
+          visualizacoes,
+          downloads,
+          curtidas,
+          tags,
+          created_at,
+          user_id,
+          grupo_id,
+          visibilidade,
+          ativo,
           grupo:grupos_estudo(id, nome)
         `
         )
@@ -68,11 +85,12 @@ export async function GET(
           membrosData?.map((m) => m.grupo_id) || []
         );
 
+        const vis = material.visibilidade ?? "publico";
         const temPermissao =
-          material.visibilidade === "publico" ||
-          material.visibilidade === "geral" ||
+          vis === "publico" ||
+          vis === "geral" ||
           material.user_id === user.id ||
-          (material.visibilidade === "privado" &&
+          (vis === "privado" &&
             material.grupo_id &&
             gruposDoUsuario.has(material.grupo_id));
 
@@ -95,6 +113,23 @@ export async function GET(
         .from("biblioteca_materiais")
         .select(
           `
+          id,
+          titulo,
+          descricao,
+          tipo,
+          categoria,
+          arquivo_url,
+          arquivo_tipo,
+          arquivo_tamanho,
+          visualizacoes,
+          downloads,
+          curtidas,
+          tags,
+          created_at,
+          user_id,
+          grupo_id,
+          visibilidade,
+          ativo,
           grupo:grupos_estudo(id, nome)
         `
         )

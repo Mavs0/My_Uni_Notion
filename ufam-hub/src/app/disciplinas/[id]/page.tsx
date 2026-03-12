@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDisciplinas } from "@/hooks/useDisciplinas";
@@ -601,7 +602,14 @@ export default function DisciplinaDetailPage() {
         title="Anotações"
         icon={<BookOpen className="h-4 w-4" />}
         cor={corDisciplina}
-        right={<NovaNotaButton disciplinaId={id} onCreate={createNota} />}
+        right={
+          <Button asChild size="sm">
+            <Link href={`/disciplinas/${id}/notas/nova`}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Nota
+            </Link>
+          </Button>
+        }
       >
         {loadingNotas ? (
           <div className="flex h-48 items-center justify-center">
@@ -626,9 +634,13 @@ export default function DisciplinaDetailPage() {
               <NotaCard
                 key={nota.id}
                 nota={nota}
+                disciplinaId={id}
                 corDisciplina={corDisciplina}
-                onEdit={updateNota}
-                onDelete={() => setNotaToDelete(nota.id)}
+                onDelete={(e) => {
+                  e?.preventDefault?.();
+                  e?.stopPropagation?.();
+                  setNotaToDelete(nota.id);
+                }}
               />
             ))}
           </div>
@@ -1038,199 +1050,60 @@ export default function DisciplinaDetailPage() {
 
 function NotaCard({
   nota,
+  disciplinaId,
   corDisciplina,
-  onEdit,
   onDelete,
 }: {
   nota: import("@/hooks/useNotas").Nota;
+  disciplinaId: string;
   corDisciplina: string;
-  onEdit: (
-    id: string,
-    nota: Partial<import("@/hooks/useNotas").Nota>
-  ) => Promise<{ success: boolean }>;
-  onDelete: () => void;
+  onDelete: (e?: React.MouseEvent) => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [titulo, setTitulo] = useState(nota.titulo);
-  const [content_md, setContent_md] = useState(nota.content_md);
-
-  const handleSave = async () => {
-    const result = await onEdit(nota.id, { titulo, content_md });
-    if (result.success) {
-      setIsEditing(false);
-    }
-  };
-
   return (
-    <div
-      className="group rounded-xl border p-4 transition-all hover:shadow-sm bg-background"
+    <Link
+      href={`/disciplinas/${disciplinaId}/notas/${nota.id}`}
+      className="group block rounded-xl border p-4 transition-all hover:shadow-sm bg-background text-foreground no-underline"
       style={{ borderLeftWidth: "4px", borderLeftColor: corDisciplina }}
     >
-      {isEditing ? (
-        <div className="space-y-3">
-          <Input
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Título da nota"
-            className="font-medium"
-          />
-          <textarea
-            value={content_md}
-            onChange={(e) => setContent_md(e.target.value)}
-            placeholder="Conteúdo da nota..."
-            className="w-full min-h-[100px] rounded-lg border bg-background p-3 text-sm resize-none focus:outline-none"
-            style={{
-              borderColor: `${corDisciplina}30`,
-            }}
-          />
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={handleSave}>
-              Salvar
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setIsEditing(false);
-                setTitulo(nota.titulo);
-                setContent_md(nota.content_md);
-              }}
-            >
-              Cancelar
-            </Button>
+      <div className="space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="font-medium text-sm flex-1">{nota.titulo}</h4>
+          <div
+            className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => e.preventDefault()}
+          >
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Excluir nota</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
-      ) : (
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <h4 className="font-medium text-sm flex-1">{nota.titulo}</h4>
-            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setIsEditing(true)}
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Editar nota</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={onDelete}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Excluir nota</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-          {nota.content_md && (
-            <pre className="whitespace-pre-wrap text-sm text-muted-foreground mt-2">
-              {nota.content_md.length > 200
-                ? `${nota.content_md.substring(0, 200)}...`
-                : nota.content_md}
-            </pre>
-          )}
-          {nota.updated_at && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Atualizada em{" "}
-              {new Date(nota.updated_at).toLocaleDateString("pt-BR")}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NovaNotaButton({
-  disciplinaId,
-  onCreate,
-}: {
-  disciplinaId: string;
-  onCreate: (
-    nota: Omit<
-      import("@/hooks/useNotas").Nota,
-      "id" | "created_at" | "updated_at"
-    >
-  ) => Promise<{ success: boolean }>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [titulo, setTitulo] = useState("");
-  const [content_md, setContent_md] = useState("");
-
-  async function salvar() {
-    if (!titulo.trim()) {
-      toast.error("Título é obrigatório");
-      return;
-    }
-    const result = await onCreate({
-      disciplinaId,
-      titulo: titulo.trim(),
-      content_md: content_md.trim(),
-    });
-    if (result.success) {
-      setTitulo("");
-      setContent_md("");
-      setOpen(false);
-    }
-  }
-
-  return (
-    <>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="h-4 w-4 mr-2" />
-        Nova Nota
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Nova Nota</DialogTitle>
-            <DialogDescription>
-              Crie uma nova anotação para esta disciplina
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Título *</label>
-              <Input
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Ex: Resumo da Aula 1, Fórmulas Importantes..."
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Conteúdo</label>
-              <textarea
-                value={content_md}
-                onChange={(e) => setContent_md(e.target.value)}
-                placeholder="Escreva aqui suas anotações, fórmulas, referências..."
-                className="w-full min-h-[200px] rounded-lg border bg-background p-4 text-sm resize-none focus:outline-none"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={salvar}>Criar Nota</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        {nota.content_md && (
+          <pre className="whitespace-pre-wrap text-sm text-muted-foreground mt-2">
+            {nota.content_md.length > 200
+              ? `${nota.content_md.substring(0, 200)}...`
+              : nota.content_md}
+          </pre>
+        )}
+        {nota.updated_at && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Atualizada em{" "}
+            {new Date(nota.updated_at).toLocaleDateString("pt-BR")}
+          </p>
+        )}
+      </div>
+    </Link>
   );
 }
 

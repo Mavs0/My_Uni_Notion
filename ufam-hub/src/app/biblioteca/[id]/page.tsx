@@ -279,6 +279,23 @@ export default function MaterialDetailPage() {
     );
   };
 
+  /** Evita iframe para links externos que bloqueiam incorporação (X-Frame-Options: sameorigin). */
+  const podeIncorporarEmIframe = (url?: string) => {
+    if (!url || typeof window === "undefined") return false;
+    try {
+      const u = new URL(url);
+      const origin = window.location.origin;
+      const nossoHost = new URL(origin).hostname;
+      return (
+        u.hostname === nossoHost ||
+        u.hostname.endsWith(".supabase.co") ||
+        u.hostname.endsWith(".supabase.in")
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const loadMaterial = async () => {
     try {
       setLoading(true);
@@ -585,7 +602,9 @@ export default function MaterialDetailPage() {
                 )}
 
                 {/* Pré-visualização para PDFs */}
-                {isPDF(material.arquivo_url, material.arquivo_tipo) && (
+                {isPDF(material.arquivo_url, material.arquivo_tipo) &&
+                  material.tipo !== "link" &&
+                  podeIncorporarEmIframe(material.arquivo_url) && (
                   <div className="rounded-lg border overflow-hidden bg-muted/30">
                     <div className="flex items-center justify-between p-3 border-b bg-muted/50">
                       <div className="flex items-center gap-2 text-sm font-medium">
@@ -606,6 +625,27 @@ export default function MaterialDetailPage() {
                       className="w-full h-[500px]"
                       title={material.titulo}
                     />
+                  </div>
+                )}
+
+                {/* Link ou PDF externo: não usa iframe (evita X-Frame-Options) */}
+                {(material.tipo === "link" ||
+                  (isPDF(material.arquivo_url, material.arquivo_tipo) &&
+                    !podeIncorporarEmIframe(material.arquivo_url))) && (
+                  <div className="rounded-lg border overflow-hidden bg-muted/30 p-6 text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Este conteúdo está em um site externo e não pode ser
+                      exibido aqui. Abra o link em uma nova aba para visualizar.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        window.open(material.arquivo_url, "_blank", "noopener,noreferrer")
+                      }
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Abrir em nova aba
+                    </Button>
                   </div>
                 )}
 
@@ -802,12 +842,32 @@ export default function MaterialDetailPage() {
                 className="w-full h-auto max-h-[80vh] object-contain"
               />
             )}
-            {isPDF(material.arquivo_url, material.arquivo_tipo) && (
+            {isPDF(material.arquivo_url, material.arquivo_tipo) &&
+              material.tipo !== "link" &&
+              podeIncorporarEmIframe(material.arquivo_url) && (
               <iframe
                 src={material.arquivo_url}
                 className="w-full h-[80vh]"
                 title={material.titulo}
               />
+            )}
+            {(material.tipo === "link" ||
+              (isPDF(material.arquivo_url, material.arquivo_tipo) &&
+                !podeIncorporarEmIframe(material.arquivo_url))) && (
+              <div className="flex flex-col items-center justify-center gap-4 py-8">
+                <p className="text-sm text-muted-foreground text-center">
+                  Conteúdo externo. Abra em nova aba para visualizar.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    window.open(material.arquivo_url, "_blank", "noopener,noreferrer")
+                  }
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Abrir em nova aba
+                </Button>
+              </div>
             )}
           </div>
         </DialogContent>

@@ -568,6 +568,182 @@ ${appUrl}
   return { subject, html, text };
 }
 
+export function createConviteEmail(data: {
+  cadastroUrl: string;
+}): EmailTemplate {
+  const { cadastroUrl } = data;
+  const subject = "Você foi convidado(a) para o UFAM Hub";
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #18181b;
+      padding: 32px 20px;
+      min-height: 100vh;
+    }
+    .outer {
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: #27272a;
+      border-radius: 16px;
+      padding: 40px 24px 32px;
+    }
+    .logo-row { text-align: center; margin-bottom: 24px; }
+    .logo-text { font-size: 22px; font-weight: 700; color: #fafafa; }
+    .card {
+      background-color: #ffffff;
+      border-radius: 12px;
+      padding: 40px 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+    .card h1 { font-size: 22px; font-weight: 700; color: #18181b; text-align: center; margin-bottom: 16px; }
+    .card p { font-size: 15px; color: #3f3f46; margin-bottom: 12px; }
+    .btn-wrap { text-align: center; margin: 28px 0 24px; }
+    .btn {
+      display: inline-block;
+      padding: 14px 28px;
+      background-color: #18181b;
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .fallback { font-size: 13px; color: #71717a; margin-top: 20px; }
+    .fallback-link { word-break: break-all; font-size: 12px; color: #18181b; margin-top: 8px; display: block; }
+    .footer { text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #3f3f46; }
+    .footer p { font-size: 12px; color: #a1a1aa; margin: 4px 0; }
+    .footer .brand { font-weight: 600; color: #fafafa; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="outer">
+    <div class="logo-row"><span class="logo-text">UFAM Hub</span></div>
+    <div class="card">
+      <h1>Você foi convidado(a)</h1>
+      <p>Alguém te convidou para fazer parte do <strong>UFAM Hub</strong> — um espaço para organizar seus estudos e acompanhar sua jornada na universidade.</p>
+      <p>Para entrar, crie sua conta clicando no botão abaixo. Depois de criar a conta, você poderá fazer login normalmente.</p>
+      <div class="btn-wrap">
+        <a href="${cadastroUrl}" class="btn">Criar minha conta</a>
+      </div>
+      <p class="fallback">Ou copie e cole no navegador:</p>
+      <a href="${cadastroUrl}" class="fallback-link">${cadastroUrl}</a>
+    </div>
+    <div class="footer">
+      <p class="brand">UFAM Hub</p>
+      <p>Organize seus estudos de forma inteligente</p>
+      <p style="margin-top: 12px;">&copy; ${new Date().getFullYear()} UFAM Hub.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+  const text = `Você foi convidado(a) para o UFAM Hub. Crie sua conta em: ${cadastroUrl}`;
+  return { subject, html, text };
+}
+
+export function createConviteComSenhaEmail(data: {
+  nome: string;
+  loginUrl: string;
+  senhaTemporaria: string;
+}): EmailTemplate {
+  const { nome, loginUrl, senhaTemporaria } = data;
+  const subject = "Convite UFAM Hub — sua senha de acesso";
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #18181b;
+      padding: 32px 20px;
+      min-height: 100vh;
+    }
+    .outer {
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: #27272a;
+      border-radius: 16px;
+      padding: 40px 24px 32px;
+    }
+    .logo-row { text-align: center; margin-bottom: 24px; }
+    .logo-text { font-size: 22px; font-weight: 700; color: #fafafa; }
+    .card {
+      background-color: #ffffff;
+      border-radius: 12px;
+      padding: 40px 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+    .card h1 { font-size: 22px; font-weight: 700; color: #18181b; text-align: center; margin-bottom: 16px; }
+    .card p { font-size: 15px; color: #3f3f46; margin-bottom: 12px; }
+    .senha-box {
+      background: #f4f4f5;
+      border: 2px dashed #71717a;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+      text-align: center;
+      font-family: ui-monospace, monospace;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: #18181b;
+    }
+    .btn-wrap { text-align: center; margin: 28px 0 24px; }
+    .btn {
+      display: inline-block;
+      padding: 14px 28px;
+      background-color: #18181b;
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .footer { text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #3f3f46; }
+    .footer p { font-size: 12px; color: #a1a1aa; margin: 4px 0; }
+    .footer .brand { font-weight: 600; color: #fafafa; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="outer">
+    <div class="logo-row"><span class="logo-text">UFAM Hub</span></div>
+    <div class="card">
+      <h1>Você foi convidado(a)</h1>
+      <p>Olá, <strong>${nome || "estudante"}</strong>! Alguém te convidou para o <strong>UFAM Hub</strong>. Sua conta já foi criada. Use a senha temporária abaixo para acessar e, no primeiro login, altere-a por uma senha de sua preferência.</p>
+      <p><strong>Sua senha temporária:</strong></p>
+      <div class="senha-box">${senhaTemporaria}</div>
+      <p style="font-size: 13px; color: #71717a;">Esta senha atende às regras de segurança (mínimo 6 caracteres, com número, letra maiúscula e caractere especial).</p>
+      <div class="btn-wrap">
+        <a href="${loginUrl}" class="btn">Acessar o UFAM Hub</a>
+      </div>
+      <p style="font-size: 13px; color: #71717a;">Ou copie e cole no navegador: ${loginUrl}</p>
+    </div>
+    <div class="footer">
+      <p class="brand">UFAM Hub</p>
+      <p>Organize seus estudos de forma inteligente</p>
+      <p style="margin-top: 12px;">&copy; ${new Date().getFullYear()} UFAM Hub.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+  const text = `Convite UFAM Hub. Olá, ${nome || "estudante"}! Sua senha temporária: ${senhaTemporaria}. Acesse: ${loginUrl}`;
+  return { subject, html, text };
+}
+
 export function createTarefaEmail(data: {
   titulo: string;
   disciplina?: string;

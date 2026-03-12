@@ -4,6 +4,19 @@ import {
   createSupabaseAdmin,
 } from "@/lib/supabase/server";
 
+function buildUserMetaForDisplay(user: {
+  user_metadata?: Record<string, unknown>;
+  email?: string;
+}): Record<string, unknown> {
+  const meta = user.user_metadata || {};
+  const email = user.email;
+  const nome =
+    (meta.nome as string) ||
+    (meta.full_name as string) ||
+    (email ? email.split("@")[0] : "Usuário");
+  return { ...meta, email, nome };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -44,10 +57,7 @@ export async function GET(
     }
 
     if (grupoError || !grupo) {
-      return NextResponse.json(
-        { error: "Grupo não encontrado" },
-        { status: 404 }
-      );
+      return NextResponse.json({ solicitacoes: [] });
     }
 
     if (grupo.ativo === false) {
@@ -96,7 +106,7 @@ export async function GET(
           if (!userError && userData?.user) {
             solicitacoesMap.set(userId, {
               id: userData.user.id,
-              raw_user_meta_data: userData.user.user_metadata || {},
+              raw_user_meta_data: buildUserMetaForDisplay(userData.user),
             });
           }
         } catch (err) {

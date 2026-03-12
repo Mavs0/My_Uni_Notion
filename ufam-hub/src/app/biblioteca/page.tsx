@@ -195,7 +195,10 @@ export default function BibliotecaPage() {
       const res = await fetch(
         `/api/colaboracao/biblioteca?ordenar=recentes&limit=10&offset=0`
       );
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (res.status === 401) toast.error("Faça login para ver a biblioteca.");
+        return;
+      }
       const data = await res.json();
       const list = (data.materiais || []).filter((m: Material) => m.ativo !== false);
       setQuickAccessMaterials(list.slice(0, 4));
@@ -307,7 +310,17 @@ export default function BibliotecaPage() {
         const response = await fetch(
           `/api/colaboracao/biblioteca?${params.toString()}`
         );
-        if (!response.ok) throw new Error("Erro ao carregar materiais");
+        if (!response.ok) {
+          const errBody = await response.json().catch(() => ({}));
+          const msg =
+            response.status === 401
+              ? "Faça login para ver a biblioteca."
+              : response.status === 403
+                ? "Você não tem permissão para acessar estes materiais."
+                : errBody.error || "Erro ao carregar materiais";
+          toast.error(msg);
+          throw new Error(msg);
+        }
         const data = await response.json();
         setMateriaisInfinite(data.materiais || []);
         setTotalMateriais(data.total ?? 0);

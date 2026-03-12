@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Input } from "./input";
 import { Button } from "./button";
 import { Avatar, AvatarImage, AvatarFallback } from "./avatar";
-import { ThemeToggle } from "./theme-toggle";
 import {
   Search,
   User,
@@ -11,9 +10,15 @@ import {
   Settings,
   LogIn,
   Menu,
-  Accessibility,
   Focus,
+  Bell,
+  HelpCircle,
+  Moon,
+  Sun,
+  Monitor,
 } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import * as React from "react";
 import { useCommandPalette, CommandPalette } from "./command-palette";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -21,7 +26,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
@@ -39,6 +43,53 @@ import {
 } from "./tooltip";
 import { FocusModeSettings } from "@/components/FocusModeSettings";
 import { cn } from "@/lib/utils";
+
+function ThemeSegment() {
+  const { setTheme, theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const saveTheme = async (value: string) => {
+    try {
+      await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tema_preferencia: value }),
+      });
+    } catch (e) {
+      console.error("Erro ao salvar tema:", e);
+    }
+  };
+  if (!mounted) return null;
+  const current = theme ?? "system";
+  const options: { value: string; label: string; icon: React.ReactNode }[] = [
+    { value: "dark", label: "Escuro", icon: <Moon className="h-3.5 w-3.5" /> },
+    { value: "light", label: "Claro", icon: <Sun className="h-3.5 w-3.5" /> },
+    { value: "system", label: "Sistema", icon: <Monitor className="h-3.5 w-3.5" /> },
+  ];
+  return (
+    <>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => {
+            setTheme(opt.value);
+            saveTheme(opt.value);
+          }}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-md transition-colors",
+            current === opt.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {opt.icon}
+          {opt.label}
+        </button>
+      ))}
+    </>
+  );
+}
 
 function TopBar() {
   const { open, setOpen } = useCommandPalette();
@@ -248,15 +299,12 @@ function TopBar() {
               />
             )}
 
-            {/* Separador visual antes do tema + avatar (só quando há ícones à esquerda) */}
+            {/* Separador visual antes do avatar (só quando há ícones à esquerda) */}
             {isAuthenticated && (
               <div className="w-px h-6 bg-border mx-0.5 sm:mx-1" aria-hidden />
             )}
 
-            {/* Toggle de tema */}
-            <ThemeToggle />
-
-            {/* Avatar com menu — mais espaço à esquerda no mobile */}
+            {/* Avatar com menu (tema e opções dentro do dropdown — modelo 02) */}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -274,62 +322,92 @@ function TopBar() {
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    {userProfile?.nome || t.nav.perfil}
-                  </DropdownMenuLabel>
-                  {userProfile?.email && (
-                    <p className="text-xs text-muted-foreground px-2 py-1">
-                      {userProfile.email}
-                    </p>
-                  )}
-                  <DropdownMenuSeparator />
+                <DropdownMenuContent
+                  align="end"
+                  className="w-64 rounded-xl bg-background border shadow-lg p-0"
+                >
+                  {/* Itens do menu (modelo 02: Notificações, Ajuda, Configurações) */}
+                  <div className="p-2">
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center cursor-pointer rounded-lg py-2.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      >
+                        <Bell className="mr-3 h-4 w-4" />
+                        <span>Notificações</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/ajuda"
+                        className="flex items-center cursor-pointer rounded-lg py-2.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      >
+                        <HelpCircle className="mr-3 h-4 w-4" />
+                        <span>Central de Ajuda</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/configuracoes"
+                        className="flex items-center cursor-pointer rounded-lg py-2.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      >
+                        <Settings className="mr-3 h-4 w-4" />
+                        <span>{t.nav.configuracoes}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </div>
 
-                  {/* Perfil */}
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href="/perfil"
-                      className="flex items-center cursor-pointer"
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      <span>{t.nav.perfil}</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  {/* Tema: Dark | Light | System */}
+                  <div className="px-3 pb-3">
+                    <div className="flex rounded-lg border bg-muted/30 p-0.5">
+                      <ThemeSegment />
+                    </div>
+                  </div>
 
-                  {/* Configurações */}
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href="/configuracoes"
-                      className="flex items-center cursor-pointer"
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>{t.nav.configuracoes}</span>
-                    </Link>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  {/* Acessibilidade */}
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href="/configuracoes"
-                      className="flex items-center cursor-pointer"
-                    >
-                      <Accessibility className="mr-2 h-4 w-4" />
-                      <span>Acessibilidade</span>
-                    </Link>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="my-0" />
 
                   {/* Sair */}
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>{t.comum.sair}</span>
-                  </DropdownMenuItem>
+                  <div className="p-2">
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="cursor-pointer rounded-lg py-2.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 focus:text-foreground"
+                    >
+                      <LogOut className="mr-3 h-4 w-4" />
+                      <span>{t.comum.sair}</span>
+                    </DropdownMenuItem>
+                  </div>
+
+                  <DropdownMenuSeparator className="my-0" />
+
+                  {/* Usuário no rodapé (modelo 02) */}
+                  <div className="p-3">
+                    <Link
+                      href="/perfil"
+                      className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50 transition-colors"
+                    >
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarImage
+                          src={userProfile?.avatar_url}
+                          alt={userProfile?.nome || "Usuário"}
+                        />
+                        <AvatarFallback>
+                          {userProfile
+                            ? getInitials(userProfile.nome, userProfile.email)
+                            : "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1 text-left">
+                        <p className="text-sm font-medium truncate">
+                          {userProfile?.nome || t.nav.perfil}
+                        </p>
+                        {userProfile?.email && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {userProfile.email}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (

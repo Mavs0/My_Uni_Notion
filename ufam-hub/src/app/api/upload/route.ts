@@ -75,11 +75,11 @@ export async function POST(request: NextRequest) {
         if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
           try {
             console.log(
-              "🔧 Tentando criar bucket 'biblioteca' automaticamente..."
+              `🔧 Tentando criar bucket '${bucketName}' automaticamente...`
             );
             const adminClient = createSupabaseAdmin();
             const { data: bucketData, error: bucketError } =
-              await adminClient.storage.createBucket("biblioteca", {
+              await adminClient.storage.createBucket(bucketName, {
                 public: true,
                 fileSizeLimit: 10485760,
                 allowedMimeTypes: [
@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
                   "image/jpeg",
                   "image/png",
                   "image/jpg",
+                  "image/gif",
+                  "image/webp",
                 ],
               });
 
@@ -95,16 +97,16 @@ export async function POST(request: NextRequest) {
               console.error("❌ Erro ao criar bucket:", bucketError);
               return NextResponse.json(
                 {
-                  error: "Bucket 'biblioteca' não encontrado",
+                  error: `Bucket '${bucketName}' não encontrado`,
                   details:
-                    "Não foi possível criar o bucket automaticamente. Por favor, crie o bucket 'biblioteca' no Supabase Storage manualmente. Veja CRIAR_BUCKET_BIBLIOTECA.md",
+                    "Não foi possível criar o bucket automaticamente. Crie o bucket no Supabase Storage (Dashboard → Storage).",
                   bucketError: bucketError.message,
                 },
                 { status: 500 }
               );
             }
 
-            console.log("✅ Bucket 'biblioteca' criado com sucesso!");
+            console.log(`✅ Bucket '${bucketName}' criado com sucesso!`);
 
             const { data: retryUpload, error: retryError } =
               await adminClient.storage
@@ -133,9 +135,9 @@ export async function POST(request: NextRequest) {
             console.error("❌ Erro ao tentar criar bucket:", createError);
             return NextResponse.json(
               {
-                error: "Bucket 'biblioteca' não encontrado",
+                error: `Bucket '${bucketName}' não encontrado`,
                 details:
-                  "Por favor, crie o bucket 'biblioteca' no Supabase Storage. Veja CRIAR_BUCKET_BIBLIOTECA.md para instruções.",
+                  "Crie o bucket no Supabase Storage (Dashboard → Storage).",
                 createError: createError.message,
               },
               { status: 500 }
@@ -144,9 +146,9 @@ export async function POST(request: NextRequest) {
         } else {
           return NextResponse.json(
             {
-              error: "Bucket 'biblioteca' não encontrado",
+              error: `Bucket '${bucketName}' não encontrado`,
               details:
-                "Por favor, crie o bucket 'biblioteca' no Supabase Storage. Veja CRIAR_BUCKET_BIBLIOTECA.md para instruções.",
+                "Crie o bucket no Supabase Storage (Dashboard → Storage).",
               uploadError: uploadError.message,
             },
             { status: 500 }

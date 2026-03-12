@@ -18,6 +18,15 @@ export async function GET(request: NextRequest) {
       .from("tarefas")
       .select(
         `
+        id,
+        disciplina_id,
+        titulo,
+        descricao,
+        data_vencimento,
+        concluida,
+        prioridade,
+        created_at,
+        updated_at,
         disciplinas (
           id,
           nome

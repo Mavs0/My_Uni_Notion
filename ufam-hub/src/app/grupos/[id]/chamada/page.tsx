@@ -118,20 +118,18 @@ export default function GrupoChamadaPage() {
 
   return (
     <main className="min-h-screen flex flex-col bg-background">
-      <header className="border-b bg-card/80 backdrop-blur shrink-0">
-        <div className="mx-auto max-w-6xl px-4 py-2 flex items-center justify-between">
-          <Button variant="ghost" size="sm" asChild className="shrink-0 -ml-2">
-            <Link href={`/grupos/${grupoId}`}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar ao grupo
-            </Link>
-          </Button>
-          <h1 className="text-lg font-semibold truncate">Sala de chamada</h1>
-          <div className="w-[100px]" />
-        </div>
+      <header className="shrink-0 h-12 flex items-center px-3 border-b border-border bg-background/95 backdrop-blur">
+        <Button variant="ghost" size="sm" asChild className="shrink-0 -ml-1">
+          <Link href={`/grupos/${grupoId}`}>
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Voltar ao grupo
+          </Link>
+        </Button>
+        <h1 className="flex-1 text-center text-sm font-medium truncate px-2">Sala de chamada</h1>
+        <div className="w-[88px] shrink-0" />
       </header>
 
-      <div className="flex-1 min-h-0 h-[calc(100vh-3.5rem)] px-2 md:px-4 pb-2">
+      <div className="flex-1 min-h-0 flex flex-col" style={{ height: "calc(100vh - 3rem)" }}>
         <LiveKitRoom
           token={token}
           serverUrl={serverUrl}
@@ -139,7 +137,7 @@ export default function GrupoChamadaPage() {
           audio={true}
           video={true}
           onDisconnected={handleDisconnected}
-          className="h-full w-full chamada-room rounded-xl overflow-hidden border border-border bg-card"
+          className="h-full w-full chamada-room"
           data-lk-theme="default"
         >
           <ChamadaRoomUI />

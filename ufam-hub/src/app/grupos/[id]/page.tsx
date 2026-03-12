@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ interface Mensagem {
     id: string;
     raw_user_meta_data?: {
       nome?: string;
+      full_name?: string;
       email?: string;
     };
   };
@@ -70,6 +71,7 @@ interface Membro {
     id: string;
     raw_user_meta_data?: {
       nome?: string;
+      full_name?: string;
       email?: string;
     };
   };
@@ -84,6 +86,7 @@ interface Solicitacao {
     id: string;
     raw_user_meta_data?: {
       nome?: string;
+      full_name?: string;
       email?: string;
     };
   };
@@ -135,13 +138,11 @@ export default function GrupoDetailPage() {
       }
       loadMensagens();
       loadMembros();
-      loadSolicitacoes();
     };
     run();
     const interval = setInterval(() => {
       if (!grupoOkRef.current) return;
       loadMensagens();
-      loadSolicitacoes();
     }, 30000);
     return () => {
       cancelled = true;
@@ -226,7 +227,7 @@ export default function GrupoDetailPage() {
     }
   };
 
-  const loadSolicitacoes = async () => {
+  const loadSolicitacoes = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/colaboracao/grupos/${grupoId}/solicitacoes`,
@@ -234,13 +235,36 @@ export default function GrupoDetailPage() {
       if (response.ok) {
         const { solicitacoes: solicitacoesData } = await response.json();
         setSolicitacoes(solicitacoesData || []);
-      } else if (response.status === 403 || response.status === 404) {
+      } else {
         setSolicitacoes([]);
       }
-    } catch (error) {
-      console.error("Erro ao carregar solicitações:", error);
+    } catch {
+      setSolicitacoes([]);
     }
-  };
+  }, [grupoId]);
+
+  const shouldLoadSolicitacoes =
+    !!grupoId &&
+    !!currentUserId &&
+    !!grupoInfo &&
+    grupoInfo.visibilidade === "privado" &&
+    (grupoInfo.criador_id === currentUserId ||
+      membros.some(
+        (m) =>
+          (m.user_id === currentUserId || m.usuario?.id === currentUserId) &&
+          m.role === "admin"
+      ));
+
+  useEffect(() => {
+    if (!shouldLoadSolicitacoes) {
+      setSolicitacoes([]);
+      return;
+    }
+    loadSolicitacoes();
+    const interval = setInterval(loadSolicitacoes, 30000);
+    return () => clearInterval(interval);
+  }, [grupoId, shouldLoadSolicitacoes, loadSolicitacoes]);
+
   const handleEnviarMensagem = async () => {
     if (!novaMensagem.trim()) return;
     try {
@@ -527,6 +551,7 @@ export default function GrupoDetailPage() {
                       .map((msg) => {
                         const nomeUsuario =
                           msg.usuario?.raw_user_meta_data?.nome ||
+                          msg.usuario?.raw_user_meta_data?.full_name ||
                           msg.usuario?.raw_user_meta_data?.email ||
                           "Usuário";
                         const emailUsuario =
@@ -812,6 +837,7 @@ export default function GrupoDetailPage() {
                 {membros.map((membro) => {
                   const nomeUsuario =
                     membro.usuario?.raw_user_meta_data?.nome ||
+                    membro.usuario?.raw_user_meta_data?.full_name ||
                     membro.usuario?.raw_user_meta_data?.email ||
                     "Usuário";
                   const emailUsuario =
@@ -881,7 +907,11 @@ export default function GrupoDetailPage() {
                             <Avatar className="h-7 w-7 shrink-0">
                               <AvatarFallback className="text-xs">
                                 {getInitials(
-                                  solicitacao.usuario?.raw_user_meta_data?.nome,
+                                  solicitacao.usuario?.raw_user_meta_data?.nome ||
+                                    solicitacao.usuario?.raw_user_meta_data
+                                      ?.full_name ||
+                                    solicitacao.usuario?.raw_user_meta_data
+                                      ?.email,
                                   solicitacao.usuario?.raw_user_meta_data
                                     ?.email,
                                 )}
@@ -891,6 +921,8 @@ export default function GrupoDetailPage() {
                               <p className="text-sm font-medium truncate">
                                 {solicitacao.usuario?.raw_user_meta_data
                                   ?.nome ||
+                                  solicitacao.usuario?.raw_user_meta_data
+                                    ?.full_name ||
                                   solicitacao.usuario?.raw_user_meta_data
                                     ?.email ||
                                   "Usuário"}
