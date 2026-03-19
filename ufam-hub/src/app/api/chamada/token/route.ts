@@ -53,14 +53,14 @@ export async function GET(request: NextRequest) {
 
     const grupoId = room;
 
-    let grupo: { ativo?: boolean } | null = null;
+    let grupo: { ativo?: boolean; visibilidade?: string } | null = null;
     let grupoError: unknown = null;
 
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const adminClient = createSupabaseAdmin();
       const result = await adminClient
         .from("grupos_estudo")
-        .select("ativo")
+        .select("ativo, visibilidade")
         .eq("id", grupoId)
         .single();
       grupo = result.data;
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     } else {
       const result = await supabase
         .from("grupos_estudo")
-        .select("ativo")
+        .select("ativo, visibilidade")
         .eq("id", grupoId)
         .single();
       grupo = result.data;
@@ -89,33 +89,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let membro: { id: string } | null = null;
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const adminClient = createSupabaseAdmin();
-      const membroResult = await adminClient
-        .from("grupo_membros")
-        .select("id")
-        .eq("grupo_id", grupoId)
-        .eq("user_id", user.id)
-        .eq("status", "ativo")
-        .single();
-      membro = membroResult.data;
-    } else {
-      const membroResult = await supabase
-        .from("grupo_membros")
-        .select("id")
-        .eq("grupo_id", grupoId)
-        .eq("user_id", user.id)
-        .eq("status", "ativo")
-        .single();
-      membro = membroResult.data;
-    }
+    const isPublico = grupo.visibilidade === "publico";
 
-    if (!membro) {
-      return NextResponse.json(
-        { error: "Você não é membro deste grupo." },
-        { status: 403 },
-      );
+    if (!isPublico) {
+      let membro: { id: string } | null = null;
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const adminClient = createSupabaseAdmin();
+        const membroResult = await adminClient
+          .from("grupo_membros")
+          .select("id")
+          .eq("grupo_id", grupoId)
+          .eq("user_id", user.id)
+          .eq("status", "ativo")
+          .single();
+        membro = membroResult.data;
+      } else {
+        const membroResult = await supabase
+          .from("grupo_membros")
+          .select("id")
+          .eq("grupo_id", grupoId)
+          .eq("user_id", user.id)
+          .eq("status", "ativo")
+          .single();
+        membro = membroResult.data;
+      }
+      if (!membro) {
+        return NextResponse.json(
+          { error: "Grupo privado: apenas membros podem entrar na chamada." },
+          { status: 403 },
+        );
+      }
     }
 
     const participantName =

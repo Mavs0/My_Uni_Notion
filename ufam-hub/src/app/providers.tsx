@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { I18nProvider } from "@/lib/i18n/context";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { CookieCleanup } from "@/components/CookieCleanup";
+import { RedirectOnApi401 } from "@/components/auth/RedirectOnApi401";
 import { FocusModeProvider } from "@/contexts/FocusModeContext";
 import { PomodoroProvider } from "@/contexts/PomodoroContext";
 function ThemeProviderWrapper({ children }: { children: React.ReactNode }) {
@@ -68,6 +69,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProviderWrapper>
       <QueryClientProvider client={qc}>
+        <RedirectOnApi401 />
         <I18nProvider>
           <FocusModeProvider>
             <PomodoroProvider>

@@ -539,7 +539,7 @@ body[data-focus-font-size="extra-large"] .focus-mode-content-wrapper h3 {
 
 .chamada-room.chamada-meet-layout,
 .chamada-room .chamada-meet-layout {
-  --chamada-bar-height: 72px;
+  --chamada-bar-height: 132px;
 }
 .chamada-room .chamada-control-bar {
   min-height: var(--chamada-bar-height, 72px);

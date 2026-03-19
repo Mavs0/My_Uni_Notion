@@ -16,19 +16,22 @@ import { cn } from "@/lib/utils";
 const VirtualAssistant = lazy(() =>
   import("../components/VirtualAssistant").then((mod) => ({
     default: mod.VirtualAssistant,
-  }))
+  })),
 );
 
-function LayoutContentInner({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function LayoutContentInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const authPages = ["/login", "/esqueci-senha", "/resetar-senha", "/config-error"];
+  const authPages = [
+    "/login",
+    "/esqueci-senha",
+    "/resetar-senha",
+    "/config-error",
+  ];
   const isAuthPage = authPages.includes(pathname);
   const isErrorPage = pathname === "/404" || pathname === "/500";
+  const isChamadaPage =
+    typeof pathname === "string" && pathname.includes("/chamada");
 
   useGlobalShortcuts();
 
@@ -36,7 +39,7 @@ function LayoutContentInner({
     setMounted(true);
   }, []);
 
-  if (isAuthPage || isErrorPage) {
+  if (isAuthPage || isErrorPage || isChamadaPage) {
     return <>{children}</>;
   }
 
@@ -61,14 +64,16 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
           <TopBar />
         </>
       )}
-      <div className={cn("flex", isFocusModeActive && "h-screen overflow-hidden")}>
+      <div
+        className={cn("flex", isFocusModeActive && "h-screen overflow-hidden")}
+      >
         {!isFocusModeActive && <Sidebar />}
         <main
           id="main-content"
           className={cn(
             "flex-1 w-full min-h-0",
             !isFocusModeActive && "p-4 max-w-6xl mx-auto pb-24 md:pb-4",
-            isFocusModeActive && "h-full overflow-auto pt-12"
+            isFocusModeActive && "h-full overflow-auto pt-12",
           )}
           role="main"
           aria-label="Conteúdo principal"
@@ -78,7 +83,7 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
               className={cn(
                 "focus-mode-content-wrapper max-w-4xl mx-auto p-8",
                 settings.fontSize === "large" && "text-lg",
-                settings.fontSize === "extra-large" && "text-xl"
+                settings.fontSize === "extra-large" && "text-xl",
               )}
             >
               {children}

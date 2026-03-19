@@ -16,14 +16,21 @@ import {
   FocusLayout,
   CarouselLayout,
   ParticipantTile,
-  ControlBar,
+  TrackToggle,
   RoomAudioRenderer,
   ConnectionStateToast,
 } from "@livekit/components-react";
 import { ChamadaChatMeet } from "./ChamadaChatMeet";
 import { ChamadaTranscricao } from "./ChamadaTranscricao";
+import { ChamadaAtividade } from "./ChamadaAtividade";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Users, Mic, MicOff, Video, VideoOff, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import {
+  useChamadaSidebar,
+  type ChamadaSidebarTab,
+} from "./ChamadaSidebarContext";
+import { ChamadaShareModal } from "./ChamadaShareModal";
+import { MessageCircle, Activity, Mic, MicOff, Video, VideoOff, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function isSameTrack(
@@ -42,8 +49,6 @@ function isSameTrack(
   return true;
 }
 
-type SidebarTab = "chat" | "transcricao" | "atividade";
-
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const m = Math.floor(totalSec / 60);
@@ -59,7 +64,7 @@ function ChamadaRoomInner() {
   const room = useRoomContext();
   const lastAutoFocusedScreenRef = React.useRef<TrackReferenceOrPlaceholder | null>(null);
 
-  const [sidebarTab, setSidebarTab] = React.useState<SidebarTab>("chat");
+  const { sidebarTab, setSidebarTab, groupInfo, shareModalOpen, setShareModalOpen } = useChamadaSidebar();
   const [elapsedMs, setElapsedMs] = React.useState(0);
   const startTimeRef = React.useRef<number>(Date.now());
 
@@ -108,10 +113,10 @@ function ChamadaRoomInner() {
     focusTrack?.publication?.trackSid,
   ]);
 
-  const tabs: { id: SidebarTab; label: string; icon: React.ReactNode }[] = [
+  const tabs: { id: ChamadaSidebarTab; label: string; icon: React.ReactNode }[] = [
     { id: "chat", label: "Chat", icon: <MessageCircle className="h-4 w-4" /> },
     { id: "transcricao", label: "Transcrição", icon: null },
-    { id: "atividade", label: "Atividade", icon: null },
+    { id: "atividade", label: "Atividade", icon: <Activity className="h-4 w-4" /> },
   ];
 
   return (
@@ -119,7 +124,7 @@ function ChamadaRoomInner() {
       <div className="flex h-full flex-col min-h-0 overflow-hidden bg-background chamada-meet-layout">
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Área de vídeo (cerca de 2/3) */}
-          <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
+          <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             {!focusTrack ? (
               <GridLayout tracks={tracks} className="h-full flex-1 min-h-0">
                 <ParticipantTile />
@@ -148,13 +153,19 @@ function ChamadaRoomInner() {
           </div>
 
           {/* Sidebar direita unificada: Participantes + abas (Chat, Transcrição, Atividade) */}
-          <aside className="chamada-sidebar flex w-full max-w-sm flex-col border-l border-border bg-card shrink-0 md:w-[340px] lg:w-[380px]">
+          <aside className="chamada-sidebar relative z-[40] flex w-full max-w-sm flex-col border-l border-border bg-card shrink-0 pointer-events-auto md:w-[340px] lg:w-[380px]">
             <div className="shrink-0 border-b border-border px-4 py-3">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   Participantes
                 </h2>
-                <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg text-xs shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-lg text-xs shrink-0"
+                  onClick={() => setShareModalOpen(true)}
+                >
                   <UserPlus className="h-3.5 w-3.5" />
                   Adicionar +
                 </Button>
@@ -223,45 +234,52 @@ function ChamadaRoomInner() {
                 <ChamadaTranscricao />
               )}
               {sidebarTab === "atividade" && (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Users className="h-6 w-6" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">Atividade</p>
-                  <p className="text-xs text-muted-foreground">Em breve: indicador de atividade na aula.</p>
-                </div>
+                <ChamadaAtividade />
               )}
             </div>
           </aside>
         </div>
 
-        {/* Barra inferior: timer | controles | Encerrar chamada */}
-        <div className="chamada-control-bar flex items-center justify-between gap-4 w-full px-4 py-3 bg-muted/90 dark:bg-zinc-900/95 border-t border-border">
-          <div className="flex min-w-0 shrink-0 items-center gap-2 w-28 sm:w-36">
-            <span className="text-sm font-medium tabular-nums text-foreground">
-              {formatElapsed(elapsedMs)}
-            </span>
-            <span className="text-muted-foreground text-xs">/ 1:00:00</span>
-          </div>
-          <div className="flex items-center justify-center gap-1 sm:gap-2">
-            <ControlBar
-              variation="minimal"
-              controls={{
-                microphone: true,
-                camera: true,
-                screenShare: true,
-                chat: false,
-                leave: false,
-                settings: false,
-              }}
-              className="!gap-1 sm:!gap-2 [&_button]:rounded-full [&_button]:h-11 [&_button]:w-11"
+        {/* Barra inferior: mic / câmera / tela sempre visíveis + timer e encerrar */}
+        <div className="chamada-control-bar relative z-[35] flex w-full flex-col gap-3 border-t border-border bg-muted/90 px-4 py-3 dark:bg-zinc-900/95">
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <TrackToggle
+              source={Track.Source.Microphone}
+              title="Microfone"
+              className={cn(
+                "h-12 w-12 shrink-0 rounded-full border-2 border-border bg-card shadow-sm",
+                "text-foreground hover:bg-muted aria-[pressed=true]:border-primary aria-[pressed=true]:bg-primary/15"
+              )}
+            />
+            <TrackToggle
+              source={Track.Source.Camera}
+              title="Câmera"
+              className={cn(
+                "h-12 w-12 shrink-0 rounded-full border-2 border-border bg-card shadow-sm",
+                "text-foreground hover:bg-muted aria-[pressed=true]:border-primary aria-[pressed=true]:bg-primary/15"
+              )}
+            />
+            <TrackToggle
+              source={Track.Source.ScreenShare}
+              title="Compartilhar tela"
+              className={cn(
+                "h-12 w-12 shrink-0 rounded-full border-2 border-border bg-card shadow-sm",
+                "text-foreground hover:bg-muted aria-[pressed=true]:border-primary aria-[pressed=true]:bg-primary/15"
+              )}
             />
           </div>
-          <div className="flex shrink-0 items-center gap-1 w-28 sm:w-36 justify-end">
+          <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-sm font-medium tabular-nums text-foreground">
+                {formatElapsed(elapsedMs)}
+              </span>
+              <span className="text-xs text-muted-foreground">/ 1:00:00</span>
+            </div>
             <Button
               variant="destructive"
               size="sm"
-              className="rounded-lg px-4 h-11 font-medium"
+              className="h-11 shrink-0 rounded-lg px-4 font-medium"
+              type="button"
               onClick={() => room.disconnect()}
             >
               Encerrar chamada
@@ -271,6 +289,11 @@ function ChamadaRoomInner() {
       </div>
       <RoomAudioRenderer />
       <ConnectionStateToast />
+      <ChamadaShareModal
+        open={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        groupInfo={groupInfo}
+      />
     </LayoutContextProvider>
   );
 }
