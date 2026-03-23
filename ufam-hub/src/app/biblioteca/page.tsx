@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,7 +126,11 @@ interface Grupo {
   nome: string;
   visibilidade: string;
 }
+const SECTION_TITLE =
+  "text-xs font-semibold uppercase tracking-widest text-muted-foreground";
+
 export default function BibliotecaPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const grupoIdFromUrl = searchParams.get("grupo_id");
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -626,12 +630,16 @@ export default function BibliotecaPage() {
     }
   };
 
+  const goToMaterial = (id: string) => router.push(`/biblioteca/${id}`);
+
   return (
-    <main className="mx-auto max-w-6xl p-4 space-y-6">
-      <div className="flex items-center justify-between">
+    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Biblioteca de Materiais</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Biblioteca de Materiais
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Explore e compartilhe materiais de estudo
           </p>
         </div>
@@ -1077,32 +1085,32 @@ export default function BibliotecaPage() {
           </DialogContent>
         </Dialog>
       </div>
-      {/* Área de Busca e Filtros Melhorada */}
-      <Card className="border-dashed">
-        <CardContent className="p-4 space-y-4">
-          {/* Linha de busca */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="Buscar por título ou descrição..."
-                className="pl-9 h-10"
-              />
+      {/* Busca e filtros */}
+      <section>
+        <h2 className={SECTION_TITLE + " mb-3"}>Busca e filtros</h2>
+        <Card className="border border-border">
+          <CardContent className="p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  placeholder="Buscar por título ou descrição..."
+                  className="pl-9 h-10 rounded-lg"
+                />
+              </div>
+              <Button onClick={handleSearch} className="h-10 rounded-lg shrink-0">
+                <Search className="h-4 w-4 mr-2" />
+                Buscar
+              </Button>
             </div>
-            <Button onClick={handleSearch} className="h-10">
-              <Search className="h-4 w-4 mr-2" />
-              Buscar
-            </Button>
-          </div>
 
-          {/* Linha de filtros */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Filter className="h-4 w-4" />
-              <span className="font-medium">Filtros</span>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className={SECTION_TITLE}>Filtros</span>
               {(filtroTipo ||
                 filtroCategoria ||
                 filtroFormato ||
@@ -1372,12 +1380,13 @@ export default function BibliotecaPage() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* Acesso rápido */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Acesso rápido</h2>
+      <section className="space-y-4">
+        <h2 className={SECTION_TITLE}>Acesso rápido</h2>
         {loadingQuick ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[1, 2, 3, 4].map((i) => (
@@ -1397,8 +1406,8 @@ export default function BibliotecaPage() {
               return (
                 <Card
                   key={m.id}
-                  className="p-4 cursor-pointer hover:shadow-md transition-shadow border"
-                  onClick={() => (window.location.href = `/biblioteca/${m.id}`)}
+                  className="p-4 cursor-pointer hover:shadow-md transition-shadow border rounded-xl"
+                  onClick={() => goToMaterial(m.id)}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
@@ -1421,15 +1430,21 @@ export default function BibliotecaPage() {
             })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Nenhum material recente. Adicione um material para ver aqui.
-          </p>
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
+            <Library className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+            <p className="text-sm font-medium text-foreground">Nenhum material recente</p>
+            <p className="text-xs text-muted-foreground mt-1">Adicione um material para ver no acesso rápido.</p>
+            <Button variant="outline" size="sm" className="mt-3 rounded-lg" onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar material
+            </Button>
+          </div>
         )}
       </section>
 
       {/* Materiais fixados */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Fixados</h2>
+      <section className="space-y-4">
+        <h2 className={SECTION_TITLE}>Fixados</h2>
         {loadingPinned && pinnedIds.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto pb-2">
             {[1, 2, 3].map((i) => (
@@ -1449,8 +1464,8 @@ export default function BibliotecaPage() {
               return (
                 <Card
                   key={m.id}
-                  className="flex-shrink-0 w-[200px] p-4 cursor-pointer hover:shadow-md transition-shadow border relative"
-                  onClick={() => (window.location.href = `/biblioteca/${m.id}`)}
+                  className="flex-shrink-0 w-[200px] p-4 cursor-pointer hover:shadow-md transition-shadow border rounded-xl relative"
+                  onClick={() => goToMaterial(m.id)}
                 >
                   <Button
                     variant="ghost"
@@ -1480,15 +1495,17 @@ export default function BibliotecaPage() {
             })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Fixe materiais para acessá-los rapidamente. Use o ícone de alfinete ao ver um material.
-          </p>
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
+            <Pin className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+            <p className="text-sm font-medium text-foreground">Nenhum material fixado</p>
+            <p className="text-xs text-muted-foreground mt-1">Use o ícone de alfinete ao ver um material para fixá-lo aqui.</p>
+          </div>
         )}
       </section>
 
       {/* Editados recentemente (tabela) */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Editados recentemente</h2>
+      <section className="space-y-4">
+        <h2 className={SECTION_TITLE}>Editados recentemente</h2>
         {loadingQuick ? (
           <Card>
             <CardContent className="p-4">
@@ -1500,7 +1517,7 @@ export default function BibliotecaPage() {
             </CardContent>
           </Card>
         ) : recentTableMaterials.length > 0 ? (
-          <Card>
+          <Card className="rounded-xl border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1524,7 +1541,7 @@ export default function BibliotecaPage() {
                       <tr
                         key={m.id}
                         className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                        onClick={() => (window.location.href = `/biblioteca/${m.id}`)}
+                        onClick={() => goToMaterial(m.id)}
                       >
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
@@ -1566,15 +1583,16 @@ export default function BibliotecaPage() {
             </div>
           </Card>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Nenhum material recente.
-          </p>
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
+            <FileText className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+            <p className="text-sm font-medium text-foreground">Nenhum material recente</p>
+            <p className="text-xs text-muted-foreground mt-1">Os materiais que você visualizar ou adicionar aparecerão aqui.</p>
+          </div>
         )}
       </section>
 
-      <div className="border-t pt-6 mt-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Todos os materiais</h2>
-      </div>
+      <section className="border-t pt-8 mt-8">
+        <h2 className={SECTION_TITLE + " mb-4"}>Todos os materiais</h2>
       {loadingInfinite && materiaisFiltrados.length === 0 ? (
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -1610,12 +1628,10 @@ export default function BibliotecaPage() {
           {materiaisFiltrados.map((material) => (
               <div key={material.id} className="flex min-h-[380px]">
                 <Card
-                  className={`flex flex-col h-full w-full min-h-[380px] hover:shadow-md transition-shadow cursor-pointer ${
+                  className={`flex flex-col h-full w-full min-h-[380px] hover:shadow-md transition-shadow cursor-pointer rounded-xl ${
                     material.ativo === false ? "opacity-60" : ""
                   }`}
-                  onClick={() => {
-                    window.location.href = `/biblioteca/${material.id}`;
-                  }}
+                  onClick={() => goToMaterial(material.id)}
                 >
                   <CardHeader className="flex-shrink-0 space-y-0">
                     <div className="flex items-start justify-between gap-2">
@@ -1786,14 +1802,14 @@ export default function BibliotecaPage() {
                         <Button
                           variant="default"
                           size="sm"
-                          className="flex-1"
+                          className="flex-1 rounded-lg"
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.location.href = `/biblioteca/${material.id}`;
+                            goToMaterial(material.id);
                           }}
                         >
                           <Eye className="h-4 w-4 mr-2" />
-                          Ver Detalhes
+                          Ver detalhes
                         </Button>
                         {material.arquivo_url && (
                           <Button
@@ -1841,6 +1857,7 @@ export default function BibliotecaPage() {
         </div>
         </>
       )}
+      </section>
 
       {/* Dialog de confirmação para arquivar */}
       <Dialog

@@ -13,7 +13,14 @@ import {
   Loader2,
   BookOpen,
 } from "lucide-react";
-export function GoogleCalendarIntegration() {
+type GoogleCalendarIntegrationProps = {
+  /** Linha compacta para a página /calendar (sem lista duplicada de eventos) */
+  variant?: "default" | "compact";
+};
+
+export function GoogleCalendarIntegration({
+  variant = "default",
+}: GoogleCalendarIntegrationProps) {
   const {
     isAuthenticated,
     isLoading,
@@ -58,39 +65,79 @@ export function GoogleCalendarIntegration() {
     return colors[colorId || "1"] || colors["1"];
   };
   if (!isAuthenticated) {
-    return (
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
+    const disconnected = (
+      <>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <Calendar className="h-5 w-5 shrink-0 text-primary" />
               Google Calendar
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Conecte seu calendário para sincronizar aulas e avaliações
+            <p className="text-sm text-muted-foreground">
+              Conecte para sincronizar aulas, avaliações e ver a agenda aqui.
             </p>
           </div>
           <Button
             onClick={authenticate}
             disabled={isLoading}
-            className="flex items-center gap-2"
+            className="mt-2 shrink-0 gap-2 sm:mt-0"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Calendar className="h-4 w-4" />
             )}
-            {isLoading ? "Conectando..." : "Conectar"}
+            {isLoading ? "Conectando…" : "Conectar"}
           </Button>
         </div>
         {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+            <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
-      </Card>
+      </>
+    );
+    if (variant === "compact") {
+      return (
+        <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-4 shadow-sm backdrop-blur-sm">
+          {disconnected}
+        </div>
+      );
+    }
+    return <Card className="p-6">{disconnected}</Card>;
+  }
+
+  if (variant === "compact") {
+    return (
+      <div className="flex flex-col gap-2 rounded-2xl border border-border/80 bg-card/80 px-4 py-3 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <CheckCircle className="h-5 w-5 shrink-0 text-emerald-500" />
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Google Calendar conectado
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {events.length} evento{events.length === 1 ? "" : "s"} carregado
+              {events.length === 1 ? "" : "s"}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={disconnect}
+          className="shrink-0 text-destructive hover:text-destructive"
+        >
+          <XCircle className="mr-2 h-4 w-4" />
+          Desconectar
+        </Button>
+        {error && (
+          <p className="w-full text-xs text-destructive sm:order-last">{error}</p>
+        )}
+      </div>
     );
   }
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">

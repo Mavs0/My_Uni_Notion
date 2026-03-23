@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -19,17 +19,25 @@ import {
   Heading2,
   Loader2,
   MoreHorizontal,
-  Check,
   Upload,
   PanelLeftClose,
   PanelRightClose,
   MessageSquare,
   FileText,
   ChevronRight,
-  ChevronDown,
+  Search,
+  Sparkles,
+  LayoutPanelLeft,
+  BookOpen,
+  Eye,
+  Pencil,
+  Columns2,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +57,7 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { CompartilharNotaDialog } from "@/components/CompartilharNotaDialog";
 
 type Nota = {
   id: string;
@@ -57,6 +66,20 @@ type Nota = {
   content_md: string;
   created_at?: string;
   updated_at?: string;
+};
+
+type NotaComentario = {
+  id: string;
+  conteudo: string;
+  created_at: string;
+  usuario?: {
+    id: string;
+    raw_user_meta_data?: {
+      nome?: string;
+      full_name?: string;
+      email?: string;
+    };
+  };
 };
 
 // Helpers que atualizam o state; a seleção é restaurada via ref após re-render
@@ -104,8 +127,6 @@ export default function NotaPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareLink, setShareLink] = useState("");
-  const [shareError, setShareError] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageMethod, setImageMethod] = useState<"upload" | "url">("url");
   const [imageUrl, setImageUrl] = useState("");
@@ -114,11 +135,24 @@ export default function NotaPage() {
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [linkText, setLinkText] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
-  const [outlineOpen, setOutlineOpen] = useState(true);
-  const [commentsOpen, setCommentsOpen] = useState(true);
+  const [explorerOpen, setExplorerOpen] = useState(false);
+  /** Painel direito visível por padrão — comentários na lateral. */
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightTab, setRightTab] = useState<"assistente" | "comentarios">("comentarios");
+  const [comentarios, setComentarios] = useState<NotaComentario[]>([]);
+  const [novoComentario, setNovoComentario] = useState("");
+  const [loadingComentarios, setLoadingComentarios] = useState(false);
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [notasLista, setNotasLista] = useState<{ id: string; titulo: string }[]>([]);
+  const [notasSearch, setNotasSearch] = useState("");
+  const [disciplinaNome, setDisciplinaNome] = useState("");
+  /** Padrão: só editor (mais espaço). Dividir só em telas grandes. */
+  const [viewMode, setViewMode] = useState<"edit" | "preview" | "split">("edit");
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const comentariosEndRef = useRef<HTMLDivElement>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const headingIdRef = useRef(0);
 
@@ -199,6 +233,93 @@ export default function NotaPage() {
     loadNota();
   }, [loadNota]);
 
+  useEffect(() => {
+    if (!disciplinaId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [dRes, nRes] = await Promise.all([
+          fetch("/api/disciplinas"),
+          fetch(`/api/notas?disciplina_id=${encodeURIComponent(disciplinaId)}`),
+        ]);
+        if (cancelled) return;
+        if (dRes.ok) {
+          const d = await dRes.json();
+          const disc = (d.disciplinas || []).find(
+            (x: { id: string }) => x.id === disciplinaId
+          );
+          if (disc?.nome) setDisciplinaNome(disc.nome);
+        }
+        if (nRes.ok) {
+          const n = await nRes.json();
+          setNotasLista(
+            (n.notas || []).map((x: { id: string; titulo: string }) => ({
+              id: x.id,
+              titulo: x.titulo || "Sem título",
+            }))
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [disciplinaId]);
+
+  const loadComentarios = useCallback(async () => {
+    if (isNova) {
+      setComentarios([]);
+      return;
+    }
+    try {
+      setLoadingComentarios(true);
+      const res = await fetch(`/api/notas/${notaId}/comentarios`);
+      if (res.ok) {
+        const data = await res.json();
+        setComentarios(data.comentarios || []);
+      }
+    } catch {
+      console.error("Erro ao carregar comentários da nota");
+    } finally {
+      setLoadingComentarios(false);
+    }
+  }, [notaId, isNova]);
+
+  useEffect(() => {
+    loadComentarios();
+  }, [loadComentarios]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/profile");
+        if (!cancelled && r.ok) {
+          const { profile } = await r.json();
+          setCurrentUserId(profile?.id ?? null);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (rightTab !== "comentarios" || !rightPanelOpen) return;
+    comentariosEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [comentarios.length, rightTab, rightPanelOpen]);
+
+  const notasFiltradas = useMemo(() => {
+    const q = notasSearch.trim().toLowerCase();
+    if (!q) return notasLista;
+    return notasLista.filter((n) => n.titulo.toLowerCase().includes(q));
+  }, [notasLista, notasSearch]);
+
   const handleSave = async () => {
     if (!titulo.trim()) {
       toast.error("Título é obrigatório");
@@ -269,49 +390,12 @@ export default function NotaPage() {
     }
   };
 
-  const handleShare = async () => {
+  const openShare = () => {
     if (isNova || !nota) {
       toast.error("Salve a nota antes de compartilhar.");
       return;
     }
-    setShareError(null);
-    try {
-      const res = await fetch("/api/colaboracao/compartilhar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nota_id: nota.id,
-          disciplina_id: disciplinaId,
-          titulo: nota.titulo,
-          visibilidade: "publico",
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data?.error || "Erro ao gerar link de compartilhamento";
-        setShareError(msg);
-        setShareLink(
-          typeof window !== "undefined" ? window.location.href : ""
-        );
-        setShareOpen(true);
-        toast.error(msg);
-        return;
-      }
-      setShareLink(data?.link || "");
-      setShareOpen(true);
-    } catch {
-      setShareError("Erro de conexão ao compartilhar.");
-      setShareLink(typeof window !== "undefined" ? window.location.href : "");
-      setShareOpen(true);
-      toast.error("Erro ao compartilhar");
-    }
-  };
-
-  const copyLink = () => {
-    if (shareLink) {
-      navigator.clipboard.writeText(shareLink);
-      toast.success("Link copiado!");
-    }
+    setShareOpen(true);
   };
 
   const insertImage = (url: string) => {
@@ -376,6 +460,66 @@ export default function NotaPage() {
     setLinkModalOpen(false);
   };
 
+  const getInitials = (nome?: string, email?: string) => {
+    if (nome) {
+      const parts = nome.trim().split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        return (
+          parts[0][0] + parts[parts.length - 1][0]
+        ).toUpperCase();
+      }
+      return nome.substring(0, 2).toUpperCase();
+    }
+    if (email) return email.substring(0, 2).toUpperCase();
+    return "U";
+  };
+
+  const handleEnviarComentario = async () => {
+    if (isNova || !novoComentario.trim()) return;
+    try {
+      setEnviandoComentario(true);
+      const res = await fetch(`/api/notas/${notaId}/comentarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conteudo: novoComentario }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.comentario) {
+          setComentarios((prev) => [...prev, data.comentario]);
+        }
+        setNovoComentario("");
+        toast.success("Comentário adicionado");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || "Erro ao enviar comentário");
+      }
+    } catch {
+      toast.error("Erro ao enviar comentário");
+    } finally {
+      setEnviandoComentario(false);
+    }
+  };
+
+  const handleDeletarComentario = async (comentarioId: string) => {
+    if (isNova) return;
+    try {
+      const res = await fetch(
+        `/api/notas/${notaId}/comentarios?comentario_id=${encodeURIComponent(comentarioId)}`,
+        { method: "DELETE" },
+      );
+      if (res.ok) {
+        setComentarios((prev) => prev.filter((c) => c.id !== comentarioId));
+        toast.success("Comentário removido");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || "Erro ao remover");
+      }
+    } catch {
+      toast.error("Erro ao remover comentário");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -389,10 +533,27 @@ export default function NotaPage() {
   headingIdRef.current = 0;
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      {/* Topo: linha do documento — espaçoso */}
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
       <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background">
-        <div className="flex h-14 items-center justify-between gap-6 px-6">
+        <div className="flex items-center gap-1.5 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground sm:px-6">
+          <Link href="/disciplinas" className="hover:text-foreground transition-colors">
+            Disciplinas
+          </Link>
+          <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+          <Link
+            href={`/disciplinas/${disciplinaId}`}
+            className="max-w-[140px] truncate hover:text-foreground transition-colors"
+          >
+            {disciplinaNome || "Disciplina"}
+          </Link>
+          <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+          <span className="text-muted-foreground/80">Notas</span>
+          <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+          <span className="truncate font-medium text-foreground max-w-[200px]">
+            {titulo || "Sem título"}
+          </span>
+        </div>
+        <div className="flex h-14 items-center justify-between gap-4 px-4 sm:gap-6 sm:px-6">
           <div className="flex min-w-0 items-center gap-4">
             <Button variant="ghost" size="icon" asChild className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
               <Link href={`/disciplinas/${disciplinaId}`}>
@@ -407,7 +568,7 @@ export default function NotaPage() {
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
                 placeholder="Sem título"
-                className="min-w-0 max-w-[320px] bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground sm:max-w-[420px]"
+                className="min-w-0 max-w-[min(100%,28rem)] bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground sm:max-w-md lg:max-w-xl"
               />
               <span className="shrink-0 text-sm text-muted-foreground">
                 {saving ? "Salvando…" : nota?.updated_at ? `Salvo · ${formatEditedAgo(nota.updated_at)}` : "Não salvo"}
@@ -417,7 +578,7 @@ export default function NotaPage() {
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              onClick={handleShare}
+              onClick={openShare}
               disabled={isNova}
               className="h-9 gap-2 rounded-lg bg-primary px-4 text-primary-foreground hover:bg-primary/90"
             >
@@ -443,26 +604,56 @@ export default function NotaPage() {
             </DropdownMenu>
           </div>
         </div>
-        {/* Toolbar de formatação — ícones bem separados */}
-        <div className="flex h-11 items-center gap-1 border-t border-border bg-muted/30 px-4">
+        <div className="flex h-11 flex-wrap items-center gap-1 border-t border-border bg-muted/30 px-4">
           <Button
             variant="ghost"
             size="sm"
             className="h-8 gap-2 rounded-lg px-3 text-muted-foreground hover:bg-background hover:text-foreground"
-            onClick={() => setOutlineOpen((o) => !o)}
+            onClick={() => setExplorerOpen((o) => !o)}
           >
-            {outlineOpen ? <PanelLeftClose className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-            <span className="hidden lg:inline">Sumário</span>
+            {explorerOpen ? <PanelLeftClose className="h-4 w-4" /> : <LayoutPanelLeft className="h-4 w-4" />}
+            <span className="hidden sm:inline">Explorador</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             className="h-8 gap-2 rounded-lg px-3 text-muted-foreground hover:bg-background hover:text-foreground"
-            onClick={() => setCommentsOpen((c) => !c)}
+            onClick={() => setRightPanelOpen((c) => !c)}
           >
-            {commentsOpen ? <PanelRightClose className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
-            <span className="hidden lg:inline">Comentários</span>
+            {rightPanelOpen ? (
+              <PanelRightClose className="h-4 w-4" />
+            ) : (
+              <MessageSquare className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">
+              {rightPanelOpen ? "Fechar painel" : "Comentários"}
+            </span>
           </Button>
+          <div className="mx-2 hidden h-5 w-px bg-border sm:block" />
+          <div className="flex items-center gap-0.5 rounded-lg border border-border/80 bg-background/80 p-0.5">
+            {(
+              [
+                { id: "edit" as const, label: "Escrever", icon: Pencil },
+                { id: "split" as const, label: "Dividir", icon: Columns2 },
+                { id: "preview" as const, label: "Leitura", icon: Eye },
+              ] as const
+            ).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setViewMode(id)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  viewMode === id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{label}</span>
+              </button>
+            ))}
+          </div>
           <div className="mx-2 h-5 w-px bg-border" />
           <div className="flex items-center gap-0.5">
             <ToolBtn onClick={() => insertAtCursor("\n# ", "")} title="Título 1">
@@ -499,134 +690,402 @@ export default function NotaPage() {
         </div>
       </header>
 
-      {/* Corpo: três colunas com bastante espaço */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Sidebar esquerda — Sumário */}
-        {outlineOpen && (
-          <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-muted/10">
-            <div className="px-5 pt-5 pb-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Sumário
+        {/* Explorador + sumário (anexo 03 — painel de documentos) */}
+        {explorerOpen && (
+          <aside className="flex w-[min(100vw-2rem,15rem)] shrink-0 flex-col border-r border-border bg-card/50 sm:w-64">
+            <div className="border-b border-border px-3 py-3">
+              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <BookOpen className="h-3.5 w-3.5" />
+                Notas da disciplina
               </p>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={notasSearch}
+                  onChange={(e) => setNotasSearch(e.target.value)}
+                  placeholder="Buscar nota…"
+                  className="h-9 rounded-lg border-border bg-muted/40 pl-8 text-sm"
+                />
+              </div>
             </div>
-            <nav className="flex-1 overflow-y-auto px-4 pb-6">
-              {titulo && (
-                <p className="mb-4 truncate text-sm font-semibold text-foreground">{titulo}</p>
-              )}
-              {sumario.length === 0 ? (
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Use # ou ## no texto para ver o índice aqui.
-                </p>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {sumario.map((item, i) => (
-                    <li
-                      key={i}
+            <nav className="flex-1 overflow-y-auto px-2 py-2">
+              <ul className="space-y-0.5">
+                {notasFiltradas.map((n) => (
+                  <li key={n.id}>
+                    <Link
+                      href={`/disciplinas/${disciplinaId}/notas/${n.id}`}
                       className={cn(
-                        "cursor-pointer rounded-lg px-3 py-2 hover:bg-muted/60",
-                        item.level === 1 && "font-medium text-foreground",
-                        item.level >= 2 && "text-muted-foreground"
+                        "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                        n.id === notaId
+                          ? "bg-primary/10 font-medium text-primary"
+                          : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                       )}
-                      style={{ paddingLeft: item.level >= 2 ? `${1 + (item.level - 1) * 0.75}rem` : "0.75rem" }}
-                      onClick={() => {
-                        const id = `heading-${sumario.indexOf(item)}`;
-                        previewRef.current?.querySelector(`[id="${id}"]`)?.scrollIntoView({ behavior: "smooth" });
-                      }}
                     >
-                      {item.level === 1 ? <ChevronDown className="mr-2 inline h-4 w-4" /> : <ChevronRight className="mr-2 inline h-4 w-4" />}
-                      {item.text}
-                    </li>
-                  ))}
-                </ul>
+                      <FileText className="h-4 w-4 shrink-0 opacity-70" />
+                      <span className="truncate">{n.titulo}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {notasFiltradas.length === 0 && (
+                <p className="px-3 py-4 text-xs text-muted-foreground">Nenhuma nota encontrada.</p>
               )}
             </nav>
+            <div className="border-t border-border">
+              <div className="px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Sumário desta nota
+                </p>
+              </div>
+              <nav className="max-h-48 overflow-y-auto px-3 pb-4">
+                {sumario.length === 0 ? (
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Use # ou ## no texto para gerar o índice.
+                  </p>
+                ) : (
+                  <ul className="space-y-0.5 text-sm">
+                    {sumario.map((item, i) => (
+                      <li
+                        key={i}
+                        className={cn(
+                          "cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted/70",
+                          item.level === 1 && "font-medium text-foreground",
+                          item.level >= 2 && "text-muted-foreground text-xs"
+                        )}
+                        style={{
+                          paddingLeft:
+                            item.level >= 2 ? `${0.5 + (item.level - 1) * 0.5}rem` : undefined,
+                        }}
+                        onClick={() => {
+                          const id = `heading-${sumario.indexOf(item)}`;
+                          previewRef.current
+                            ?.querySelector(`[id="${id}"]`)
+                            ?.scrollIntoView({ behavior: "smooth" });
+                        }}
+                      >
+                        {item.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </nav>
+            </div>
           </aside>
         )}
 
-        {/* Centro — Editor e Visualização com respiro */}
-        <main className="min-w-0 flex-1 overflow-auto">
-          <div className="mx-auto max-w-5xl px-8 py-10 lg:px-12">
-            <input
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Sem título"
-              className="mb-8 w-full bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground"
-            />
-            <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
-              {/* Editor */}
-              <div className="min-w-0">
-                <textarea
-                  ref={editorRef}
-                  data-nota-editor
-                  value={content_md}
-                  onChange={(e) => setContent_md(e.target.value)}
-                  placeholder="Escreva aqui…"
-                  className={cn(
-                    "min-h-[55vh] w-full resize-none rounded-lg border-0 bg-transparent py-2 text-[1.0625rem] leading-[1.75] outline-none placeholder:text-muted-foreground/50 focus:ring-0"
+        <main className="min-w-0 flex-1 overflow-auto bg-muted/15">
+          <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 py-6 sm:px-8 sm:py-10 lg:px-12 lg:py-12 xl:px-16">
+            {(viewMode === "edit" || viewMode === "split") && (
+              <input
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                placeholder="Sem título"
+                className="mb-6 w-full bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground"
+              />
+            )}
+            {viewMode === "preview" && (
+              <h1 className="mb-8 text-3xl font-bold tracking-tight text-foreground">
+                {titulo || "Sem título"}
+              </h1>
+            )}
+            <div
+              className={cn(
+                "rounded-2xl border border-border/80 bg-card/80 shadow-sm backdrop-blur-sm",
+                viewMode === "split" &&
+                  "grid grid-cols-1 gap-6 xl:grid-cols-2 xl:gap-0 xl:divide-x xl:divide-border/80",
+                (viewMode === "edit" || viewMode === "preview") && "overflow-hidden",
+              )}
+            >
+              {(viewMode === "edit" || viewMode === "split") && (
+                <div className="min-w-0 p-5 sm:p-8 lg:p-10 xl:p-12">
+                  {viewMode === "split" && (
+                    <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Editor
+                    </p>
                   )}
-                />
-                <p className="mt-4 text-sm text-muted-foreground">
-                  <kbd className="rounded border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs">**texto**</kbd> negrito &nbsp;
-                  <kbd className="rounded border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs">[link](url)</kbd> link
-                </p>
-              </div>
-              {/* Visualização */}
-              <div ref={previewRef} className="min-w-0 rounded-lg border border-border bg-muted/5 lg:pl-8 lg:border-l-2">
-                <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Visualização
-                </p>
-                {content_md.trim() ? (
-                  <article
+                  <textarea
+                    ref={editorRef}
+                    data-nota-editor
+                    value={content_md}
+                    onChange={(e) => setContent_md(e.target.value)}
+                    placeholder="Escreva aqui… Use Markdown."
                     className={cn(
-                      "prose prose-sm dark:prose-invert max-w-none",
-                      "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:mt-6 prose-headings:mb-3",
-                      "prose-p:leading-[1.75] prose-p:my-3 prose-li:leading-[1.65]",
-                      "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-                      "prose-img:rounded-lg prose-img:max-w-full prose-img:border prose-img:border-border prose-img:my-4"
+                      "min-h-[min(70vh,42rem)] w-full resize-y rounded-xl border border-border/50 bg-muted/30 px-4 py-4 text-[1.0625rem] leading-[1.8] outline-none placeholder:text-muted-foreground/45 focus:border-primary/35 focus:ring-2 focus:ring-primary/15 sm:px-5 sm:py-5 sm:text-[1.075rem]",
+                      viewMode === "edit" && "min-h-[min(75vh,48rem)]",
                     )}
-                  >
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
-                      components={{
-                        h1: ({ children }) => <h1 id={getNextHeadingId()}>{children}</h1>,
-                        h2: ({ children }) => <h2 id={getNextHeadingId()}>{children}</h2>,
-                        h3: ({ children }) => <h3 id={getNextHeadingId()}>{children}</h3>,
-                        a: ({ href, children, ...props }) => (
-                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline" {...props}>
-                            {children}
-                          </a>
-                        ),
-                        img: ({ src, alt, ...props }) => (
-                          <span className="block my-4">
-                            <img src={src} alt={alt ?? "Imagem"} className="rounded-lg max-w-full h-auto border border-border shadow-sm" {...props} />
-                          </span>
-                        ),
-                      }}
+                  />
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono">**negrito**</kbd>{" "}
+                    <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono">[texto](url)</kbd>
+                  </p>
+                </div>
+              )}
+              {(viewMode === "preview" || viewMode === "split") && (
+                <div
+                  ref={previewRef}
+                  className={cn(
+                    "min-w-0 bg-background/60 p-5 sm:p-8 lg:p-10 xl:p-12",
+                    viewMode === "split" && "xl:min-h-[min(70vh,42rem)]",
+                  )}
+                >
+                  {viewMode === "split" && (
+                    <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Pré-visualização
+                    </p>
+                  )}
+                  {content_md.trim() ? (
+                    <article
+                      className={cn(
+                        "prose prose-base dark:prose-invert max-w-none lg:prose-lg",
+                        "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:mt-6 prose-headings:mb-3",
+                        "prose-p:leading-[1.75] prose-p:my-3 prose-li:leading-[1.65]",
+                        "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
+                        "prose-img:rounded-lg prose-img:max-w-full prose-img:border prose-img:border-border prose-img:my-4"
+                      )}
                     >
-                      {contentForPreview(content_md)}
-                    </ReactMarkdown>
-                  </article>
-                ) : (
-                  <p className="py-8 text-sm italic text-muted-foreground/70">A visualização aparece aqui ao digitar.</p>
-                )}
-              </div>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={{
+                          h1: ({ children }) => <h1 id={getNextHeadingId()}>{children}</h1>,
+                          h2: ({ children }) => <h2 id={getNextHeadingId()}>{children}</h2>,
+                          h3: ({ children }) => <h3 id={getNextHeadingId()}>{children}</h3>,
+                          a: ({ href, children, ...props }) => (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary underline-offset-2 hover:underline"
+                              {...props}
+                            >
+                              {children}
+                            </a>
+                          ),
+                          img: ({ src, alt, ...props }) => (
+                            <span className="block my-4">
+                              <img
+                                src={src}
+                                alt={alt ?? "Imagem"}
+                                className="h-auto max-w-full rounded-lg border border-border shadow-sm"
+                                {...props}
+                              />
+                            </span>
+                          ),
+                        }}
+                      >
+                        {contentForPreview(content_md)}
+                      </ReactMarkdown>
+                    </article>
+                  ) : (
+                    <p className="py-12 text-center text-sm italic text-muted-foreground/70">
+                      Nada para pré-visualizar ainda.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </main>
 
-        {/* Sidebar direita — Comentários */}
-        {commentsOpen && (
-          <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-muted/10">
-            <div className="px-6 pt-6 pb-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Comentários
-              </p>
+        {rightPanelOpen && (
+          <aside className="flex w-[min(100vw-2rem,20rem)] shrink-0 flex-col border-l border-border bg-card/50 sm:w-80">
+            <div className="flex shrink-0 border-b border-border">
+              <button
+                type="button"
+                onClick={() => setRightTab("assistente")}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center justify-center gap-1.5 py-3 text-[11px] font-semibold uppercase tracking-wide transition-colors sm:gap-2 sm:text-xs",
+                  rightTab === "assistente"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="truncate">Assistente</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightTab("comentarios")}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center justify-center gap-1.5 py-3 text-[11px] font-semibold uppercase tracking-wide transition-colors sm:gap-2 sm:text-xs",
+                  rightTab === "comentarios"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <MessageSquare className="h-4 w-4 shrink-0" />
+                <span className="truncate">Comentários</span>
+                {comentarios.length > 0 && (
+                  <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-primary">
+                    {comentarios.length}
+                  </span>
+                )}
+              </button>
             </div>
-            <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
-              <MessageSquare className="mb-4 h-12 w-12 text-muted-foreground/40" />
-              <p className="text-sm font-medium text-muted-foreground">Nenhum comentário ainda.</p>
-              <p className="mt-2 text-sm text-muted-foreground/70">Em breve você poderá comentar aqui.</p>
-            </div>
+            {rightTab === "assistente" && (
+              <div className="flex flex-1 flex-col">
+                <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    <p className="font-medium text-foreground">UFAM Hub · Assistente</p>
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      Em breve você poderá fazer perguntas sobre o conteúdo desta nota, como no painel lateral de IA do anexo de referência.
+                    </p>
+                  </div>
+                </div>
+                <div className="border-t border-border p-3">
+                  <div className="flex gap-2 rounded-xl border border-border bg-muted/30 p-2">
+                    <Input
+                      disabled
+                      placeholder="Pergunte sobre esta nota…"
+                      className="h-10 flex-1 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
+                    />
+                    <Button size="icon" className="h-10 w-10 shrink-0 rounded-lg" disabled>
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {rightTab === "comentarios" && (
+              <div className="flex min-h-0 flex-1 flex-col">
+                {isNova ? (
+                  <div className="flex flex-1 flex-col items-center justify-center px-5 py-8 text-center">
+                    <MessageSquare className="mb-3 h-10 w-10 text-muted-foreground/35" />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Salve a anotação primeiro
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">
+                      Depois você pode registrar comentários e lembretes nesta lateral.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
+                      {loadingComentarios ? (
+                        <div className="flex justify-center py-10">
+                          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : comentarios.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center">
+                          <MessageSquare className="mx-auto mb-2 h-9 w-9 text-muted-foreground/40" />
+                          <p className="text-sm text-muted-foreground">
+                            Nenhum comentário ainda.
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground/75">
+                            Use o campo abaixo para anotar ideias, dúvidas ou revisões.
+                          </p>
+                        </div>
+                      ) : (
+                        comentarios.map((c) => {
+                          const meta = c.usuario?.raw_user_meta_data;
+                          const nome =
+                            meta?.nome ||
+                            meta?.full_name ||
+                            meta?.email ||
+                            "Você";
+                          const email = meta?.email || "";
+                          return (
+                            <div
+                              key={c.id}
+                              className="flex gap-2.5 rounded-xl border border-border/70 bg-muted/25 p-2.5"
+                            >
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarFallback className="text-[10px]">
+                                  {getInitials(nome, email)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="min-w-0">
+                                    <span className="text-xs font-medium text-foreground">
+                                      {nome}
+                                    </span>
+                                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                                      {new Date(c.created_at).toLocaleString(
+                                        "pt-BR",
+                                        {
+                                          day: "2-digit",
+                                          month: "short",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        },
+                                      )}
+                                    </span>
+                                  </div>
+                                  {c.usuario?.id === currentUserId && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                      onClick={() => handleDeletarComentario(c.id)}
+                                      title="Remover comentário"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/95">
+                                  {c.conteudo}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div ref={comentariosEndRef} aria-hidden />
+                    </div>
+                    <div className="shrink-0 border-t border-border p-3">
+                      <div className="flex flex-col gap-2">
+                        <Textarea
+                          value={novoComentario}
+                          onChange={(e) => setNovoComentario(e.target.value)}
+                          placeholder="Comentário ou lembrete sobre esta nota…"
+                          rows={3}
+                          disabled={enviandoComentario}
+                          className="min-h-[4.5rem] resize-none text-sm"
+                          onKeyDown={(e) => {
+                            if (
+                              e.key === "Enter" &&
+                              (e.metaKey || e.ctrlKey)
+                            ) {
+                              e.preventDefault();
+                              handleEnviarComentario();
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="w-full gap-2"
+                          disabled={
+                            enviandoComentario || !novoComentario.trim()
+                          }
+                          onClick={handleEnviarComentario}
+                        >
+                          {enviandoComentario ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          Enviar
+                        </Button>
+                        <p className="text-[10px] text-muted-foreground">
+                          Atalho:{" "}
+                          <kbd className="rounded border border-border bg-muted/60 px-1 font-mono">
+                            ⌘
+                          </kbd>
+                          {" + "}
+                          <kbd className="rounded border border-border bg-muted/60 px-1 font-mono">
+                            Enter
+                          </kbd>
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </aside>
         )}
       </div>
@@ -822,53 +1281,15 @@ export default function NotaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Compartilhar */}
-      <Dialog
-        open={shareOpen}
-        onOpenChange={(open) => {
-          setShareOpen(open);
-          if (!open) setShareError(null);
-        }}
-      >
-        <DialogContent className="max-w-md rounded-2xl border border-border/60 bg-background shadow-xl">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">
-              Compartilhar anotação
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              {shareError
-                ? "O link abaixo é desta página. Quem receber precisa estar logado para ver a nota."
-                : "Qualquer pessoa com o link pode ver esta anotação."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {shareError && (
-              <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">
-                {shareError}
-              </p>
-            )}
-            <div className="flex gap-2">
-              <Input
-                readOnly
-                value={shareLink}
-                className="font-mono text-sm rounded-lg bg-muted/30 border-border/60"
-              />
-              <Button
-                onClick={copyLink}
-                className="rounded-lg shrink-0 gap-2"
-              >
-                <Check className="h-4 w-4" />
-                Copiar
-              </Button>
-            </div>
-          </div>
-          <DialogFooter className="border-t border-border/40 pt-4">
-            <Button variant="outline" onClick={() => setShareOpen(false)} className="rounded-lg">
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {!isNova && nota && (
+        <CompartilharNotaDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          notaId={nota.id}
+          disciplinaId={disciplinaId}
+          tituloNota={titulo || nota.titulo}
+        />
+      )}
     </div>
   );
 }

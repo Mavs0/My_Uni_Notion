@@ -53,19 +53,96 @@ export async function POST(request: NextRequest) {
 
     const { data: existente } = await client
       .from("notas_compartilhadas")
-      .select("id, link_compartilhamento")
+      .select("id, link_compartilhamento, user_id")
       .eq("nota_id", nota_id)
-      .eq("user_id", user.id)
       .maybeSingle();
 
     if (existente) {
+      if (existente.user_id !== user.id) {
+        return NextResponse.json(
+          { error: "Não autorizado a alterar este compartilhamento" },
+          { status: 403 },
+        );
+      }
+      const patch: Record<string, unknown> = {};
+      const visOk =
+        visibilidade === "publico" ||
+        visibilidade === "geral" ||
+        visibilidade === "privado";
+      if (visOk) {
+        if (visibilidade === "publico") {
+          patch.visibilidade = "publico";
+          patch.email_permitido = null;
+          patch.codigo_acesso = null;
+        } else if (visibilidade === "geral") {
+          const em =
+            email_permitido && String(email_permitido).trim()
+              ? String(email_permitido).toLowerCase().trim()
+              : null;
+          if (!em) {
+            return NextResponse.json(
+              {
+                error:
+                  "Para acesso apenas a convidados, informe o e-mail permitido.",
+              },
+              { status: 400 },
+            );
+          }
+          patch.visibilidade = "geral";
+          patch.email_permitido = em;
+          patch.codigo_acesso = null;
+        } else if (visibilidade === "privado") {
+          patch.visibilidade = "privado";
+          patch.email_permitido = null;
+          const { data: cur } = await client
+            .from("notas_compartilhadas")
+            .select("codigo_acesso")
+            .eq("id", existente.id)
+            .single();
+          if (!cur?.codigo_acesso) {
+            patch.codigo_acesso = Math.floor(
+              100000 + Math.random() * 900000,
+            ).toString();
+          }
+        }
+      }
+      if (typeof permite_comentarios === "boolean") {
+        patch.permite_comentarios = permite_comentarios;
+      }
+      if (typeof permite_download === "boolean") {
+        patch.permite_download = permite_download;
+      }
+      if (Object.keys(patch).length > 0) {
+        const { error: upErr } = await client
+          .from("notas_compartilhadas")
+          .update(patch)
+          .eq("id", existente.id);
+        if (upErr) {
+          console.error("Erro ao atualizar compartilhamento existente:", upErr);
+          return NextResponse.json(
+            { error: upErr.message || "Erro ao atualizar compartilhamento" },
+            { status: 500 },
+          );
+        }
+      }
+      const { data: full, error: selErr } = await client
+        .from("notas_compartilhadas")
+        .select("*")
+        .eq("id", existente.id)
+        .single();
+      if (selErr || !full) {
+        return NextResponse.json(
+          { error: "Erro ao ler compartilhamento atualizado" },
+          { status: 500 },
+        );
+      }
       const baseUrl =
         process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
       return NextResponse.json({
         success: true,
-        compartilhada: existente,
-        link: `${baseUrl}/compartilhado/${existente.link_compartilhamento}`,
-        codigo_acesso: null,
+        compartilhada: full,
+        link: `${baseUrl}/compartilhado/${full.link_compartilhamento}`,
+        codigo_acesso: full.codigo_acesso || null,
       });
     }
 
@@ -139,7 +216,7 @@ export async function GET(request: NextRequest) {
     const visibilidade = searchParams.get("visibilidade");
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     if (link) {
       const codigo = searchParams.get("codigo");
       const { data: compartilhada, error: compartilhadaError } = await supabase
@@ -218,6 +295,46 @@ export async function GET(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
+    const nota_id_param = searchParams.get("nota_id");
+    if (nota_id_param) {
+      const { data: notaOk, error: notaCheckErr } = await supabase
+        .from("notas")
+        .select("id")
+        .eq("id", nota_id_param)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (notaCheckErr || !notaOk) {
+        return NextResponse.json(
+          { error: "Anotação não encontrada ou não autorizada" },
+          { status: 404 },
+        );
+      }
+      const shareClient =
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+          ? createSupabaseAdmin()
+          : supabase;
+      const { data: row, error: oneErr } = await shareClient
+        .from("notas_compartilhadas")
+        .select("*")
+        .eq("nota_id", nota_id_param)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (oneErr) {
+        console.error("Erro ao buscar compartilhamento da nota:", oneErr);
+        return NextResponse.json(
+          { error: "Erro ao buscar compartilhamento" },
+          { status: 500 },
+        );
+      }
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
+      return NextResponse.json({
+        compartilhada: row,
+        link: row
+          ? `${baseUrl}/compartilhado/${row.link_compartilhamento}`
+          : null,
+      });
+    }
     let query = supabase
       .from("notas_compartilhadas")
       .select(
@@ -251,6 +368,146 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      nota_id,
+      visibilidade,
+      email_permitido,
+      permite_comentarios,
+      permite_download,
+    } = body;
+    if (!nota_id) {
+      return NextResponse.json(
+        { error: "nota_id é obrigatório" },
+        { status: 400 },
+      );
+    }
+    const supabase = await createSupabaseServer(request);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+    const { data: notaDono, error: notaDonoErr } = await supabase
+      .from("notas")
+      .select("id")
+      .eq("id", nota_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (notaDonoErr || !notaDono) {
+      return NextResponse.json(
+        { error: "Anotação não encontrada ou não autorizada" },
+        { status: 404 },
+      );
+    }
+    const client =
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? createSupabaseAdmin()
+        : supabase;
+
+    const { data: row, error: findErr } = await client
+      .from("notas_compartilhadas")
+      .select("id, codigo_acesso, email_permitido, user_id")
+      .eq("nota_id", nota_id)
+      .maybeSingle();
+    if (findErr) {
+      console.error("PATCH compartilhar find:", findErr);
+      return NextResponse.json(
+        { error: "Erro ao buscar compartilhamento" },
+        { status: 500 },
+      );
+    }
+    if (!row || row.user_id !== user.id) {
+      return NextResponse.json(
+        {
+          error:
+            "Compartilhamento não encontrado. Use «Criar link com este acesso» primeiro.",
+        },
+        { status: 404 },
+      );
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (visibilidade === "publico" || visibilidade === "geral" || visibilidade === "privado") {
+      patch.visibilidade = visibilidade;
+      if (visibilidade === "publico") {
+        patch.email_permitido = null;
+        patch.codigo_acesso = null;
+      }
+      if (visibilidade === "geral") {
+        patch.codigo_acesso = null;
+        const fromBody =
+          email_permitido !== undefined && String(email_permitido).trim()
+            ? String(email_permitido).toLowerCase().trim()
+            : null;
+        const nextEmail = fromBody || row.email_permitido || null;
+        if (!nextEmail) {
+          return NextResponse.json(
+            {
+              error:
+                "Informe um e-mail para o modo apenas convidados, ou use Convidar antes.",
+            },
+            { status: 400 },
+          );
+        }
+        patch.email_permitido = nextEmail;
+      }
+      if (visibilidade === "privado") {
+        patch.email_permitido = null;
+        if (!row.codigo_acesso) {
+          patch.codigo_acesso = Math.floor(
+            100000 + Math.random() * 900000,
+          ).toString();
+        }
+      }
+    }
+    if (typeof permite_comentarios === "boolean") {
+      patch.permite_comentarios = permite_comentarios;
+    }
+    if (typeof permite_download === "boolean") {
+      patch.permite_download = permite_download;
+    }
+    if (email_permitido !== undefined && visibilidade === undefined) {
+      patch.email_permitido = email_permitido
+        ? String(email_permitido).toLowerCase().trim()
+        : null;
+    }
+
+    const { data: updated, error: upErr } = await client
+      .from("notas_compartilhadas")
+      .update(patch)
+      .eq("id", row.id)
+      .select()
+      .single();
+    if (upErr) {
+      console.error("Erro ao atualizar compartilhamento:", upErr);
+      return NextResponse.json(
+        { error: upErr.message || "Erro ao atualizar" },
+        { status: 500 },
+      );
+    }
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
+    return NextResponse.json({
+      success: true,
+      compartilhada: updated,
+      link: `${baseUrl}/compartilhado/${updated.link_compartilhamento}`,
+      codigo_acesso: updated.codigo_acesso || null,
+    });
+  } catch (error: any) {
+    console.error("PATCH compartilhar:", error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

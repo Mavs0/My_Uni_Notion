@@ -6,7 +6,8 @@ export interface Avaliacao {
   disciplinaId: string;
   disciplina?: string;
   tipo: "prova" | "trabalho" | "seminario";
-  dataISO: string;
+  /** Pode ser omitido em linhas antigas / inconsistentes no banco */
+  dataISO?: string | null;
   descricao?: string;
   resumo_assuntos?: string;
   gerado_por_ia?: boolean;

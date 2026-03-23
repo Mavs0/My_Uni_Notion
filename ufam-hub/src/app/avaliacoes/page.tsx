@@ -91,13 +91,19 @@ function addDaysISO(dias: number) {
   d.setDate(d.getDate() + dias);
   return d.toISOString();
 }
-function fmtDate(dt: string | Date) {
+/** dataISO pode vir null do Supabase em linhas antigas — nunca assumir sempre definido */
+function fmtDate(dt: string | Date | null | undefined) {
+  if (dt == null || dt === "") return "—";
   const d = typeof dt === "string" ? new Date(dt) : dt;
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
-function daysUntil(dtISO: string) {
-  const now = new Date();
+
+function daysUntil(dtISO: string | null | undefined): number {
+  if (dtISO == null || dtISO === "") return Number.NaN;
   const target = new Date(dtISO);
+  if (Number.isNaN(target.getTime())) return Number.NaN;
+  const now = new Date();
   const diff = Math.ceil(
     (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   );
@@ -128,13 +134,29 @@ function toLocalInputValue(d: Date) {
   )}:${pad(d.getMinutes())}`;
 }
 
+/** API/DB podem devolver tipo inválido, null ou variação (ex.: "Seminário") */
+function normalizeAvaliacaoTipo(
+  tipo: string | null | undefined
+): AvaliacaoTipo {
+  const raw = String(tipo ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  if (raw === "prova") return "prova";
+  if (raw === "trabalho") return "trabalho";
+  if (raw === "seminario") return "seminario";
+  return "prova";
+}
+
 function TipoBadge({
   tipo,
   t,
 }: {
-  tipo: AvaliacaoTipo;
+  tipo: string | AvaliacaoTipo | null | undefined;
   t: { tipo: { prova: string; trabalho: string; seminario: string } };
 }) {
+  const safeTipo = normalizeAvaliacaoTipo(tipo);
   const map: Record<
     AvaliacaoTipo,
     { bg: string; text: string; border: string; icon: React.ReactNode }
@@ -158,8 +180,10 @@ function TipoBadge({
       icon: <CheckCircle2 className="h-3 w-3" />,
     },
   };
-  const style = map[tipo];
-  const tipoLabel = t.tipo[tipo];
+  const style = map[safeTipo];
+  const tipoLabel =
+    t?.tipo?.[safeTipo] ??
+    (typeof tipo === "string" && tipo.trim() ? tipo : safeTipo);
   return (
     <span
       className={cn(
@@ -176,6 +200,13 @@ function TipoBadge({
 }
 
 function UrgenciaBadge({ dias }: { dias: number }) {
+  if (Number.isNaN(dias)) {
+    return (
+      <span className="rounded-full border border-muted-foreground/30 bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+        Sem data
+      </span>
+    );
+  }
   if (dias < 0) {
     return (
       <span className="rounded-full px-2 py-0.5 text-xs bg-zinc-500/15 text-zinc-400 border border-zinc-500/30">
@@ -257,11 +288,17 @@ export default function AvaliacoesPage() {
   ): "pendente" | "concluida" | "vencida" => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const dataAval = new Date(avaliacao.dataISO);
-    dataAval.setHours(0, 0, 0, 0);
     if (avaliacao.nota !== undefined && avaliacao.nota !== null) {
       return "concluida";
     }
+    if (!avaliacao.dataISO) {
+      return "pendente";
+    }
+    const dataAval = new Date(avaliacao.dataISO);
+    if (Number.isNaN(dataAval.getTime())) {
+      return "pendente";
+    }
+    dataAval.setHours(0, 0, 0, 0);
     if (dataAval < hoje) {
       return "vencida";
     }
@@ -301,12 +338,20 @@ export default function AvaliacoesPage() {
       }
       if (buscaAvancada.dataInicio) {
         const dataInicio = new Date(buscaAvancada.dataInicio);
-        arr = arr.filter((a) => new Date(a.dataISO) >= dataInicio);
+        arr = arr.filter((a) => {
+          if (!a.dataISO) return false;
+          const d = new Date(a.dataISO);
+          return !Number.isNaN(d.getTime()) && d >= dataInicio;
+        });
       }
       if (buscaAvancada.dataFim) {
         const dataFim = new Date(buscaAvancada.dataFim);
         dataFim.setHours(23, 59, 59);
-        arr = arr.filter((a) => new Date(a.dataISO) <= dataFim);
+        arr = arr.filter((a) => {
+          if (!a.dataISO) return false;
+          const d = new Date(a.dataISO);
+          return !Number.isNaN(d.getTime()) && d <= dataFim;
+        });
       }
       if (buscaAvancada.comNota === "sim") {
         arr = arr.filter((a) => a.nota !== undefined && a.nota !== null);
@@ -314,9 +359,13 @@ export default function AvaliacoesPage() {
         arr = arr.filter((a) => a.nota === undefined || a.nota === null);
       }
     }
-    return arr.sort(
-      (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
-    );
+    return arr.sort((a, b) => {
+      const ta = a.dataISO ? new Date(a.dataISO).getTime() : 0;
+      const tb = b.dataISO ? new Date(b.dataISO).getTime() : 0;
+      const na = Number.isNaN(ta) ? 0 : ta;
+      const nb = Number.isNaN(tb) ? 0 : tb;
+      return na - nb;
+    });
   }, [
     avaliacoes,
     fDisc,
@@ -341,14 +390,22 @@ export default function AvaliacoesPage() {
 
   const dadosGrafico = useMemo(() => {
     const avaliacoesComNota = avaliacoes
-      .filter((a) => a.nota !== undefined && a.nota !== null)
-      .sort(
-        (a, b) => new Date(a.dataISO).getTime() - new Date(b.dataISO).getTime()
-      );
+      .filter(
+        (a) =>
+          a.nota !== undefined &&
+          a.nota !== null &&
+          a.dataISO &&
+          !Number.isNaN(new Date(a.dataISO).getTime())
+      )
+      .sort((a, b) => {
+        const ta = new Date(a.dataISO!).getTime();
+        const tb = new Date(b.dataISO!).getTime();
+        return ta - tb;
+      });
     return avaliacoesComNota.map((a) => {
       const nomeDisc = discMap.get(a.disciplinaId) ?? "Disciplina";
       return {
-        data: new Date(a.dataISO).toLocaleDateString("pt-BR", {
+        data: new Date(a.dataISO!).toLocaleDateString("pt-BR", {
           day: "2-digit",
           month: "2-digit",
         }),
@@ -370,7 +427,9 @@ export default function AvaliacoesPage() {
     hoje.setHours(0, 0, 0, 0);
     const vencidas = avaliacoes.filter((a) => {
       if (a.nota !== undefined && a.nota !== null) return false;
+      if (!a.dataISO) return false;
       const dataAval = new Date(a.dataISO);
+      if (Number.isNaN(dataAval.getTime())) return false;
       dataAval.setHours(0, 0, 0, 0);
       return dataAval < hoje;
     });
@@ -384,7 +443,9 @@ export default function AvaliacoesPage() {
       );
     }
     const hojeAvaliacoes = avaliacoes.filter((a) => {
+      if (!a.dataISO) return false;
       const dataAval = new Date(a.dataISO);
+      if (Number.isNaN(dataAval.getTime())) return false;
       dataAval.setHours(0, 0, 0, 0);
       return dataAval.getTime() === hoje.getTime();
     });
@@ -400,7 +461,9 @@ export default function AvaliacoesPage() {
     proximos3Dias.setDate(hoje.getDate() + 3);
     const proximas = avaliacoes.filter((a) => {
       if (a.nota !== undefined && a.nota !== null) return false;
+      if (!a.dataISO) return false;
       const dataAval = new Date(a.dataISO);
+      if (Number.isNaN(dataAval.getTime())) return false;
       dataAval.setHours(0, 0, 0, 0);
       return dataAval > hoje && dataAval <= proximos3Dias;
     });
@@ -417,12 +480,14 @@ export default function AvaliacoesPage() {
     const proximaSemana = new Date(hoje);
     proximaSemana.setDate(hoje.getDate() + 7);
     const proximas = avaliacoes.filter((a) => {
+      if (!a.dataISO) return false;
       const data = new Date(a.dataISO);
+      if (Number.isNaN(data.getTime())) return false;
       return data >= hoje && data <= proximaSemana;
     });
     const urgentes = avaliacoes.filter((a) => {
       const dias = daysUntil(a.dataISO);
-      return dias >= 0 && dias <= 3;
+      return !Number.isNaN(dias) && dias >= 0 && dias <= 3;
     });
     return {
       total: avaliacoes.length,
@@ -459,7 +524,9 @@ export default function AvaliacoesPage() {
       return [
         nomeDisc,
         a.tipo,
-        new Date(a.dataISO).toLocaleDateString("pt-BR"),
+        a.dataISO && !Number.isNaN(new Date(a.dataISO).getTime())
+          ? new Date(a.dataISO).toLocaleDateString("pt-BR")
+          : "—",
         a.descricao || "",
         a.nota !== undefined && a.nota !== null ? a.nota.toString() : "",
         a.peso !== undefined && a.peso !== null ? a.peso.toString() : "",
@@ -490,7 +557,11 @@ export default function AvaliacoesPage() {
     );
   }
   async function duplicarAvaliacao(avaliacao: Avaliacao) {
-    const novaData = new Date(avaliacao.dataISO);
+    const base =
+      avaliacao.dataISO && !Number.isNaN(new Date(avaliacao.dataISO).getTime())
+        ? new Date(avaliacao.dataISO)
+        : new Date();
+    const novaData = new Date(base);
     novaData.setDate(novaData.getDate() + 7);
     const result = await createAvaliacao({
       disciplinaId: avaliacao.disciplinaId,
@@ -1002,16 +1073,17 @@ export default function AvaliacoesPage() {
           ) : (
             <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {paginatedList.map((a) => {
+              {paginatedList.map((a, rowIdx) => {
                 const nomeDisc = discMap.get(a.disciplinaId) ?? "Disciplina";
                 const dias = daysUntil(a.dataISO);
-                const isUrgente = dias >= 0 && dias <= 3;
+                const isUrgente = !Number.isNaN(dias) && dias >= 0 && dias <= 3;
                 const isHoje = dias === 0;
-                const isPast = dias < 0;
+                const isPast = !Number.isNaN(dias) && dias < 0;
                 const hasNota = a.nota !== undefined && a.nota !== null;
+                const rowKey = `av-${a.id ?? "noid"}-${(page - 1) * ITEMS_PER_PAGE + rowIdx}`;
                 return (
                   <div
-                    key={a.id}
+                    key={rowKey}
                     className={cn(
                       "group rounded-xl border bg-card p-5 shadow-sm transition-all duration-300",
                       "hover:shadow-lg hover:-translate-y-0.5",
@@ -1279,7 +1351,9 @@ function CalendarioView({
   };
   const getAvaliacoesForDate = (date: Date) => {
     return avaliacoes.filter((a) => {
+      if (!a.dataISO) return false;
       const dataAval = new Date(a.dataISO);
+      if (Number.isNaN(dataAval.getTime())) return false;
       return (
         dataAval.getDate() === date.getDate() &&
         dataAval.getMonth() === date.getMonth() &&
@@ -1290,7 +1364,13 @@ function CalendarioView({
   const getStatusColor = (avaliacao: Avaliacao) => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
+    if (!avaliacao.dataISO) {
+      return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+    }
     const dataAval = new Date(avaliacao.dataISO);
+    if (Number.isNaN(dataAval.getTime())) {
+      return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+    }
     dataAval.setHours(0, 0, 0, 0);
     if (avaliacao.nota !== undefined && avaliacao.nota !== null) {
       return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
@@ -1418,12 +1498,12 @@ function CalendarioView({
                       </div>
                     </div>
                     <div className="space-y-0.5">
-                      {dayAvaliacoes.slice(0, 3).map((a) => {
+                      {dayAvaliacoes.slice(0, 3).map((a, ai) => {
                         const nomeDisc =
                           discMap.get(a.disciplinaId) ?? "Disciplina";
                         return (
                           <div
-                            key={a.id}
+                            key={`cal-cell-${date.getTime()}-${a.id ?? ai}`}
                             className={cn(
                               "text-xs px-1.5 py-0.5 rounded truncate border",
                               getStatusColor(a)
@@ -1467,12 +1547,12 @@ function CalendarioView({
               </p>
             ) : (
               <div className="space-y-3">
-                {avaliacoesDoDia.map((a) => {
+                {avaliacoesDoDia.map((a, di) => {
                   const nomeDisc = discMap.get(a.disciplinaId) ?? "Disciplina";
                   const dias = daysUntil(a.dataISO);
                   return (
                     <div
-                      key={a.id}
+                      key={`cal-day-${selectedDate?.getTime() ?? "x"}-${a.id ?? di}`}
                       className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card"
                     >
                       <div className="flex-1 space-y-2">
@@ -1882,7 +1962,14 @@ function EditarAvaliacaoModal({
     if (avaliacao) {
       setDisciplinaId(avaliacao.disciplinaId);
       setTipo(avaliacao.tipo);
-      setDataLocal(toLocalInputValue(new Date(avaliacao.dataISO)));
+      setDataLocal(
+        toLocalInputValue(
+          avaliacao.dataISO &&
+            !Number.isNaN(new Date(avaliacao.dataISO).getTime())
+            ? new Date(avaliacao.dataISO)
+            : new Date()
+        )
+      );
       setDescricao(avaliacao.descricao ?? "");
       setResumo(avaliacao.resumo_assuntos ?? "");
       setHorario(avaliacao.horario ?? "");

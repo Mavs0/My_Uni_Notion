@@ -74,6 +74,19 @@ export default function LoginPage() {
   useEffect(() => {
     const signup = searchParams.get("signup");
     const emailParam = searchParams.get("email");
+    const fromConvite = searchParams.get("from") === "convite";
+
+    if (fromConvite) {
+      setIsLogin(true);
+      setMessage(
+        "Cadastro de convidado concluído. Entre com o mesmo e-mail e a nova senha que você definiu.",
+      );
+      if (emailParam && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailParam)) {
+        setEmail(decodeURIComponent(emailParam));
+      }
+      return;
+    }
+
     if (signup === "1") {
       setIsLogin(false);
       if (emailParam && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailParam)) {

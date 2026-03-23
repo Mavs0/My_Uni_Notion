@@ -27,7 +27,9 @@ function gerarSenhaTemporaria(): string {
  * Convite 100% pelo Supabase: o e-mail é enviado pelo próprio Supabase Auth.
  * A senha temporária é passada em data e pode ser exibida no template do Dashboard
  * (Authentication → Email Templates → Invite user) usando: {{ .Data.senha_temporaria }}
- * Depois do invite, a senha é definida na conta para o login com essa senha funcionar.
+ * Depois do invite, a senha temporária é definida na conta (útil como fallback).
+ * O utilizador é redirecionado para /cadastro-convidado para definir senha definitiva e depois /login.
+ * Em Supabase → Authentication → URL Configuration, inclua .../cadastro-convidado em Redirect URLs.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -60,8 +62,11 @@ export async function POST(request: NextRequest) {
     }
 
     const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://my-uni-notion.vercel.app";
-    const loginUrl = `${appUrl.replace(/\/$/, "")}/login`;
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://my-uni-notion.vercel.app";
+    /** Link do e-mail do Supabase → cadastro do convidado → depois login */
+    const cadastroConvidadoUrl = `${appUrl.replace(/\/$/, "")}/cadastro-convidado`;
 
     const admin = createSupabaseAdmin();
     const senhaTemporaria = gerarSenhaTemporaria();
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest) {
           nome,
           senha_temporaria: senhaTemporaria,
         },
-        redirectTo: loginUrl,
+        redirectTo: cadastroConvidadoUrl,
       });
 
     if (inviteError) {

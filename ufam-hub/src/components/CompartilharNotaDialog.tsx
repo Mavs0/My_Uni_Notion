@@ -1,16 +1,15 @@
 "use client";
-import { useState } from "react";
+
+import * as React from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,7 +18,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Copy, Check } from "lucide-react";
+import {
+  Loader2,
+  Link2,
+  Check,
+  Users,
+  Shield,
+} from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+
+type Vis = "publico" | "geral" | "privado";
 
 interface CompartilharNotaDialogProps {
   open: boolean;
@@ -29,6 +38,28 @@ interface CompartilharNotaDialogProps {
   tituloNota: string;
 }
 
+type CompartilhadaRow = {
+  id: string;
+  nota_id: string;
+  link_compartilhamento: string;
+  visibilidade: Vis;
+  email_permitido?: string | null;
+  codigo_acesso?: string | null;
+  permite_comentarios?: boolean;
+  permite_download?: boolean;
+};
+
+/** Só dois modos na UI: convidados (geral) ou link aberto (publico). */
+function visToMode(v: Vis): "invited" | "link" {
+  if (v === "geral") return "invited";
+  return "link";
+}
+
+function modeToVis(m: "invited" | "link"): Vis {
+  if (m === "invited") return "geral";
+  return "publico";
+}
+
 export function CompartilharNotaDialog({
   open,
   onOpenChange,
@@ -36,281 +67,411 @@ export function CompartilharNotaDialog({
   disciplinaId,
   tituloNota,
 }: CompartilharNotaDialogProps) {
-  const [visibilidade, setVisibilidade] = useState<
-    "publico" | "geral" | "privado"
-  >("publico");
-  const [emailPermitido, setEmailPermitido] = useState("");
-  const [titulo, setTitulo] = useState(tituloNota);
-  const [descricao, setDescricao] = useState("");
-  const [permiteComentarios, setPermiteComentarios] = useState(true);
-  const [permiteDownload, setPermiteDownload] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [linkCompartilhado, setLinkCompartilhado] = useState<string | null>(
-    null
+  const [loading, setLoading] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [compartilhada, setCompartilhada] = React.useState<CompartilhadaRow | null>(
+    null,
   );
-  const [codigoAcesso, setCodigoAcesso] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [link, setLink] = React.useState<string | null>(null);
 
-  const handleCompartilhar = async () => {
-    if (!titulo.trim()) {
-      toast.error("Título é obrigatório");
-      return;
-    }
+  const [generalMode, setGeneralMode] = React.useState<"invited" | "link">("link");
+  const [inviteEmail, setInviteEmail] = React.useState("");
+  const [inviteRole, setInviteRole] = React.useState<"view" | "edit">("view");
+  const [ownerName, setOwnerName] = React.useState("Você");
+  const [ownerEmail, setOwnerEmail] = React.useState("");
+  const [copied, setCopied] = React.useState(false);
 
-    if (visibilidade === "geral" && !emailPermitido.trim()) {
-      toast.error("Email é obrigatório para compartilhamento geral");
-      return;
-    }
-
+  const load = React.useCallback(async () => {
+    if (!notaId) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await fetch("/api/colaboracao/compartilhar", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nota_id: notaId,
-          disciplina_id: disciplinaId,
-          titulo: titulo.trim(),
-          descricao: descricao.trim() || null,
-          visibilidade,
-          email_permitido:
-            visibilidade === "geral" ? emailPermitido.trim() : null,
-          permite_comentarios: permiteComentarios,
-          permite_download: permiteDownload,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setLinkCompartilhado(data.link);
-        setCodigoAcesso(data.codigo_acesso || null);
-        toast.success("Nota compartilhada com sucesso!");
-      } else {
-        toast.error(data.error || "Erro ao compartilhar nota");
+      const [shareRes, profileRes] = await Promise.all([
+        fetch(`/api/colaboracao/compartilhar?nota_id=${encodeURIComponent(notaId)}`),
+        fetch("/api/profile"),
+      ]);
+      if (profileRes.ok) {
+        const { profile } = await profileRes.json();
+        const nome =
+          profile?.nome ||
+          profile?.email?.split("@")[0] ||
+          "Você";
+        setOwnerName(nome);
+        setOwnerEmail(profile?.email || "");
       }
-    } catch (error) {
-      console.error("Erro ao compartilhar:", error);
-      toast.error("Erro ao compartilhar nota");
+      if (shareRes.ok) {
+        const data = await shareRes.json();
+        if (data.compartilhada) {
+          setCompartilhada(data.compartilhada);
+          setLink(data.link || null);
+          setGeneralMode(visToMode(data.compartilhada.visibilidade as Vis));
+        } else {
+          setCompartilhada(null);
+          setLink(null);
+        }
+      }
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
+  }, [notaId]);
+
+  React.useEffect(() => {
+    if (open && notaId) {
+      load();
+    }
+  }, [open, notaId, load]);
+
+  const shortLink = React.useMemo(() => {
+    if (!link) return "";
+    try {
+      const u = new URL(link);
+      return `${u.host}${u.pathname}`;
+    } catch {
+      return link.slice(0, 48) + (link.length > 48 ? "…" : "");
+    }
+  }, [link]);
+
+  const ensureShare = async (vis: Vis, email?: string | null) => {
+    const body = {
+      nota_id: notaId,
+      disciplina_id: disciplinaId || null,
+      titulo: tituloNota.trim() || "Anotação",
+      descricao: null as string | null,
+      visibilidade: vis,
+      email_permitido: vis === "geral" && email ? email : null,
+      permite_comentarios: true,
+      permite_download: true,
+    };
+    const res = await fetch("/api/colaboracao/compartilhar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Erro ao compartilhar");
+    setCompartilhada(data.compartilhada);
+    setLink(data.link);
+    return data;
   };
 
-  const handleCopyLink = () => {
-    if (linkCompartilhado) {
-      navigator.clipboard.writeText(linkCompartilhado);
-      setCopied(true);
-      toast.success("Link copiado!");
-      setTimeout(() => setCopied(false), 2000);
+  /** Cria ou atualiza sempre via POST (o servidor trata registro já existente). */
+  const applyGeneralAccess = async () => {
+    const vis = modeToVis(generalMode);
+    const emailGeral =
+      vis === "geral"
+        ? inviteEmail.trim() || compartilhada?.email_permitido || null
+        : null;
+    if (vis === "geral" && !emailGeral) {
+      toast.error(
+        "Informe um e-mail (acima ou no campo Convidar) ou escolha «Qualquer pessoa com o link».",
+      );
+      return;
+    }
+    setSaving(true);
+    try {
+      await ensureShare(vis, emailGeral);
+      toast.success(
+        compartilhada ? "Acesso atualizado." : "Link de compartilhamento criado.",
+      );
+      await load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleClose = () => {
-    onOpenChange(false);
-    setTimeout(() => {
-      setVisibilidade("publico");
-      setEmailPermitido("");
-      setTitulo(tituloNota);
-      setDescricao("");
-      setPermiteComentarios(true);
-      setPermiteDownload(true);
-      setLinkCompartilhado(null);
-      setCodigoAcesso(null);
-      setCopied(false);
-    }, 300);
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) {
+      toast.error("Digite um e-mail.");
+      return;
+    }
+    if (inviteRole === "edit") {
+      toast.info("Coedição em breve. Por enquanto apenas visualização está disponível.");
+      return;
+    }
+    setSaving(true);
+    try {
+      setGeneralMode("invited");
+      await ensureShare("geral", inviteEmail.trim());
+      toast.success(
+        "Pronto. Só esse e-mail (logado na plataforma) poderá abrir pelo link.",
+      );
+      setInviteEmail("");
+      await load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao convidar");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (linkCompartilhado) {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nota Compartilhada!</DialogTitle>
-            <DialogDescription>
-              Sua nota foi compartilhada com sucesso. Compartilhe o link abaixo.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Link de Compartilhamento</Label>
-              <div className="flex gap-2">
-                <Input value={linkCompartilhado} readOnly className="flex-1" />
-                <Button variant="outline" size="icon" onClick={handleCopyLink}>
-                  {copied ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            {codigoAcesso && (
-              <div className="space-y-2">
-                <Label>Código de Acesso</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={codigoAcesso}
-                    readOnly
-                    className="flex-1 text-center text-lg tracking-widest font-mono"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      navigator.clipboard.writeText(codigoAcesso);
-                      toast.success("Código copiado!");
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Compartilhe este código com quem você deseja dar acesso à
-                  nota.
-                </p>
-              </div>
-            )}
-            <DialogFooter>
-              <Button onClick={handleClose}>Fechar</Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const copyLink = () => {
+    if (!link) return;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    toast.success("Link copiado!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleClose = (v: boolean) => {
+    onOpenChange(v);
+    if (!v) {
+      setTimeout(() => {
+        setCopied(false);
+        setInviteEmail("");
+      }, 200);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Compartilhar Nota</DialogTitle>
-          <DialogDescription>
-            Configure as opções de compartilhamento da sua nota
+      <DialogContent
+        className={cn(
+          "flex max-h-[min(90vh,760px)] w-[calc(100vw-1.5rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl",
+          "sm:max-w-xl sm:w-full",
+        )}
+      >
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-5 py-4 pr-12 text-left sm:px-6 sm:py-5 sm:pr-14">
+          <DialogTitle className="text-base font-semibold leading-snug sm:text-lg">
+            Compartilhar &quot;{tituloNota || "Anotação"}&quot;
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Defina quem pode acessar esta anotação pelo link
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="titulo">
-              Título <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="titulo"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Título da nota compartilhada"
-            />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição (opcional)</Label>
-            <textarea
-              id="descricao"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Descrição da nota compartilhada"
-              className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 sm:px-6 space-y-5">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              {/* Convidar por e-mail */}
+              <section className="space-y-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                  <Input
+                    placeholder="E-mail ou nome…"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="h-11 min-w-0 rounded-xl border-border bg-muted/30 sm:flex-1"
+                    onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                  />
+                  <div className="flex gap-2 sm:shrink-0">
+                    <Select
+                      value={inviteRole}
+                      onValueChange={(v) => setInviteRole(v as "view" | "edit")}
+                    >
+                      <SelectTrigger className="h-11 min-w-[7.5rem] flex-1 rounded-xl border-border sm:w-[124px] sm:flex-none">
+                        <SelectValue placeholder="Permissão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="view">Pode ver</SelectItem>
+                        <SelectItem value="edit">Pode editar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      className="h-11 shrink-0 rounded-xl px-4 font-medium whitespace-nowrap sm:px-5"
+                      onClick={handleInvite}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Convidar"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  &quot;Pode editar&quot; (coedição) virá em uma versão futura.
+                </p>
+              </section>
 
-          <div className="space-y-2">
-            <Label htmlFor="visibilidade">
-              Visibilidade <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={visibilidade}
-              onValueChange={(value: "publico" | "geral" | "privado") =>
-                setVisibilidade(value)
-              }
+              <div className="h-px bg-border" />
+
+              {/* Acesso geral */}
+              <section className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Acesso geral
+                </p>
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGeneralMode("invited")}
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-colors sm:p-4",
+                      generalMode === "invited"
+                        ? "border-primary/40 bg-primary/10 ring-1 ring-inset ring-primary/20"
+                        : "border-border bg-muted/20 hover:bg-muted/40",
+                    )}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground">
+                        Apenas convidados
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Só as pessoas com acesso podem abrir usando o link (e-mail
+                        logado na plataforma).
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGeneralMode("link")}
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-colors sm:p-4",
+                      generalMode === "link"
+                        ? "border-primary/40 bg-primary/10 ring-1 ring-inset ring-primary/20"
+                        : "border-border bg-muted/20 hover:bg-muted/40",
+                    )}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+                      <Link2 className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground">
+                        Qualquer pessoa com o link
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Qualquer pessoa com o link pode ver na página pública de
+                        compartilhamento (sem precisar estar logado).
+                      </p>
+                    </div>
+                  </button>
+                </div>
+                {compartilhada?.visibilidade === "privado" && (
+                  <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
+                    Esta nota ainda usa o modo antigo com código. Escolha um dos
+                    modos acima e toque em &quot;Aplicar&quot; para substituir.
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full rounded-xl"
+                  disabled={saving}
+                  onClick={applyGeneralAccess}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : compartilhada ? (
+                    "Aplicar acesso geral"
+                  ) : (
+                    "Criar link com este acesso"
+                  )}
+                </Button>
+              </section>
+
+              <div className="h-px bg-border" />
+
+              {/* Pessoas com acesso */}
+              <section className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Pessoas com acesso
+                </p>
+                <ul className="space-y-2">
+                  <li className="flex flex-col gap-2 rounded-xl border border-border bg-muted/15 px-3 py-3 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <Avatar className="h-9 w-9 shrink-0">
+                        <AvatarFallback className="text-xs bg-primary/15 text-primary">
+                          {ownerName.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{ownerName}</p>
+                        {ownerEmail && (
+                          <p className="break-all text-xs text-muted-foreground">
+                            {ownerEmail}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5 self-start text-xs font-semibold text-emerald-600 dark:text-emerald-400 sm:self-center sm:pl-0 pl-12">
+                      <Shield className="h-3.5 w-3.5 shrink-0" />
+                      <span className="whitespace-nowrap">Proprietário</span>
+                    </div>
+                  </li>
+                  {compartilhada?.email_permitido && (
+                    <li className="flex flex-col gap-2 rounded-xl border border-border bg-muted/15 px-3 py-3 sm:flex-row sm:items-center sm:gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="text-xs">
+                            {compartilhada.email_permitido.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">
+                            Convidado
+                          </p>
+                          <p className="break-all text-xs text-muted-foreground">
+                            {compartilhada.email_permitido}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="shrink-0 self-start text-xs text-muted-foreground sm:self-center sm:pl-0 pl-12 whitespace-nowrap">
+                        Pode ver
+                      </span>
+                    </li>
+                  )}
+                </ul>
+              </section>
+
+            </>
+          )}
+        </div>
+
+        {/* Rodapé: link + ações (uma faixa, sem cortar) */}
+        <div className="shrink-0 space-y-3 border-t border-border bg-muted/30 px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-medium text-muted-foreground">
+              Link de compartilhamento
+            </p>
+            {link ? (
+              <p
+                className="break-all font-mono text-[11px] leading-relaxed text-foreground sm:text-xs"
+                title={link}
+              >
+                {shortLink}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground italic leading-relaxed">
+                Ainda não há link — escolha o acesso e toque em &quot;Criar link&quot;
+                ou &quot;Aplicar&quot; acima.
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 rounded-full border-border bg-background"
+              disabled={!link}
+              onClick={copyLink}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="publico">
-                  Público - Qualquer pessoa com o link
-                </SelectItem>
-                <SelectItem value="geral">
-                  Geral - Apenas email específico
-                </SelectItem>
-                <SelectItem value="privado">
-                  Privado - Requer código de acesso
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {visibilidade === "geral" && (
-            <div className="space-y-2">
-              <Label htmlFor="email">
-                Email Permitido <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={emailPermitido}
-                onChange={(e) => setEmailPermitido(e.target.value)}
-                placeholder="email@exemplo.com"
-              />
-              <p className="text-sm text-muted-foreground">
-                Apenas este email poderá acessar a nota compartilhada
-              </p>
-            </div>
-          )}
-
-          {visibilidade === "privado" && (
-            <div className="rounded-md bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                Um código de acesso de 6 dígitos será gerado automaticamente.
-                Compartilhe este código junto com o link para dar acesso à nota.
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="permite_comentarios"
-                checked={permiteComentarios}
-                onChange={(e) => setPermiteComentarios(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="permite_comentarios" className="cursor-pointer">
-                Permitir comentários
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="permite_download"
-                checked={permiteDownload}
-                onChange={(e) => setPermiteDownload(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="permite_download" className="cursor-pointer">
-                Permitir download
-              </Label>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCompartilhar} disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Compartilhando...
-                </>
+              {copied ? (
+                <Check className="h-4 w-4" />
               ) : (
-                "Compartilhar"
+                <Link2 className="h-4 w-4" />
               )}
+              Copiar link
             </Button>
-          </DialogFooter>
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-full px-5"
+              onClick={() => handleClose(false)}
+            >
+              Concluído
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+
+function normalizeTipoRow(
+  raw: string | null | undefined
+): "prova" | "trabalho" | "seminario" {
+  const t = String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  if (t === "prova") return "prova";
+  if (t === "trabalho") return "trabalho";
+  if (t === "seminario") return "seminario";
+  return "prova";
+}
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServer();
@@ -13,10 +27,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const disciplinaId = searchParams.get("disciplina_id");
     const tipo = searchParams.get("tipo");
+    // Incluir colunas da tabela `avaliacoes` explicitamente; só `disciplinas(...)`
+    // omite id, disciplina_id, data_iso, etc. no retorno (PostgREST).
     let query = supabase
       .from("avaliacoes")
       .select(
         `
+        id,
+        disciplina_id,
+        tipo,
+        data_iso,
+        descricao,
+        resumo_assuntos,
+        gerado_por_ia,
+        horario,
+        nota,
+        peso,
+        created_at,
+        updated_at,
         disciplinas (
           id,
           nome
@@ -61,7 +89,7 @@ export async function GET(request: NextRequest) {
         id: av.id,
         disciplinaId: av.disciplina_id,
         disciplina: nome,
-        tipo: av.tipo,
+        tipo: normalizeTipoRow(av.tipo),
         dataISO: av.data_iso,
         descricao: av.descricao,
         resumo_assuntos: av.resumo_assuntos,
@@ -101,12 +129,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!["prova", "trabalho", "seminario"].includes(tipo)) {
-      return NextResponse.json(
-        { error: "Tipo inválido. Use: prova, trabalho ou seminario" },
-        { status: 400 }
-      );
-    }
+    const tipoNorm = normalizeTipoRow(tipo);
     const supabase = await createSupabaseServer();
     const {
       data: { user },
@@ -132,7 +155,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         disciplina_id: disciplinaId,
-        tipo,
+        tipo: tipoNorm,
         data_iso: dataISO,
         descricao: descricao || null,
         resumo_assuntos: resumo_assuntos || null,
@@ -214,7 +237,7 @@ export async function PUT(request: NextRequest) {
       peso?: number | null;
     } = {};
     if (disciplinaId) updateData.disciplina_id = disciplinaId;
-    if (tipo) updateData.tipo = tipo;
+    if (tipo) updateData.tipo = normalizeTipoRow(tipo);
     if (dataISO) updateData.data_iso = dataISO;
     if (descricao !== undefined) updateData.descricao = descricao;
     if (resumo_assuntos !== undefined)

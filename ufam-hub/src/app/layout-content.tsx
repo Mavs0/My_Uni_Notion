@@ -24,6 +24,7 @@ function LayoutContentInner({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const authPages = [
     "/login",
+    "/cadastro-convidado",
     "/esqueci-senha",
     "/resetar-senha",
     "/config-error",
@@ -54,6 +55,14 @@ function LayoutContentInner({ children }: { children: React.ReactNode }) {
 
 function FocusModeWrapper({ children }: { children: React.ReactNode }) {
   const { isActive: isFocusModeActive, settings } = useFocusMode();
+  const pathname = usePathname();
+  /** Editor de notas: largura total (sem sidebar / sem caixa max-w), estilo sala de chamada */
+  const isNotasEditorPage =
+    typeof pathname === "string" &&
+    /\/disciplinas\/[^/]+\/notas\//.test(pathname);
+  /** Calendário: usa toda a largura útil (sem max-w-6xl no main) */
+  const isCalendarPage = pathname === "/calendar";
+  const isFullWidthMain = isNotasEditorPage || isCalendarPage;
 
   return (
     <CommandPaletteProvider>
@@ -65,14 +74,27 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
         </>
       )}
       <div
-        className={cn("flex", isFocusModeActive && "h-screen overflow-hidden")}
+        className={cn(
+          "flex min-h-0 flex-1",
+          isFocusModeActive && "h-screen overflow-hidden",
+          isFullWidthMain && !isFocusModeActive && "min-h-[calc(100dvh-3.5rem)]",
+        )}
       >
-        {!isFocusModeActive && <Sidebar />}
+        {!isFocusModeActive && !isNotasEditorPage && <Sidebar />}
         <main
           id="main-content"
           className={cn(
             "flex-1 w-full min-h-0",
-            !isFocusModeActive && "p-4 max-w-6xl mx-auto pb-24 md:pb-4",
+            !isFocusModeActive &&
+              !isFullWidthMain &&
+              "p-4 max-w-6xl mx-auto pb-24 md:pb-4",
+            !isFocusModeActive &&
+              isFullWidthMain &&
+              !isCalendarPage &&
+              "p-0 max-w-none overflow-hidden pb-0 md:pb-0",
+            !isFocusModeActive &&
+              isCalendarPage &&
+              "p-0 max-w-none overflow-auto pb-24 md:pb-6",
             isFocusModeActive && "h-full overflow-auto pt-12",
           )}
           role="main"

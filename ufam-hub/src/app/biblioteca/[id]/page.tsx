@@ -418,19 +418,19 @@ export default function MaterialDetailPage() {
   const emailUsuario = material.usuario?.raw_user_meta_data?.email || "";
 
   return (
-    <main className="mx-auto max-w-4xl p-4 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
+    <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 space-y-8">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="ghost" size="sm" className="rounded-lg" asChild>
           <Link href="/biblioteca">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+            Voltar à biblioteca
           </Link>
         </Button>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
+          className={`rounded-lg ${pinnedIds.includes(materialId) ? "text-primary border-primary/50" : ""}`}
           onClick={togglePin}
-          className={pinnedIds.includes(materialId) ? "text-primary" : ""}
           title={pinnedIds.includes(materialId) ? "Desfixar" : "Fixar na biblioteca"}
         >
           {pinnedIds.includes(materialId) ? (
@@ -440,10 +440,9 @@ export default function MaterialDetailPage() {
           )}
           {pinnedIds.includes(materialId) ? "Desfixar" : "Fixar"}
         </Button>
-        <h1 className="text-3xl font-bold">Detalhes do Material</h1>
       </div>
 
-      <Card>
+      <Card className="rounded-xl border border-border overflow-hidden">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -717,9 +716,9 @@ export default function MaterialDetailPage() {
       </Card>
 
       {/* Seção de Comentários */}
-      <Card>
+      <Card className="rounded-xl border border-border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <MessageSquare className="h-5 w-5" />
             Comentários ({comentarios.length})
           </CardTitle>
