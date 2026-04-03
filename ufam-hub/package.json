@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "clean:next": "rm -rf .next",
     "dev:clean": "rm -rf .next && node scripts/dev.mjs",
+    "dev:repair": "rm -rf .next node_modules/.cache && node scripts/dev.mjs",
     "dev:fresh": "rm -rf .next && npm run build && node scripts/dev.mjs",
     "build": "next build",
-    "start": "node --max-http-header-size=131072 ./node_modules/next/dist/bin/next start",
-    "lint": "next lint"
+    "start": "node --max-http-header-size=524288 ./node_modules/next/dist/bin/next start",
+    "lint": "next lint",
+    "doctor": "node scripts/doctor.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.51",
