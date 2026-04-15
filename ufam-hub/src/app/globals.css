@@ -566,3 +566,57 @@ body[data-focus-font-size="extra-large"] .focus-mode-content-wrapper h3 {
     gap: 0.5rem;
   }
 }
+
+/* Sala de chamada v2: tema claro alinhado ao layout de reunião (referência UI) */
+.chamada-v2.chamada-room,
+.chamada-v2 .chamada-room {
+  --lk-bg: #ffffff;
+  --lk-bg2: #f1f5f9;
+  --lk-bg3: #ecfdf5;
+  --lk-fg: #0f172a;
+  --lk-border-color: #e2e8f0;
+  --lk-danger: #ef4444;
+  --lk-danger-fg: #ffffff;
+  --lk-accent-bg: #10b981;
+  --lk-accent-fg: #ffffff;
+  --lk-control-bg: #f8fafc;
+  --lk-control-hover-bg: #f1f5f9;
+}
+.chamada-v2 .lk-participant-tile,
+.chamada-meeting-surface .lk-participant-tile {
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+.chamada-v2 .chamada-grid-v2.lk-grid-layout {
+  padding: 0.75rem;
+  gap: 0.75rem;
+}
+.chamada-v2 .chamada-sidebar {
+  box-shadow: none;
+}
+.chamada-room.chamada-meet-layout,
+.chamada-room .chamada-meet-layout {
+  --chamada-bar-height: 100px;
+}
+
+.dark .chamada-v2.chamada-room,
+.dark .chamada-v2 .chamada-room {
+  --lk-bg: #0f172a;
+  --lk-bg2: #1e293b;
+  --lk-bg3: #064e3b;
+  --lk-fg: #f1f5f9;
+  --lk-border-color: #334155;
+  --lk-danger: #f87171;
+  --lk-danger-fg: #0f172a;
+  --lk-accent-bg: #34d399;
+  --lk-accent-fg: #022c22;
+  --lk-control-bg: #1e293b;
+  --lk-control-hover-bg: #334155;
+}
+.dark .chamada-v2 .lk-participant-tile,
+.dark .chamada-meeting-surface .lk-participant-tile {
+  border-color: rgba(51, 65, 85, 0.95);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}

@@ -17,7 +17,7 @@ export async function PATCH(
       );
     }
 
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

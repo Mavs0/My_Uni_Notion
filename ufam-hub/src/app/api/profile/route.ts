@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import {
+  sanitizeAvatarUrlForJwt,
+  isInlineDataAvatar,
+  MAX_AVATAR_URL_LENGTH,
+} from "@/lib/profile/avatar-metadata";
+
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -10,11 +16,15 @@ export async function GET(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
+    const rawAvatar = user.user_metadata?.avatar_url || "";
     const profile = {
       id: user.id,
       email: user.email,
       nome: user.user_metadata?.nome || user.user_metadata?.full_name || "",
-      avatar_url: user.user_metadata?.avatar_url || "",
+      /* Não devolver data URI gigante ao cliente; o JWT continua grande até limpeza no cliente/login */
+      avatar_url: sanitizeAvatarUrlForJwt(
+        typeof rawAvatar === "string" ? rawAvatar : "",
+      ),
       bio: user.user_metadata?.bio || "",
       curso: user.user_metadata?.curso || "",
       periodo: user.user_metadata?.periodo || "",
@@ -46,7 +56,7 @@ export async function PUT(request: NextRequest) {
       avatar_url,
       tema_preferencia,
     } = body;
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -54,14 +64,32 @@ export async function PUT(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    const updateData: any = {};
+    const updateData: Record<string, string> = {};
     if (nome !== undefined) updateData.nome = nome || "";
     if (bio !== undefined) updateData.bio = bio || "";
     if (curso !== undefined) updateData.curso = curso || "";
     if (periodo !== undefined) updateData.periodo = periodo || "";
     if (matricula !== undefined) updateData.matricula = matricula || "";
     if (telefone !== undefined) updateData.telefone = telefone || "";
-    if (avatar_url !== undefined) updateData.avatar_url = avatar_url || "";
+    if (avatar_url !== undefined) {
+      const a = typeof avatar_url === "string" ? avatar_url : "";
+      if (isInlineDataAvatar(a)) {
+        return NextResponse.json(
+          {
+            error:
+              "Não é permitido guardar a foto em base64 no perfil (incha a sessão e causa erros 401/431). Usa o envio de ficheiro ou uma URL https.",
+          },
+          { status: 400 },
+        );
+      }
+      if (a.length > MAX_AVATAR_URL_LENGTH) {
+        return NextResponse.json(
+          { error: `URL do avatar demasiado longa (máx. ${MAX_AVATAR_URL_LENGTH} caracteres).` },
+          { status: 400 },
+        );
+      }
+      updateData.avatar_url = sanitizeAvatarUrlForJwt(a);
+    }
     if (tema_preferencia !== undefined)
       updateData.tema_preferencia = tema_preferencia;
     console.log("📝 Atualizando perfil do usuário:", user.id);

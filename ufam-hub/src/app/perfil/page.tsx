@@ -1305,7 +1305,8 @@ export default function PerfilPage() {
           <DialogHeader>
             <DialogTitle>Alterar Foto de Perfil</DialogTitle>
             <DialogDescription>
-              Escolha uma imagem do seu dispositivo ou cole uma URL
+              Envio guarda a imagem no Storage (URL curta na sessão). URLs https
+              também são aceites — não uses imagens em base64.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1498,16 +1499,31 @@ export default function PerfilPage() {
                   try {
                     let finalUrl = "";
                     if (avatarMethod === "upload" && avatarFile) {
-                      const reader = new FileReader();
-                      finalUrl = await new Promise<string>(
-                        (resolve, reject) => {
-                          reader.onloadend = () => {
-                            resolve(reader.result as string);
-                          };
-                          reader.onerror = reject;
-                          reader.readAsDataURL(avatarFile);
-                        }
-                      );
+                      if (avatarFile.size > 2 * 1024 * 1024) {
+                        setError("Imagem demasiado grande (máx. 2 MB).");
+                        setUploadingAvatar(false);
+                        return;
+                      }
+                      const fd = new FormData();
+                      fd.append("file", avatarFile);
+                      fd.append("folder", "avatars");
+                      const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: fd,
+                        credentials: "include",
+                      });
+                      const payload = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        throw new Error(
+                          payload.error ||
+                            payload.details ||
+                            "Falha ao enviar a imagem. Verifica se o bucket «avatars» existe no Storage.",
+                        );
+                      }
+                      finalUrl = payload.url as string;
+                      if (!finalUrl?.startsWith("http")) {
+                        throw new Error("Resposta de upload inválida.");
+                      }
                     } else if (avatarMethod === "url" && avatarUrl) {
                       try {
                         new URL(avatarUrl);

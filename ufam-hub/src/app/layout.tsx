@@ -1,15 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import dynamic from "next/dynamic";
 import "./globals.css";
 import LayoutContent from "./layout-content";
+import Providers from "./providers";
 
-const Providers = dynamic(() => import("./providers"), {
-  loading: () => (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <span className="text-muted-foreground animate-pulse">Carregando...</span>
-    </div>
-  ),
-});
+/* Import estático: dynamic(import) no root + HMR pode causar
+ * __webpack_modules__[moduleId] is not a function ao hidratar /login. */
 
 export const metadata: Metadata = {
   title: "UFAM Hub",
@@ -29,7 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className="antialiased min-h-screen bg-background text-foreground font-sans">
+      <body
+        className="antialiased min-h-screen bg-background text-foreground font-sans"
+        suppressHydrationWarning
+      >
         <Providers>
           <LayoutContent>{children}</LayoutContent>
         </Providers>

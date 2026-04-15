@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();

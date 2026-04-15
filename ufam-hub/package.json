@@ -4,7 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "devnpm": "node scripts/dev.mjs",
+    "dev:noclean": "UFAM_DEV_SKIP_NEXT_CLEAN=1 node scripts/dev.mjs",
+    "dev:plain": "UFAM_MINIMAL_ENV=1 node scripts/dev.mjs",
+    "dev:nocache": "NEXT_WEBPACK_DEV_CACHE=0 node scripts/dev.mjs",
+    "dev:fast": "node scripts/dev.mjs",
     "clean:next": "rm -rf .next",
+    "clean:cache": "rm -rf .next node_modules/.cache",
     "dev:clean": "rm -rf .next && node scripts/dev.mjs",
     "dev:repair": "rm -rf .next node_modules/.cache && node scripts/dev.mjs",
     "dev:fresh": "rm -rf .next && npm run build && node scripts/dev.mjs",

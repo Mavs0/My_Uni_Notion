@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -259,23 +260,33 @@ export default function FeedPage() {
   };
 
   return (
-    <main className="mx-auto max-w-4xl p-6 space-y-6">
-      <header className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Activity className="h-8 w-8" />
+    <main className="min-h-screen bg-zinc-100/80 dark:bg-black">
+      <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
+      <header className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-200/80 dark:bg-zinc-800">
+                <Activity className="h-6 w-6 text-zinc-700 dark:text-zinc-100" />
+              </span>
               Feed de Atividades
             </h1>
-            <p className="text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
               Veja o que está acontecendo na comunidade
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-1">
             <Popover open={showFilters} onOpenChange={setShowFilters}>
               <PopoverTrigger asChild>
-                <Button variant={hasActiveFilters ? "default" : "outline"}>
-                  <Filter className="h-4 w-4 mr-2" />
+                <Button
+                  variant={hasActiveFilters ? "default" : "outline"}
+                  className={cn(
+                    "rounded-full border-2 px-5",
+                    !hasActiveFilters &&
+                      "border-zinc-300 bg-white/80 text-zinc-900 hover:bg-white dark:border-zinc-600 dark:bg-transparent dark:text-zinc-100 dark:hover:bg-zinc-900",
+                  )}
+                >
+                  <Filter className="mr-2 h-4 w-4" />
                   Filtros
                   {hasActiveFilters && (
                     <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
@@ -404,8 +415,10 @@ export default function FeedPage() {
               }}
             >
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button
+                  className="rounded-full bg-zinc-900 px-5 text-white shadow-sm hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
                   Publicar
                 </Button>
               </DialogTrigger>
@@ -715,38 +728,51 @@ export default function FeedPage() {
       </header>
 
       <Tabs value={type} onValueChange={(v) => setType(v as typeof type)}>
-        <TabsList>
-          <TabsTrigger value="personalized">
-            <Sparkles className="h-4 w-4 mr-2" />
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-zinc-200/80 bg-white/90 p-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90 md:grid-cols-4">
+          <TabsTrigger
+            value="personalized"
+            className="flex items-center justify-center gap-2 rounded-xl py-3 text-zinc-600 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:text-zinc-400 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-zinc-50"
+          >
+            <Sparkles className="h-4 w-4 shrink-0" />
             Personalizado
           </TabsTrigger>
-          <TabsTrigger value="all">
-            <Activity className="h-4 w-4 mr-2" />
+          <TabsTrigger
+            value="all"
+            className="flex items-center justify-center gap-2 rounded-xl py-3 text-zinc-600 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:text-zinc-400 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-zinc-50"
+          >
+            <Activity className="h-4 w-4 shrink-0" />
             Todas
           </TabsTrigger>
-          <TabsTrigger value="following">
-            <Users className="h-4 w-4 mr-2" />
+          <TabsTrigger
+            value="following"
+            className="flex items-center justify-center gap-2 rounded-xl py-3 text-zinc-600 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:text-zinc-400 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-zinc-50"
+          >
+            <Users className="h-4 w-4 shrink-0" />
             Seguindo
           </TabsTrigger>
-          <TabsTrigger value="public">
-            <Globe className="h-4 w-4 mr-2" />
+          <TabsTrigger
+            value="public"
+            className="flex items-center justify-center gap-2 rounded-xl py-3 text-zinc-600 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:text-zinc-400 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-zinc-50"
+          >
+            <Globe className="h-4 w-4 shrink-0" />
             Públicas
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="personalized">
+        <TabsContent value="personalized" className="mt-6 focus-visible:outline-none">
           <ActivityFeed type="personalized" filters={filters} />
         </TabsContent>
-        <TabsContent value="all">
+        <TabsContent value="all" className="mt-6 focus-visible:outline-none">
           <ActivityFeed type="all" filters={filters} />
         </TabsContent>
-        <TabsContent value="following">
+        <TabsContent value="following" className="mt-6 focus-visible:outline-none">
           <ActivityFeed type="following" filters={filters} />
         </TabsContent>
-        <TabsContent value="public">
+        <TabsContent value="public" className="mt-6 focus-visible:outline-none">
           <ActivityFeed type="public" filters={filters} />
         </TabsContent>
       </Tabs>
+      </div>
     </main>
   );
 }

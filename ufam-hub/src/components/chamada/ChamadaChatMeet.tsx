@@ -24,12 +24,11 @@ export function ChamadaChatMeet() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-card">
-      {/* Header estilo Meet */}
-      <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/15">
+    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-slate-900">
+      <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 dark:bg-emerald-500/20">
           <svg
-            className="w-4 h-4 text-primary"
+            className="h-4 w-4 text-emerald-600 dark:text-emerald-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -43,23 +42,24 @@ export function ChamadaChatMeet() {
           </svg>
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Mensagens</h2>
-          <p className="text-xs text-muted-foreground">
-            Envie uma mensagem para todos na chamada
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+            Chat do grupo
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            Mensagens visíveis para todos na chamada
           </p>
         </div>
       </div>
 
-      {/* Lista de mensagens com scroll */}
       <div
         ref={listRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-4"
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-3"
       >
         {chatMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[120px] text-center px-4">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+          <div className="flex h-full min-h-[120px] flex-col items-center justify-center px-4 text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
               <svg
-                className="w-6 h-6 text-muted-foreground"
+                className="h-6 w-6 text-slate-500 dark:text-slate-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -72,8 +72,10 @@ export function ChamadaChatMeet() {
                 />
               </svg>
             </div>
-            <p className="text-sm font-medium text-foreground">Nenhuma mensagem ainda</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+              Nenhuma mensagem ainda
+            </p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               Seja o primeiro a enviar uma mensagem
             </p>
           </div>
@@ -100,20 +102,22 @@ export function ChamadaChatMeet() {
                     <span
                       className={cn(
                         "text-xs font-medium",
-                        isLocal ? "text-primary" : "text-muted-foreground",
+                        isLocal ? "text-emerald-700 dark:text-emerald-400" : "text-slate-700 dark:text-slate-300",
                       )}
                     >
                       {isLocal ? "Você" : name}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">{time}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      {time}
+                    </span>
                   </div>
                 )}
                 <div
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm",
                     isLocal
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-muted text-foreground rounded-bl-md",
+                      ? "rounded-br-md bg-emerald-600 text-white dark:bg-emerald-600"
+                      : "rounded-bl-md bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
                   )}
                 >
                   <p className="break-words whitespace-pre-wrap">{msg.message}</p>
@@ -127,24 +131,30 @@ export function ChamadaChatMeet() {
       {/* Input: "Digite algo..." com anexo e enviar (estilo anexos) */}
       <form
         onSubmit={handleSubmit}
-        className="shrink-0 flex items-center gap-2 p-3 border-t border-border bg-background/50"
+        className="flex shrink-0 items-center gap-2 border-t border-slate-100 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/80"
       >
-        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-lg" title="Anexar">
-          <Paperclip className="h-4 w-4 text-muted-foreground" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0 rounded-xl text-slate-500 hover:bg-white hover:text-slate-800"
+          title="Anexar"
+        >
+          <Paperclip className="h-4 w-4" />
         </Button>
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Digite uma mensagem..."
+          placeholder="Escreva uma mensagem…"
           disabled={isSending}
-          className="flex-1 min-w-0 h-10 px-4 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
+          className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
         />
         <Button
           type="submit"
           size="icon"
           disabled={!input.trim() || isSending}
-          className="h-10 w-10 rounded-lg shrink-0"
+          className="h-10 w-10 shrink-0 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40"
         >
           <Send className="h-4 w-4" />
           <span className="sr-only">Enviar</span>

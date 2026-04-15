@@ -6,7 +6,7 @@ export async function GET(
 ) {
   try {
     const { id: disciplinaId } = await params;
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

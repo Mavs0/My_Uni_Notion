@@ -3,21 +3,44 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { I18nProvider } from "@/lib/i18n/context";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { CookieCleanup } from "@/components/CookieCleanup";
 import { RedirectOnApi401 } from "@/components/auth/RedirectOnApi401";
 import { FocusModeProvider } from "@/contexts/FocusModeContext";
 import { PomodoroProvider } from "@/contexts/PomodoroContext";
+
+/** Rotas onde não há sessão: evita GET /api/profile (401) a cada visita ao login. */
+function isAuthMarketingPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  const prefixes = [
+    "/login",
+    "/cadastro-convidado",
+    "/esqueci-senha",
+    "/resetar-senha",
+    "/config-error",
+    "/limpar-cookies",
+  ];
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 function ThemeProviderWrapper({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [defaultTheme, setDefaultTheme] = useState<"light" | "dark" | "system">(
     "system"
   );
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    if (isAuthMarketingPath(pathname)) {
+      setMounted(true);
+      return;
+    }
     const loadUserTheme = async () => {
       try {
-        const response = await fetch("/api/profile");
+        /* Não chamar POST /api/auth/sanitize-inline-avatar aqui: com cookies sb-* gigantes
+         * o pedido leva 431 (header Cookie demasiado grande). Limpeza é no login (client). */
+        const response = await fetch("/api/profile", { credentials: "include" });
         if (response.ok) {
           const { profile } = await response.json();
           const userTheme = profile.tema_preferencia;
@@ -32,7 +55,7 @@ function ThemeProviderWrapper({ children }: { children: React.ReactNode }) {
       }
     };
     loadUserTheme();
-  }, []);
+  }, [pathname]);
   if (!mounted) {
     return (
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

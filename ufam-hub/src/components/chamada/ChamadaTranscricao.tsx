@@ -215,11 +215,11 @@ export function ChamadaTranscricao() {
   if (!isSupported) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-700">
           <MicOff className="h-6 w-6" />
         </div>
-        <p className="text-sm font-medium text-foreground">Transcrição não disponível</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm font-medium text-slate-900">Momentos indisponíveis</p>
+        <p className="text-xs text-slate-500">
           Use Chrome, Edge ou Safari para transcrição automática em português.
         </p>
       </div>
@@ -227,10 +227,10 @@ export function ChamadaTranscricao() {
   }
 
   return (
-    <div className="flex flex-1 flex-col min-h-0">
-      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-        <p className="text-xs font-medium text-muted-foreground">
-          Transcrição da sua fala (ao vivo)
+    <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-slate-900">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+        <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+          Notas ao vivo (a sua fala)
         </p>
         <div className="flex items-center gap-1">
           <Button
@@ -258,7 +258,7 @@ export function ChamadaTranscricao() {
               type="button"
               variant="ghost"
               size="sm"
-              className="rounded-lg h-8 text-muted-foreground"
+              className="h-8 rounded-lg text-slate-500"
               onClick={clearTranscript}
             >
               Limpar
@@ -268,7 +268,7 @@ export function ChamadaTranscricao() {
       </div>
 
       {error && (
-        <div className="shrink-0 px-4 py-2 bg-destructive/10 text-destructive text-xs rounded-none flex flex-col gap-2">
+        <div className="flex shrink-0 flex-col gap-2 rounded-none bg-rose-50 px-4 py-2 text-xs text-rose-700">
           <span>{error}</span>
           <Button
             type="button"
@@ -292,8 +292,8 @@ export function ChamadaTranscricao() {
       >
         {lines.length === 0 && !interim && !isListening && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Mic className="h-10 w-10 text-muted-foreground/50 mb-2" />
-            <p className="text-sm text-muted-foreground">
+            <Mic className="mb-2 h-10 w-10 text-slate-300" />
+            <p className="text-sm text-slate-500">
               Clique em &quot;Iniciar&quot; para transcrever sua fala em tempo real.
             </p>
           </div>
@@ -303,11 +303,13 @@ export function ChamadaTranscricao() {
           <div
             key={line.id}
             className={cn(
-              "rounded-lg px-3 py-2 text-sm",
-              line.isInterim ? "bg-muted/50 text-muted-foreground italic" : "bg-muted/30 text-foreground"
+              "rounded-xl px-3 py-2 text-sm",
+              line.isInterim
+                ? "bg-slate-100 italic text-slate-500"
+                : "bg-slate-50 text-slate-900",
             )}
           >
-            <span className="text-[10px] text-muted-foreground mr-2 tabular-nums">
+            <span className="mr-2 text-[10px] tabular-nums text-slate-400">
               {line.time}
             </span>
             {line.text}
@@ -315,7 +317,7 @@ export function ChamadaTranscricao() {
         ))}
 
         {interim.trim() && (
-          <div className="rounded-lg px-3 py-2 text-sm bg-primary/10 text-foreground italic border border-primary/20">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm italic text-slate-800">
             {interim}
           </div>
         )}

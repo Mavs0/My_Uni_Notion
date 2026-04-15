@@ -198,7 +198,7 @@ function CadastroConvidadoForm() {
     return (
       <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950">
         <div className="absolute right-4 top-4">
-          <ThemeToggle />
+          <ThemeToggle syncThemeToServer={false} />
         </div>
         <AuthHeader />
         <div className="flex flex-1 items-center justify-center">
@@ -225,7 +225,7 @@ function CadastroConvidadoForm() {
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950">
       <div className="absolute right-4 top-4">
-        <ThemeToggle />
+        <ThemeToggle syncThemeToServer={false} />
       </div>
       <AuthHeader />
       <div className="flex flex-1 items-center justify-center py-8">

@@ -1,88 +1,78 @@
+import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
-import { NextRequest } from "next/server";
-import { SESSION_COOKIE_OPTIONS } from "./session-security";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { AuthSessionMissingError } from "@supabase/auth-js";
 
-export async function createSupabaseServer(request?: NextRequest) {
+function sanitizeCookieOptions(
+  options: CookieOptions | undefined,
+): CookieOptions | undefined {
+  if (!options) return undefined;
+  const o = { ...options };
+  delete (o as { name?: string }).name;
+  return o;
+}
+
+/**
+ * Todas as rotas usam `getUser()` para autorização. O `getUser()` original chama
+ * `GET auth/v1/user` com o JWT inteiro — com metadata enorme isso falha (401 / reset).
+ * Aqui só usamos a sessão já nos cookies (SSR), sem pedido extra ao Auth — o middleware
+ * já corre `getSession` e refresh. Não fazemos fallback para o `getUser()` original.
+ */
+function applySessionOnlyGetUser(client: SupabaseClient): void {
+  const auth = client.auth;
+  auth.getUser = async () => {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await auth.getSession();
+    if (sessionError) {
+      return { data: { user: null }, error: sessionError };
+    }
+    if (session?.user) {
+      return { data: { user: session.user }, error: null };
+    }
+    return { data: { user: null }, error: new AuthSessionMissingError() };
+  };
+}
+
+/**
+ * Cliente Supabase em Route Handlers / Server Actions — doc @supabase/ssr.
+ */
+export async function createSupabaseServer(_incoming?: Request | NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
     throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY são obrigatórias. " +
-        "Configure em Vercel → Settings → Environment Variables e faça um novo deploy."
+      "NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY são obrigatórias.",
     );
   }
   const cookieStore = await cookies();
-  const requestCookies = request?.headers.get("cookie") || "";
-  const canModifyCookies = !!request;
-  return createServerClient(
-    url,
-    key,
-    {
-      cookies: {
-        get(name: string) {
-          const cookieValue = cookieStore.get(name)?.value;
-          if (cookieValue) {
-            return cookieValue;
-          }
-          if (requestCookies) {
-            const cookies = requestCookies.split(";").map((c) => c.trim());
-            for (const cookie of cookies) {
-              const [key, value] = cookie.split("=");
-              if (key === name) {
-                return decodeURIComponent(value);
-              }
-            }
-          }
-          return undefined;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          if (canModifyCookies) {
-            try {
-              const MAX_COOKIE_SIZE = 4096;
-              if (value.length > MAX_COOKIE_SIZE) {
-                console.warn(
-                  `Cookie ${name} muito grande (${value.length} bytes). Tentando truncar ou limpar cookies antigos.`
-                );
-                try {
-                  const allCookies = cookieStore.getAll();
-                  for (const cookie of allCookies) {
-                    if (
-                      cookie.name.startsWith(name.split("-")[0]) &&
-                      cookie.name !== name &&
-                      cookie.value.length > 1024
-                    ) {
-                      cookieStore.delete(cookie.name);
-                    }
-                  }
-                } catch (cleanupError) {
-                  console.warn("Erro ao limpar cookies antigos:", cleanupError);
-                }
-              }
 
-              const secureOptions: CookieOptions =
-                name.includes("auth-token") || name.includes("session")
-                  ? { ...SESSION_COOKIE_OPTIONS, ...options }
-                  : options;
-              cookieStore.set({ name, value, ...secureOptions });
-            } catch (error) {
-              console.warn(`Não foi possível definir cookie ${name}:`, error);
-            }
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          if (canModifyCookies) {
-            try {
-              cookieStore.set({ name, value: "", ...options });
-            } catch (error) {
-              console.warn(`Não foi possível remover cookie ${name}:`, error);
-            }
-          }
-        },
+  const client = createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-    }
-  );
+      setAll(cookiesToSet) {
+        try {
+          for (const { name, value, options } of cookiesToSet) {
+            const opts = sanitizeCookieOptions(options);
+            if (!value) {
+              cookieStore.delete(name);
+            } else {
+              cookieStore.set(name, value, opts ?? {});
+            }
+          }
+        } catch {
+          /* Server Component / contexto sem mutação de cookies */
+        }
+      },
+    },
+  });
+
+  applySessionOnlyGetUser(client);
+  return client;
 }
 
 export function createSupabaseAdmin() {
@@ -97,6 +87,6 @@ export function createSupabaseAdmin() {
         autoRefreshToken: false,
         persistSession: false,
       },
-    }
+    },
   );
 }

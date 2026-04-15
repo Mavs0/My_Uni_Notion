@@ -17,6 +17,9 @@ type Ctx = {
   setGroupInfo: (g: ChamadaGroupInfo | null) => void;
   shareModalOpen: boolean;
   setShareModalOpen: (open: boolean) => void;
+  /** Duração da chamada (ms), atualizado pela sala LiveKit */
+  callElapsedMs: number;
+  setCallElapsedMs: React.Dispatch<React.SetStateAction<number>>;
 };
 
 const ChamadaSidebarContext = React.createContext<Ctx | null>(null);
@@ -25,6 +28,7 @@ export function ChamadaSidebarProvider({ children }: { children: React.ReactNode
   const [sidebarTab, setSidebarTab] = React.useState<ChamadaSidebarTab>("chat");
   const [groupInfo, setGroupInfo] = React.useState<ChamadaGroupInfo | null>(null);
   const [shareModalOpen, setShareModalOpen] = React.useState(false);
+  const [callElapsedMs, setCallElapsedMs] = React.useState(0);
   const value = React.useMemo(
     () => ({
       sidebarTab,
@@ -33,8 +37,10 @@ export function ChamadaSidebarProvider({ children }: { children: React.ReactNode
       setGroupInfo,
       shareModalOpen,
       setShareModalOpen,
+      callElapsedMs,
+      setCallElapsedMs,
     }),
-    [sidebarTab, groupInfo, shareModalOpen]
+    [sidebarTab, groupInfo, shareModalOpen, callElapsedMs]
   );
   return (
     <ChamadaSidebarContext.Provider value={value}>

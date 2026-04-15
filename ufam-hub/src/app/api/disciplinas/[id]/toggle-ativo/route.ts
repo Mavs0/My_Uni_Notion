@@ -10,7 +10,7 @@ export async function PATCH(
     const body = await request.json();
     const { ativo } = body;
 
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

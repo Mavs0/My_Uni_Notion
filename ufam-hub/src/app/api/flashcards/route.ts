@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const disciplinaId = searchParams.get("disciplina_id");
     const paraRevisar = searchParams.get("para_revisar") === "true";
     const tag = searchParams.get("tag");
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -176,7 +176,7 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -240,7 +240,7 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       );
     }
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

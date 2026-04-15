@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { runClientSupabaseCookieSweepIfNeeded } from "@/lib/supabase/cookie-emergency-client";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -19,6 +20,8 @@ export function CookieCleanup() {
   const [isCleaning, setIsCleaning] = useState(false);
 
   useEffect(() => {
+    runClientSupabaseCookieSweepIfNeeded();
+
     const checkCookieSize = async () => {
       try {
         const response = await fetch("/api/auth/cleanup-cookies", {
@@ -29,10 +32,20 @@ export function CookieCleanup() {
         if (response?.ok) {
           try {
             const data = await response.json();
-            if (data.totalSizeKB && parseFloat(data.totalSizeKB) > 8) {
-              console.warn("Cookies muito grandes detectados:", data.totalSizeKB, "KB");
+            const kb = parseFloat(data.totalSizeKB || "0");
+            // Só avisar perto do limite real de emergência (~512 KB), não em sessões normais.
+            if (
+              process.env.NODE_ENV === "development" &&
+              kb > 480
+            ) {
+              console.warn(
+                "[CookieCleanup] Cookies acumulados (~",
+                kb.toFixed(0),
+                "KB). Se tiveres 431/401, usa /limpar-cookies.",
+              );
             }
-          } catch (jsonError) {
+          } catch {
+            /* ignore */
           }
         }
       } catch (error) {
@@ -40,22 +53,24 @@ export function CookieCleanup() {
     };
 
     checkCookieSize();
-    const interval = setInterval(checkCookieSize, 5 * 60 * 1000);
 
     const handleError = (event: ErrorEvent) => {
       const message = event.message || "";
       
-      const isNetworkError = 
+      const isNetworkError =
         message.includes("Failed to fetch") ||
         message.includes("ERR_NAME_NOT_RESOLVED") ||
         message.includes("ERR_INTERNET_DISCONNECTED") ||
         message.includes("NetworkError");
-      
+
       if (
         !isNetworkError &&
         (message.includes("431") ||
-        message.includes("Header Fields Too Large") ||
-        message.includes("Request header fields too large"))
+          message.includes("494") ||
+          message.includes("REQUEST_HEADER_TOO_LARGE") ||
+          message.includes("Header Fields Too Large") ||
+          message.includes("Request header fields too large") ||
+          message.includes("too large of headers"))
       ) {
         setShowDialog(true);
       }
@@ -78,9 +93,13 @@ export function CookieCleanup() {
       if (
         !isNetworkError &&
         (message.includes("431") ||
-        message.includes("Header Fields Too Large") ||
-        message.includes("Request header fields too large") ||
-        reason?.status === 431)
+          message.includes("494") ||
+          message.includes("REQUEST_HEADER_TOO_LARGE") ||
+          message.includes("Header Fields Too Large") ||
+          message.includes("Request header fields too large") ||
+          message.includes("too large of headers") ||
+          reason?.status === 431 ||
+          reason?.status === 494)
       ) {
         setShowDialog(true);
       }
@@ -90,7 +109,6 @@ export function CookieCleanup() {
     window.addEventListener("unhandledrejection", handleRejection);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener("error", handleError);
       window.removeEventListener("unhandledrejection", handleRejection);
     };
@@ -101,7 +119,7 @@ export function CookieCleanup() {
     try {
       let response: Response | null = null;
       try {
-        response = await fetch("/api/auth/cleanup-cookies", {
+        response = await fetch("/api/auth/cleanup-cookies?reset=1", {
           method: "POST",
           credentials: "include",
         });
@@ -169,7 +187,9 @@ export function CookieCleanup() {
             Erro de Cabeçalhos Muito Grandes
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Os cabeçalhos da requisição estão muito grandes (erro 431). Isso geralmente acontece quando há muitos cookies ou dados grandes armazenados.
+            Os cabeçalhos da requisição estão muito grandes (erros 431 ou 494 na
+            Vercel). Isso costuma acontecer quando a sessão Supabase se fragmenta em
+            muitos cookies (por exemplo, avatar em base64 no perfil).
             <br />
             <br />
             Podemos limpar cookies antigos e dados grandes para resolver isso?

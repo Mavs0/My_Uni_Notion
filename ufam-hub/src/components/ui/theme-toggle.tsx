@@ -4,12 +4,18 @@ import { Moon, Sun, Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
+import { putProfileIfAuthenticated } from "@/lib/api/profile-put-client";
 
 interface ThemeToggleProps {
   variant?: "default" | "floating";
+  /** Se false, não grava em PUT /api/profile (ex.: /login sem sessão — evita 401 no terminal). */
+  syncThemeToServer?: boolean;
 }
 
-export function ThemeToggle({ variant = "default" }: ThemeToggleProps) {
+export function ThemeToggle({
+  variant = "default",
+  syncThemeToServer = true,
+}: ThemeToggleProps) {
   const { setTheme, theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -27,12 +33,14 @@ export function ThemeToggle({ variant = "default" }: ThemeToggleProps) {
     }
   };
   const saveThemePreference = async (newTheme: string) => {
+    if (!syncThemeToServer) return;
     try {
-      await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tema_preferencia: newTheme }),
+      const res = await putProfileIfAuthenticated({
+        tema_preferencia: newTheme,
       });
+      if (res && !res.ok) {
+        console.error("Erro ao salvar preferência de tema:", res.status);
+      }
     } catch (error) {
       console.error("Erro ao salvar preferência de tema:", error);
     }

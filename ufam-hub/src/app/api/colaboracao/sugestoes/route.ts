@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const disciplina_id = searchParams.get("disciplina_id");
     const limit = parseInt(searchParams.get("limit") || "5");
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const disciplina_id = searchParams.get("disciplina_id");
     const concluida = searchParams.get("concluida") === "true";
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -206,7 +206,7 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "id é obrigatório" }, { status: 400 });
     }
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

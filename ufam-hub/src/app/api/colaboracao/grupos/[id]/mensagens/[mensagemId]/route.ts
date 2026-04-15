@@ -20,7 +20,7 @@ export async function PUT(
       );
     }
 
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -165,7 +165,7 @@ export async function DELETE(
   try {
     const { id: grupo_id, mensagemId: mensagem_id } = await params;
 
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

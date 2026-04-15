@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
 
     const { data: reminders, error } = await supabase.rpc(
       "processar_lembretes"

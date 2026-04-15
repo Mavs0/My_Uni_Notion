@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { ArrowLeft, Video, Bell, MessageCircle, User } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import dynamic from "next/dynamic";
 import "@livekit/components-styles";
 import {
@@ -131,7 +132,7 @@ export default function GrupoChamadaPage() {
   return (
     <ChamadaSidebarProvider>
       <ChamadaGroupInfoLoader grupoId={grupoId} />
-      <main className="flex h-screen flex-col bg-background">
+      <main className="chamada-v2 flex h-screen flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <ChamadaHeader grupoId={grupoId} />
         <div className="flex min-h-0 flex-1 flex-col">
           <LiveKitRoom
@@ -141,7 +142,7 @@ export default function GrupoChamadaPage() {
             audio={true}
             video={true}
             onDisconnected={handleDisconnected}
-            className="h-full w-full chamada-room"
+            className="chamada-v2 h-full w-full chamada-room"
             data-lk-theme="default"
           >
             <ChamadaRoomUI />
@@ -152,32 +153,59 @@ export default function GrupoChamadaPage() {
   );
 }
 
+function formatHeaderElapsed(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) {
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 function ChamadaHeader({ grupoId }: { grupoId: string }) {
-  const { setSidebarTab, groupInfo } = useChamadaSidebar();
+  const { setSidebarTab, groupInfo, callElapsedMs } = useChamadaSidebar();
   return (
-    <header className="shrink-0 flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3">
+    <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200/90 bg-white px-4 py-3.5 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <Button variant="ghost" size="icon" asChild className="h-9 w-9 shrink-0 rounded-lg">
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          className="h-10 w-10 shrink-0 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+        >
           <Link href={`/grupos/${grupoId}`}>
             <ArrowLeft className="h-5 w-5" />
             <span className="sr-only">Voltar ao grupo</span>
           </Link>
         </Button>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Video className="h-5 w-5" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400 dark:ring-emerald-500/30">
+          <Video className="h-5 w-5" strokeWidth={2} />
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold text-foreground">
+          <h1 className="truncate text-base font-semibold tracking-tight text-slate-900 dark:text-slate-50">
             {groupInfo?.nome ?? "Chamada"}
           </h1>
-          <p className="text-xs text-muted-foreground">{formatSchedule()}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400">{formatSchedule()}</p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 md:gap-3">
+        <div
+          className="flex items-center gap-2 rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-sm font-semibold tabular-nums text-slate-800 shadow-inner dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          title="Duração da chamada"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+          </span>
+          {formatHeaderElapsed(callElapsedMs)}
+        </div>
+        <ThemeToggle />
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-lg"
+          className="h-10 w-10 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
           title="Notificações"
           type="button"
           onClick={() => toast.info("Notificações da chamada em breve.")}
@@ -187,7 +215,7 @@ function ChamadaHeader({ grupoId }: { grupoId: string }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-lg"
+          className="h-10 w-10 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
           title="Abrir chat"
           type="button"
           onClick={() => setSidebarTab("chat")}
@@ -197,18 +225,15 @@ function ChamadaHeader({ grupoId }: { grupoId: string }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-lg"
-          title="Participantes"
+          className="h-10 w-10 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+          title="Participantes no painel direito"
           type="button"
           onClick={() =>
-            toast.info("Participantes aparecem no topo do painel à direita.")
+            toast.info("Participantes estão no cartão superior à direita.")
           }
         >
           <User className="h-5 w-5" />
         </Button>
-        <div className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-          ?
-        </div>
       </div>
     </header>
   );

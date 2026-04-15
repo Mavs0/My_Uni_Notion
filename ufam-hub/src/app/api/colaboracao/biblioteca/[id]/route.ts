@@ -11,7 +11,7 @@ export async function GET(
   try {
     const { id: material_id } = await params;
 
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

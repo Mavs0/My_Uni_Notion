@@ -26,11 +26,13 @@ export default function LimparCookiesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
             <AlertTriangle className="h-6 w-6" />
-            Erro 431 - Cookies Muito Grandes
+            Erro 431 / 494 — Cookies ou cabeçalhos demasiado grandes
           </CardTitle>
           <CardDescription>
-            Se você está vendo esta página, os cabeçalhos da requisição estavam muito grandes.
-            Isso acontece quando há muitos cookies acumulados (sessão, tokens, etc).
+            Na Vercel, o erro <strong>494 REQUEST_HEADER_TOO_LARGE</strong> aparece quando o
+            browser envia demasiados cookies de uma vez (sessão Supabase fragmentada, por
+            exemplo com <code>avatar_url</code> em base64 no Auth). Use o botão abaixo ou, se
+            esta página não carregar, limpe os cookies do site em Definições do browser.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

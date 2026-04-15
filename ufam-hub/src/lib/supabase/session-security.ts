@@ -44,11 +44,3 @@ export function formatSessionTimeRemaining(expiresAt: number): string {
   if (hours > 0) return `${hours}h ${minutes}min`;
   return `${minutes}min`;
 }
-
-export const SESSION_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  maxAge: DEFAULT_CONFIG.maxAge,
-  path: "/",
-};

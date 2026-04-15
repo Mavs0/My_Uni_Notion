@@ -147,39 +147,39 @@ export function ActivityFeed({
 
   if (loading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {/* Skeleton Loaders com animação suave */}
         {[1, 2, 3].map((i) => (
           <Card
             key={i}
-            className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm animate-pulse"
+            className="animate-pulse overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 dark:border-zinc-800 dark:bg-[#121212]/80"
           >
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
                 {/* Avatar Skeleton */}
-                <div className="h-10 w-10 shrink-0 rounded-full bg-muted" />
+                <div className="h-10 w-10 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800" />
                 <div className="flex-1 space-y-3">
                   {/* Header Skeleton */}
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded bg-muted" />
-                    <div className="h-4 w-48 rounded bg-muted" />
+                    <div className="h-5 w-5 rounded bg-zinc-200 dark:bg-zinc-800" />
+                    <div className="h-4 w-48 rounded bg-zinc-200 dark:bg-zinc-800" />
                   </div>
                   {/* Title Skeleton */}
                   <div className="space-y-2">
-                    <div className="h-4 w-full rounded bg-muted" />
-                    <div className="h-4 w-3/4 rounded bg-muted" />
+                    <div className="h-4 w-full rounded bg-zinc-200 dark:bg-zinc-800" />
+                    <div className="h-4 w-3/4 rounded bg-zinc-200 dark:bg-zinc-800" />
                   </div>
                   {/* Description Skeleton */}
                   <div className="space-y-1.5">
-                    <div className="h-3 w-full rounded bg-muted/60" />
-                    <div className="h-3 w-5/6 rounded bg-muted/60" />
+                    <div className="h-3 w-full rounded bg-zinc-200/80 dark:bg-zinc-800/80" />
+                    <div className="h-3 w-5/6 rounded bg-zinc-200/80 dark:bg-zinc-800/80" />
                   </div>
                   {/* Actions Skeleton */}
-                  <div className="flex items-center gap-4 border-t pt-4">
+                  <div className="flex items-center gap-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
                     {[1, 2, 3, 4].map((j) => (
                       <div
                         key={j}
-                        className="h-8 w-16 rounded-md bg-muted/60"
+                        className="h-8 w-16 rounded-md bg-zinc-200/80 dark:bg-zinc-800/80"
                       />
                     ))}
                   </div>
@@ -209,11 +209,13 @@ export function ActivityFeed({
 
   if (activities.length === 0) {
     return (
-      <Card>
-        <CardContent className="pt-6 text-center text-zinc-500">
-          <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Nenhuma atividade encontrada</p>
-          <p className="text-sm mt-2">
+      <Card className="rounded-2xl border border-zinc-200/80 bg-white dark:border-zinc-800 dark:bg-[#121212]">
+        <CardContent className="pt-8 pb-8 text-center text-zinc-600 dark:text-zinc-400">
+          <User className="mx-auto mb-4 h-12 w-12 opacity-50" />
+          <p className="font-medium text-zinc-800 dark:text-zinc-200">
+            Nenhuma atividade encontrada
+          </p>
+          <p className="mt-2 text-sm">
             {type === "following"
               ? "Você ainda não segue ninguém. Descubra novos usuários!"
               : "Não há atividades públicas no momento"}
@@ -224,7 +226,7 @@ export function ActivityFeed({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {activities.map((activity, index) => (
         <div
           key={activity.id}
@@ -250,17 +252,17 @@ export function ActivityFeed({
                 </span>
               </div>
               {/* Skeleton loader para preview */}
-              <Card className="w-full animate-pulse border-dashed border-muted/50 bg-muted/20">
+              <Card className="w-full animate-pulse rounded-2xl border border-dashed border-zinc-200/80 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-900/40">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-full bg-muted shrink-0" />
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800" />
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
-                        <div className="h-5 w-5 rounded bg-muted" />
-                        <div className="h-4 w-32 rounded bg-muted" />
+                        <div className="h-5 w-5 rounded bg-zinc-200 dark:bg-zinc-800" />
+                        <div className="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-800" />
                       </div>
-                      <div className="h-3 w-full rounded bg-muted/60" />
-                      <div className="h-3 w-2/3 rounded bg-muted/60" />
+                      <div className="h-3 w-full rounded bg-zinc-200/80 dark:bg-zinc-800/80" />
+                      <div className="h-3 w-2/3 rounded bg-zinc-200/80 dark:bg-zinc-800/80" />
                     </div>
                   </div>
                 </CardContent>
@@ -271,7 +273,7 @@ export function ActivityFeed({
       )}
 
       {!hasMore && activities.length > 0 && (
-        <div className="py-4 text-center text-sm text-muted-foreground">
+        <div className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-500">
           Não há mais atividades para carregar
         </div>
       )}

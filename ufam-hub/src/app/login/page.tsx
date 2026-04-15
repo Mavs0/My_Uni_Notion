@@ -1,7 +1,15 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { shrinkJwtByStrippingInlineAvatarClient } from "@/lib/profile/avatar-metadata-client";
+import { markPostLoginNavigation } from "@/lib/auth/post-login-grace";
+import {
+  runClientSupabaseCookieSweepIfNeeded,
+  clearSupabaseCookieSweepCounter,
+  sweepAllSupabaseCookiesFromDocument,
+} from "@/lib/supabase/cookie-emergency-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -96,35 +104,39 @@ export default function LoginPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const checkResponse = await fetch("/api/auth/cleanup-cookies");
-        if (checkResponse.ok) {
-          const checkData = await checkResponse.json();
-          const totalSizeKB = parseFloat(checkData.totalSizeKB || "0");
-
-          if (totalSizeKB > 10) {
-            console.log(
-              "Cookies grandes detectados na página de login, limpando...",
-            );
-            await fetch("/api/auth/cleanup-cookies", {
-              method: "POST",
-              credentials: "include",
-            });
-          }
-        }
-      } catch (error) {}
-
-      const supabase = createSupabaseBrowser();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        router.push(redirectTo);
+    /* Cabeçalho Cookie gigante: o sweep no cliente não apaga HttpOnly; pedidos a
+     * /api/auth/session continuam a falhar ou o middleware volta a meter cookie_limit.
+     * Este endpoint ignora o limite de emergência e limpa sb-* no servidor + Clear-Site-Data. */
+    if (searchParams.get("reason") === "cookie_limit") {
+      const qs = new URLSearchParams();
+      const r = searchParams.get("redirect");
+      if (r && r.startsWith("/") && !r.startsWith("//")) {
+        qs.set("redirect", r);
       }
+      window.location.replace(
+        `/api/auth/force-clear-session${qs.toString() ? `?${qs.toString()}` : ""}`,
+      );
+      return;
+    }
+
+    runClientSupabaseCookieSweepIfNeeded();
+
+    const checkAuth = async () => {
+      // Fonte de verdade = API (cookies no servidor).
+      // /api/auth/session devolve 200 + { authenticated } — evita 401 no console ao visitar /login.
+      const res = await fetch("/api/auth/session", { credentials: "include" });
+      if (!res.ok) return;
+      const body = (await res.json()) as { authenticated?: boolean };
+      if (body.authenticated) {
+        markPostLoginNavigation();
+        router.push(redirectTo);
+        return;
+      }
+      /* Não fazer signOut() aqui: se o servidor ainda não vê os cookies (corrida/HMR)
+       * mas o cliente tem sessão, signOut apagava tudo e parecia “impossível entrar”. */
     };
     checkAuth();
-  }, [router, redirectTo]);
+  }, [router, redirectTo, searchParams]);
 
   const passwordRules = {
     minLength: password.length >= 6,
@@ -200,58 +212,6 @@ export default function LoginPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const cleanupCookiesBeforeLogin = async () => {
-    try {
-      const checkResponse = await fetch("/api/auth/cleanup-cookies", {
-        method: "GET",
-        credentials: "include",
-      }).catch(() => null);
-
-      if (checkResponse?.ok) {
-        try {
-          const checkData = await checkResponse.json();
-          const totalSizeKB = parseFloat(checkData.totalSizeKB || "0");
-
-          if (totalSizeKB > 8) {
-            console.log(
-              "Cookies grandes detectados, limpando antes do login...",
-            );
-            const cleanupResponse = await fetch("/api/auth/cleanup-cookies", {
-              method: "POST",
-              credentials: "include",
-            }).catch(() => null);
-
-            if (cleanupResponse?.ok) {
-              console.log("Cookies limpos com sucesso");
-              try {
-                const chatThreads = localStorage.getItem("chatThreads:v1");
-                if (chatThreads && chatThreads.length > 100000) {
-                  const threads = JSON.parse(chatThreads);
-                  if (Array.isArray(threads) && threads.length > 20) {
-                    const recentThreads = threads
-                      .sort(
-                        (a: any, b: any) =>
-                          (b.updatedAt || 0) - (a.updatedAt || 0),
-                      )
-                      .slice(0, 20);
-                    localStorage.setItem(
-                      "chatThreads:v1",
-                      JSON.stringify(recentThreads),
-                    );
-                  }
-                }
-              } catch (e) {}
-            }
-          }
-        } catch (jsonError) {
-          console.warn("Erro ao parsear resposta de verificação de cookies");
-        }
-      }
-    } catch (error) {
-      console.warn("Erro ao verificar/limpar cookies (não crítico):", error);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -261,12 +221,81 @@ export default function LoginPage() {
       return;
     }
 
-    await cleanupCookiesBeforeLogin();
-
     setLoading(true);
     const supabase = createSupabaseBrowser();
     try {
       if (isLogin) {
+        /* Login no servidor primeiro: remove avatar/base64 pesado do JWT antes dos
+         * cookies ficarem estáveis (evita só conseguir «limpar sessão» em loop). */
+        try {
+          const serverRes = await fetch("/api/auth/sign-in", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              email,
+              password,
+              redirect: redirectTo,
+            }),
+          });
+          const serverJson = (await serverRes.json().catch(() => ({}))) as {
+            ok?: boolean;
+            redirect?: string;
+            needsClientFallback?: boolean;
+            error?: string;
+          };
+
+          if (serverRes.ok && serverJson.ok === true) {
+            clearSupabaseCookieSweepCounter();
+            try {
+              if (typeof sessionStorage !== "undefined") {
+                sessionStorage.setItem("ufam-avatar-inline-check", "1");
+              }
+            } catch {
+              /* ignore */
+            }
+            markPostLoginNavigation();
+            const dest =
+              typeof serverJson.redirect === "string" &&
+              serverJson.redirect.startsWith("/")
+                ? serverJson.redirect
+                : redirectTo;
+            window.location.assign(dest);
+            return;
+          }
+
+          if (serverRes.status === 401 && serverJson.error) {
+            setError(serverJson.error);
+            setLoading(false);
+            return;
+          }
+          if (serverRes.status === 429) {
+            setError(
+              serverJson.error ||
+                "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.",
+            );
+            setLoading(false);
+            return;
+          }
+          if (serverRes.status === 500 && serverJson.error) {
+            setError(serverJson.error);
+            setLoading(false);
+            return;
+          }
+          if (
+            !serverRes.ok &&
+            serverJson.error &&
+            !serverJson.needsClientFallback
+          ) {
+            setError(serverJson.error);
+            setLoading(false);
+            return;
+          }
+          /* 200 + needsClientFallback (MFA, etc.) ou falha de rede → fluxo cliente. */
+        } catch {
+          /* rede: continua para signIn no browser */
+        }
+
         let signInError: any = null;
         let data: any = null;
 
@@ -309,29 +338,20 @@ export default function LoginPage() {
             errorMessage.includes("Request header fields too large")
           ) {
             errorMessage =
-              "Erro 431: Cookies muito grandes. Limpando cookies...";
+              "Cookies da sessão excederam o limite (431). A limpar cookies Supabase…";
             try {
-              await fetch("/api/auth/cleanup-cookies", {
+              sweepAllSupabaseCookiesFromDocument();
+              await fetch("/api/auth/cleanup-cookies?reset=1", {
                 method: "POST",
                 credentials: "include",
-              }).catch(() => {
-                const cookiesToDelete = [
-                  "sb-access-token",
-                  "sb-refresh-token",
-                  "supabase-auth-token",
-                  "sb-auth-token",
-                ];
-                for (const cookieName of cookiesToDelete) {
-                  document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-                }
-              });
+              }).catch(() => {});
               const chatThreads = localStorage.getItem("chatThreads:v1");
               if (chatThreads && chatThreads.length > 50000) {
                 localStorage.removeItem("chatThreads:v1");
               }
               setTimeout(() => {
                 window.location.reload();
-              }, 1000);
+              }, 400);
             } catch (cleanupError) {
               console.error("Erro ao limpar cookies:", cleanupError);
             }
@@ -351,8 +371,23 @@ export default function LoginPage() {
         }
 
         if (data.session) {
-          router.push(redirectTo);
-          router.refresh();
+          clearSupabaseCookieSweepCounter();
+          try {
+            await shrinkJwtByStrippingInlineAvatarClient(
+              supabase,
+              data.session.user,
+            );
+            if (typeof sessionStorage !== "undefined") {
+              sessionStorage.setItem("ufam-avatar-inline-check", "1");
+            }
+          } catch {
+            /* ignore — updateUser pode falhar com JWT gigante */
+          }
+          // Navegação de seguida: não esperar mais trabalho async (evita erro visível
+          // e reload estranho se o PUT a auth/v1/user falhar).
+          markPostLoginNavigation();
+          window.location.assign(redirectTo);
+          return;
         } else {
           try {
             const { data: factorsData, error: factorsError } =
@@ -527,8 +562,22 @@ export default function LoginPage() {
             return;
           }
 
-          router.push(redirectTo);
-          router.refresh();
+          clearSupabaseCookieSweepCounter();
+          try {
+            const { data: sessWrap } = await supabase.auth.getSession();
+            await shrinkJwtByStrippingInlineAvatarClient(
+              supabase,
+              sessWrap.session?.user,
+            );
+            if (typeof sessionStorage !== "undefined") {
+              sessionStorage.setItem("ufam-avatar-inline-check", "1");
+            }
+          } catch {
+            /* ignore */
+          }
+          markPostLoginNavigation();
+          window.location.assign(redirectTo);
+          return;
         } else {
           setError("Erro ao completar login. Tente novamente.");
         }
@@ -549,9 +598,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Lado esquerdo - Ilustração/Info */}
-      <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary/10 via-primary/5 to-background relative overflow-hidden">
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900/95 to-zinc-950 lg:flex lg:flex-1">
         <div
-          className="absolute inset-0 opacity-[0.03]"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
             backgroundImage: `radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)`,
             backgroundSize: "24px 24px",
@@ -560,78 +609,129 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
           <div className="space-y-8 animate-in fade-in slide-in-from-left duration-700">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary border border-primary/20">
-                <Sparkles className="h-4 w-4" />
-                <span className="text-sm font-medium">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-800/90 text-zinc-100 border border-zinc-700/60 shadow-sm">
+                <Sparkles className="h-4 w-4 text-amber-400/90" />
+                <span className="text-sm font-medium tracking-tight">
                   Plataforma Acadêmica
                 </span>
               </div>
-              <h1 className="text-4xl xl:text-5xl font-bold tracking-tight">
+              <h1 className="text-4xl font-bold tracking-tight text-zinc-50 xl:text-5xl">
                 Organize seus estudos com{" "}
                 <TypewriterText
                   text="inteligência"
-                  className="text-primary"
+                  className="text-zinc-50"
                   speed={120}
                   pauseBeforeErase={2800}
                   eraseSpeed={45}
                 />
               </h1>
-              <p className="text-lg text-muted-foreground max-w-md">
+              <p className="max-w-md text-lg text-zinc-400">
                 Gerencie disciplinas, avaliações, tarefas e muito mais em um só
                 lugar. Potencializado por IA.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 pt-8">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <BookOpen className="h-6 w-6 text-primary" />
+            <div className="grid grid-cols-1 gap-8 pt-6">
+              {[
+                {
+                  Icon: BookOpen,
+                  title: "Gestão Completa",
+                  desc: "Organize disciplinas, horários e materiais de estudo",
+                },
+                {
+                  Icon: TrendingUp,
+                  title: "Acompanhe Progresso",
+                  desc: "Visualize estatísticas e métricas do seu desempenho",
+                },
+                {
+                  Icon: Users,
+                  title: "Comunidade",
+                  desc: "Conecte-se com outros estudantes e compartilhe conhecimento",
+                },
+              ].map(({ Icon, title, desc }) => (
+                <div
+                  key={title}
+                  className="group flex items-start gap-5 rounded-2xl border border-transparent p-1 transition-colors hover:border-zinc-700/40 hover:bg-zinc-900/30"
+                >
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-zinc-700/50 bg-zinc-800/90 shadow-inner ring-1 ring-white/5">
+                    <Icon
+                      className="h-7 w-7 text-zinc-100"
+                      strokeWidth={1.75}
+                    />
+                  </div>
+                  <div className="min-w-0 pt-0.5">
+                    <h3 className="mb-1 text-base font-bold tracking-tight text-zinc-50">
+                      {title}
+                    </h3>
+                    <p className="text-sm leading-relaxed text-zinc-400">
+                      {desc}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold mb-1">Gestão Completa</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Organize disciplinas, horários e materiais de estudo
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-1">Acompanhe Progresso</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Visualize estatísticas e métricas do seu desempenho
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-1">Comunidade</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Conecte-se com outros estudantes e compartilhe conhecimento
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
       {/* Lado direito - Formulário */}
-      <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
+      <div className="flex flex-1 items-center justify-center bg-background p-4 lg:p-8">
         <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-right duration-700">
           <AuthHeader />
 
-          <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm">
+          {searchParams.get("cleared") === "1" && (
+            <div
+              role="status"
+              className="rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100"
+            >
+              Cookies deste site foram limpos. Usa email e senha para entrar de
+              novo.
+            </div>
+          )}
+
+          {searchParams.get("cleared") !== "1" ? (
+            <div className="rounded-xl border border-amber-500/55 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-50">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="space-y-2">
+                  <p className="font-medium leading-snug">
+                    Erro 494/431 ou dezenas de cookies «sb-»? Os cookies httpOnly
+                    não se apagam só com JavaScript — usa o botão abaixo.
+                  </p>
+                  <a
+                    href="/api/auth/force-clear-session"
+                    className="inline-flex w-full items-center justify-center rounded-lg bg-amber-600 px-3 py-2.5 text-center text-sm font-semibold text-white shadow hover:bg-amber-700 sm:w-auto"
+                  >
+                    Limpar sessão neste site
+                  </a>
+                  <p className="text-xs opacity-90">
+                    Depois entra outra vez: o login corrige sozinho foto em base64 no
+                    perfil. Se ainda falhar, remove a foto no painel Supabase
+                    (Authentication → Users).
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Entra com email e senha — a sessão deve ficar normal. Se voltar erro
+              494/431, usa{" "}
+              <a
+                href="/api/auth/force-clear-session"
+                className="font-medium text-primary underline underline-offset-2"
+              >
+                limpar sessão
+              </a>
+              .
+            </p>
+          )}
+
+          <Card className="rounded-2xl border border-border bg-card shadow-lg dark:border-zinc-800/80 dark:bg-zinc-950/70 dark:shadow-2xl dark:shadow-black/30 dark:backdrop-blur-sm">
             <CardHeader className="space-y-2 pb-6">
-              <CardTitle className="text-3xl font-bold text-center">
+              <CardTitle className="text-center text-3xl font-bold tracking-tight text-foreground">
                 {isLogin ? "Bem-vindo de volta!" : "Criar conta"}
               </CardTitle>
-              <CardDescription className="text-center text-base">
+              <CardDescription className="text-center text-base text-muted-foreground">
                 {isLogin
                   ? "Entre para continuar organizando seus estudos"
                   : "Comece sua jornada acadêmica hoje"}
@@ -894,7 +994,11 @@ export default function LoginPage() {
                             }));
                         }}
                         required
-                        className={`pl-11 h-11 ${fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        className={`pl-11 h-11 ${
+                          fieldErrors.email
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : "dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:focus-visible:border-zinc-500"
+                        }`}
                       />
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     </div>
@@ -935,7 +1039,9 @@ export default function LoginPage() {
                         className={`pl-11 pr-11 h-11 ${
                           fieldErrors.password
                             ? "border-destructive focus-visible:ring-destructive"
-                            : ""
+                            : isLogin
+                              ? "dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:focus-visible:border-zinc-500"
+                              : ""
                         }`}
                       />
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1200,7 +1306,7 @@ export default function LoginPage() {
                     ) : (
                       <Button
                         type="submit"
-                        className="w-full h-11 text-base font-medium"
+                        className="h-11 w-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-colors hover:bg-primary/90 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                         disabled={loading}
                       >
                         {loading ? (
@@ -1264,7 +1370,7 @@ export default function LoginPage() {
       </div>
 
       <div className="fixed bottom-6 right-6 z-50">
-        <ThemeToggle variant="floating" />
+        <ThemeToggle variant="floating" syncThemeToServer={false} />
       </div>
     </div>
   );

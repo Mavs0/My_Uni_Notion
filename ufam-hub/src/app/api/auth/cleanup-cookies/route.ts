@@ -1,96 +1,109 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+/**
+ * Limite total (todos os cookies) para limpeza automática **sem** `?reset=1`.
+ * Sessões Supabase SSR normais: dezenas–centenas de KB — não apagar por chunk.
+ */
+/** Acima disto ou demasiados chunks sb-* → limpar sessão (evita 431/494 na Vercel). */
+const COOKIE_TOTAL_EMERGENCY_BYTES = 48 * 1024;
+/** Sessões válidas podem ter ~12–18 chunks com JWT grande; só agir acima disto. */
+const COOKIE_COUNT_EMERGENCY = 22;
+
+function clearAllSbCookies(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  cleared: string[],
+) {
+  for (const c of cookieStore.getAll()) {
+    if (!c.name.startsWith("sb-")) continue;
+    try {
+      cookieStore.delete(c.name);
+      if (!cleared.includes(c.name)) cleared.push(c.name);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
+ * GET: métricas (para o cliente decidir).
+ * POST: só remove sessão de forma agressiva com `?reset=1` / `?full=1` **ou**
+ * quando o total de bytes excede o limite de emergência (duplicação real).
+ *
+ * Nunca apagar cookies `sb-*` só porque um chunk tem >3–4 KB — isso é normal.
+ */
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    
-    const supabaseCookieNames = [
+    const clearedCookies: string[] = [];
+
+    const allInitial = cookieStore.getAll();
+    const totalSize = allInitial.reduce((acc, c) => acc + c.value.length, 0);
+    const forceReset =
+      request.nextUrl.searchParams.get("reset") === "1" ||
+      request.nextUrl.searchParams.get("full") === "1";
+
+    if (!forceReset && totalSize <= COOKIE_TOTAL_EMERGENCY_BYTES) {
+      return NextResponse.json({
+        success: true,
+        clearedCookies: [],
+        message:
+          "Nenhuma limpeza agressiva: cookies dentro do limite seguro. " +
+          "Use POST ?reset=1 para terminar a sessão (logout total de cookies sb-*).",
+        totalSizeKB: (totalSize / 1024).toFixed(2),
+      });
+    }
+
+    const tooManyNames =
+      allInitial.filter((c) => c.name.startsWith("sb-")).length >=
+      COOKIE_COUNT_EMERGENCY;
+
+    if (forceReset || totalSize > COOKIE_TOTAL_EMERGENCY_BYTES || tooManyNames) {
+      clearAllSbCookies(cookieStore, clearedCookies);
+    }
+
+    const legacyFlat = [
       "sb-access-token",
       "sb-refresh-token",
       "supabase-auth-token",
       "sb-auth-token",
     ];
-
-    const clearedCookies: string[] = [];
-    
-    for (const cookieName of supabaseCookieNames) {
+    for (const name of legacyFlat) {
       try {
-        const cookie = cookieStore.get(cookieName);
-        if (cookie) {
-          const cookieSize = cookie.value.length;
-          
-          if (cookieSize > 4096) {
-            cookieStore.delete(cookieName);
-            clearedCookies.push(cookieName);
-          }
+        const c = cookieStore.get(name);
+        if (c && c.value.length > 16384) {
+          cookieStore.delete(name);
+          if (!clearedCookies.includes(name)) clearedCookies.push(name);
         }
-      } catch (error) {
-        console.warn(`Erro ao processar cookie ${cookieName}:`, error);
-      }
-    }
-
-    const allCookies = cookieStore.getAll();
-    const cookieSizes: Array<{ name: string; size: number }> = [];
-    
-    for (const cookie of allCookies) {
-      cookieSizes.push({ name: cookie.name, size: cookie.value.length });
-      
-      if (
-        (cookie.name.startsWith("sb-") && cookie.value.length > 3072) ||
-        (cookie.name.includes("auth") && cookie.value.length > 3072) ||
-        (cookie.name.startsWith("supabase") && cookie.value.length > 3072)
-      ) {
-        try {
-          cookieStore.delete(cookie.name);
-          if (!clearedCookies.includes(cookie.name)) {
-            clearedCookies.push(cookie.name);
-          }
-        } catch (error) {
-          console.warn(`Erro ao deletar cookie ${cookie.name}:`, error);
-        }
-      }
-    }
-
-    const totalSize = cookieSizes.reduce((acc, c) => acc + c.size, 0);
-    if (totalSize > 12288) {
-      const sortedCookies = cookieSizes
-        .filter((c) => c.name.startsWith("sb-") || c.name.includes("auth") || c.name.startsWith("supabase"))
-        .sort((a, b) => b.size - a.size);
-      
-      for (const cookieInfo of sortedCookies.slice(0, 5)) {
-        try {
-          cookieStore.delete(cookieInfo.name);
-          if (!clearedCookies.includes(cookieInfo.name)) {
-            clearedCookies.push(cookieInfo.name);
-          }
-        } catch (error) {
-          console.warn(`Erro ao deletar cookie ${cookieInfo.name}:`, error);
-        }
+      } catch {
+        /* ignore */
       }
     }
 
     return NextResponse.json({
       success: true,
       clearedCookies,
-      message: clearedCookies.length > 0 
-        ? `${clearedCookies.length} cookie(s) grande(s) foram limpos`
-        : "Nenhum cookie grande encontrado",
+      message:
+        clearedCookies.length > 0
+          ? `${clearedCookies.length} cookie(s) ajustados`
+          : "Nada a limpar",
+      totalSizeKB: (totalSize / 1024).toFixed(2),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
     console.error("Erro ao limpar cookies:", error);
     return NextResponse.json(
-      { error: "Erro ao limpar cookies", details: error.message },
-      { status: 500 }
+      { error: "Erro ao limpar cookies", details: msg },
+      { status: 500 },
     );
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     const allCookies = cookieStore.getAll();
-    
+
     const cookieSizes = allCookies.map((cookie) => ({
       name: cookie.name,
       size: cookie.value.length,
@@ -108,11 +121,12 @@ export async function GET(request: NextRequest) {
       largeCookies: largeCookies.length,
       cookies: cookieSizes,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
     console.error("Erro ao verificar cookies:", error);
     return NextResponse.json(
-      { error: "Erro ao verificar cookies", details: error.message },
-      { status: 500 }
+      { error: "Erro ao verificar cookies", details: msg },
+      { status: 500 },
     );
   }
 }

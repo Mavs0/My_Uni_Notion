@@ -7,7 +7,7 @@ export async function PATCH(
 ) {
   try {
     const { requestId } = await params;
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,
@@ -131,7 +131,7 @@ export async function DELETE(
 ) {
   try {
     const { requestId } = await params;
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseServer(request);
     const {
       data: { user },
       error: authError,

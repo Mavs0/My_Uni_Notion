@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { putProfileIfAuthenticated } from "@/lib/api/profile-put-client";
 
 type ThemePreset = "default" | "blue" | "green" | "purple" | "orange" | "pink";
 
@@ -235,15 +236,9 @@ export function ThemeCustomizer() {
 
   const saveSettings = (newSettings: ThemeSettings) => {
     localStorage.setItem("theme-customization", JSON.stringify(newSettings));
-    try {
-      fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tema_customizacao: newSettings }),
-      }).catch(() => {
-      });
-    } catch (e) {
-    }
+    void putProfileIfAuthenticated({
+      tema_customizacao: newSettings,
+    } as Record<string, unknown>).catch(() => {});
   };
 
   const resetTheme = () => {

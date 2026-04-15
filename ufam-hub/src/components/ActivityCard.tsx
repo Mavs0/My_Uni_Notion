@@ -360,11 +360,11 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
 
   return (
     <>
-      <Card className="group hover:shadow-md transition-all duration-300 border-border/50 hover:border-border animate-in fade-in slide-in-from-bottom-2">
+      <Card className="group animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-zinc-200/90 bg-white shadow-sm transition-all duration-300 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-[#121212] dark:shadow-none dark:hover:border-zinc-700">
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
             <Link href={`/perfil/${activity.user.id}`}>
-              <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-all duration-200 hover:ring-2 hover:ring-primary/20">
+              <Avatar className="h-10 w-10 cursor-pointer border border-zinc-200/80 transition-all duration-200 hover:opacity-80 hover:ring-2 hover:ring-primary/20 dark:border-zinc-700">
                 <AvatarImage
                   src={activity.user.avatar_url}
                   alt={activity.user.nome}
@@ -377,29 +377,31 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                 <div className="flex items-start gap-2 flex-1">
                   <div className="mt-0.5">{getActivityIcon(activity.tipo)}</div>
                   <div className="flex-1">
-                    <p className="text-sm">
+                    <p className="text-sm text-zinc-800 dark:text-zinc-200">
                       <Link
                         href={`/perfil/${activity.user.id}`}
-                        className="font-semibold hover:text-primary transition-colors"
+                        className="font-semibold text-zinc-900 hover:text-primary dark:text-white"
                       >
                         {activity.user.nome}
                       </Link>{" "}
-                      {getActivityLabel(activity.tipo)}
+                      <span className="text-zinc-600 dark:text-zinc-400">
+                        {getActivityLabel(activity.tipo)}
+                      </span>
                     </p>
                     {activity.titulo && (
-                      <p className="text-sm font-medium mt-1.5">
+                      <p className="mt-1.5 text-base font-semibold text-zinc-900 dark:text-zinc-50">
                         {activity.titulo}
                       </p>
                     )}
                     {activity.descricao && (
-                      <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                      <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
                         {activity.descricao}
                       </p>
                     )}
 
                     {/* Imagem */}
                     {activity.imagem_url && (
-                      <div className="mt-3 rounded-lg overflow-hidden border border-border/50">
+                      <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200/80 dark:border-zinc-700">
                         <img
                           src={activity.imagem_url}
                           alt={activity.titulo || "Imagem do post"}
@@ -415,18 +417,18 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                         href={activity.link_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 flex items-center gap-2 p-3 rounded-lg border border-border/50 hover:border-border bg-muted/30 hover:bg-muted/50 transition-all duration-200 group"
+                        className="group mt-3 flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-3 transition-all duration-200 hover:border-zinc-300 hover:bg-zinc-100/80 dark:border-zinc-700 dark:bg-zinc-900/50 dark:hover:border-zinc-600"
                       >
-                        <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                        <ExternalLink className="h-4 w-4 shrink-0 text-zinc-500 transition-colors group-hover:text-primary dark:text-zinc-400" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-0.5">
+                          <p className="mb-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                             Link compartilhado
                           </p>
-                          <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                          <p className="truncate text-sm font-medium text-zinc-800 transition-colors group-hover:text-primary dark:text-zinc-100">
                             {activity.link_url}
                           </p>
                         </div>
-                        <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100" />
+                        <ExternalLink className="h-4 w-4 text-zinc-500 opacity-0 transition-colors group-hover:text-primary group-hover:opacity-100 dark:text-zinc-400" />
                       </a>
                     )}
 
@@ -451,7 +453,7 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                         {contextualLink && !activity.disciplina_id && (
                           <Link
                             href={contextualLink.href}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground border border-border/50 hover:border-border transition-all duration-200 hover:scale-105"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200/90 px-2.5 py-1 text-xs font-medium text-zinc-600 transition-all duration-200 hover:scale-105 hover:border-zinc-300 hover:text-zinc-900 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-zinc-100"
                           >
                             {contextualLink.icon}
                             {contextualLink.label}
@@ -461,7 +463,7 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                       </div>
                     )}
 
-                    <p className="text-xs text-muted-foreground mt-2.5">
+                    <p className="mt-2.5 text-xs text-zinc-500 dark:text-zinc-500">
                       {timeAgo}
                     </p>
                   </div>
@@ -490,14 +492,14 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
               </div>
 
               {/* Reações */}
-              <div className="flex items-center gap-4 mt-4 pt-4 border-t">
+              <div className="mt-4 flex items-center gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800 sm:gap-4">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`h-8 ${
+                  className={`h-8 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 ${
                     userReactions.includes("like")
-                      ? "text-red-500"
-                      : "text-muted-foreground"
+                      ? "!text-red-500 dark:!text-red-400"
+                      : ""
                   }`}
                   onClick={() => handleReaction("like")}
                   disabled={loadingReactions}
@@ -512,10 +514,10 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`h-8 ${
+                  className={`h-8 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 ${
                     userReactions.includes("util")
-                      ? "text-blue-500"
-                      : "text-muted-foreground"
+                      ? "!text-blue-500 dark:!text-blue-400"
+                      : ""
                   }`}
                   onClick={() => handleReaction("util")}
                   disabled={loadingReactions}
@@ -530,10 +532,10 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`h-8 ${
+                  className={`h-8 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 ${
                     userReactions.includes("inspirador")
-                      ? "text-yellow-500"
-                      : "text-muted-foreground"
+                      ? "!text-amber-500 dark:!text-amber-400"
+                      : ""
                   }`}
                   onClick={() => handleReaction("inspirador")}
                   disabled={loadingReactions}
@@ -548,7 +550,7 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 text-muted-foreground"
+                  className="h-8 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
                   onClick={() => setShowComments(!showComments)}
                 >
                   <MessageCircle className="h-4 w-4 mr-1" />
@@ -558,7 +560,7 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
 
               {/* Comentários */}
               {showComments && (
-                <div className="mt-4 pt-4 border-t space-y-4">
+                <div className="mt-4 space-y-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
                   {loadingComments ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       Carregando comentários...

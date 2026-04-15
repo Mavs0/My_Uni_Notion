@@ -43,6 +43,7 @@ import {
 } from "./tooltip";
 import { FocusModeSettings } from "@/components/FocusModeSettings";
 import { cn } from "@/lib/utils";
+import { putProfileIfAuthenticated } from "@/lib/api/profile-put-client";
 
 function ThemeSegment() {
   const { setTheme, theme } = useTheme();
@@ -50,11 +51,10 @@ function ThemeSegment() {
   useEffect(() => setMounted(true), []);
   const saveTheme = async (value: string) => {
     try {
-      await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tema_preferencia: value }),
-      });
+      const res = await putProfileIfAuthenticated({ tema_preferencia: value });
+      if (res && !res.ok) {
+        console.error("Erro ao salvar tema:", res.status);
+      }
     } catch (e) {
       console.error("Erro ao salvar tema:", e);
     }
