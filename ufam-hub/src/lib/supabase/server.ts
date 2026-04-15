@@ -54,7 +54,7 @@ export async function createSupabaseServer(_incoming?: Request | NextRequest) {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         try {
           for (const { name, value, options } of cookiesToSet) {
             const opts = sanitizeCookieOptions(options);
