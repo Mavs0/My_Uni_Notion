@@ -51,6 +51,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  Bookmark,
+  ArrowUpRight,
 } from "lucide-react";
 import { SyncDisciplinasWithCalendar } from "@/components/GoogleCalendarIntegration";
 import {
@@ -89,7 +91,30 @@ function badgeTipo(tipo: TTipo) {
     eletiva: "bg-red-500/15 text-red-400 border-red-500/30",
     optativa: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   };
-  return cn("rounded px-2 py-0.5 text-xs border capitalize", map[tipo]);
+  return cn(
+    "rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
+    map[tipo],
+  );
+}
+
+const TIPO_FILTROS: { value: "todas" | TTipo; label: string }[] = [
+  { value: "todas", label: "Todas" },
+  { value: "obrigatoria", label: "Obrigatórias" },
+  { value: "optativa", label: "Optativas" },
+  { value: "eletiva", label: "Eletivas" },
+];
+
+function monogramFromNome(nome: string) {
+  const parts = nome.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2)
+    return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`.toUpperCase();
+  return (nome.trim().slice(0, 2) || "?").toUpperCase();
+}
+
+function primeiroHorarioResumo(d: Disciplina): string | null {
+  const h = d.horarios?.[0];
+  if (!h) return null;
+  return `${DIAS[h.dia]} · ${h.inicio.slice(0, 5)}–${h.fim.slice(0, 5)}`;
 }
 
 function Card({
@@ -102,13 +127,221 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border bg-card p-5 shadow-sm">
+    <section className="rounded-3xl border border-border/80 bg-card/80 p-6 shadow-sm backdrop-blur-sm">
       <header className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
         {right}
       </header>
       {children}
     </section>
+  );
+}
+
+function cardPatternBg() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 opacity-[0.4] dark:opacity-[0.25]"
+      aria-hidden
+      style={{
+        backgroundImage:
+          "radial-gradient(circle at 1px 1px, rgba(120,120,128,0.14) 1px, transparent 0)",
+        backgroundSize: "20px 20px",
+      }}
+    />
+  );
+}
+
+function DisciplinaFeaturedCard({
+  disciplina,
+  onToggleFavorito,
+  onDelete,
+  onToggleAtivo,
+  onUpdateCor,
+  onEdit,
+}: {
+  disciplina: Disciplina;
+  onToggleFavorito: () => void;
+  onDelete: () => void;
+  onToggleAtivo: () => void;
+  onUpdateCor: (cor: string) => void;
+  onEdit?: (disciplina: Disciplina) => void;
+}) {
+  const isArquivada = disciplina.ativo === false;
+  const isFavorito = disciplina.favorito === true;
+  const cor = disciplina.cor || "#6366f1";
+  const horario = primeiroHorarioResumo(disciplina);
+  const mono = monogramFromNome(disciplina.nome ?? "?");
+
+  return (
+    <article
+      className={cn(
+        "relative flex h-full min-h-[280px] w-full min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/60 shadow-lg transition-transform duration-300",
+        !isArquivada && "hover:-translate-y-0.5 hover:shadow-xl",
+        isArquivada && "opacity-70",
+      )}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(135deg, ${cor}18 0%, hsl(var(--card)) 48%, hsl(var(--card)) 100%)`,
+        }}
+      />
+      {cardPatternBg()}
+      <div
+        className="absolute -right-6 -top-8 text-[6rem] font-black leading-none tracking-tighter text-foreground/[0.06] dark:text-foreground/[0.09]"
+        aria-hidden
+      >
+        {mono}
+      </div>
+
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col p-6">
+        <div className="mb-4 flex items-start justify-between gap-2">
+          <span className={badgeTipo(disciplina.tipo)}>{disciplina.tipo}</span>
+          <div className="flex items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full"
+              disabled={isArquivada}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!isArquivada) onToggleFavorito();
+              }}
+              aria-label={isFavorito ? "Remover dos favoritos" : "Favoritar"}
+            >
+              <Bookmark
+                className={cn(
+                  "h-4 w-4",
+                  isFavorito && "fill-primary text-primary",
+                )}
+              />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                  aria-label="Opções"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isArquivada ? (
+                  <>
+                    <DropdownMenuItem onClick={onToggleAtivo}>
+                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                      Desarquivar disciplina
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={onDelete}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Excluir disciplina
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Palette className="mr-2 h-4 w-4" />
+                        Alterar cor
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
+                        {CORES_DISCIPLINAS.map((c) => (
+                          <DropdownMenuItem
+                            key={c.valor}
+                            onClick={() => onUpdateCor(c.valor)}
+                          >
+                            <span
+                              className="mr-2 h-4 w-4 shrink-0 rounded-full border"
+                              style={{ backgroundColor: c.valor }}
+                            />
+                            {c.nome}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuItem onClick={onToggleAtivo}>
+                      <Archive className="mr-2 h-4 w-4" />
+                      Arquivar disciplina
+                    </DropdownMenuItem>
+                    {onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(disciplina)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Editar disciplina
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={onDelete}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Excluir disciplina
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <h3 className="mb-1 line-clamp-2 text-2xl font-bold leading-tight tracking-tight text-foreground">
+          {disciplina.nome ?? "Sem nome"}
+        </h3>
+        <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {disciplina.horasSemana}h/semana
+          {isArquivada && (
+            <span className="ml-2 rounded-full border border-border bg-background/80 px-2 py-0.5 normal-case">
+              Arquivada
+            </span>
+          )}
+        </p>
+
+        <div className="mb-5 flex flex-1 flex-col justify-end gap-3">
+          <div className="h-px w-full bg-border/60" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4 shrink-0 opacity-80" />
+            <span className="line-clamp-2">
+              {horario
+                ? `Próximo horário: ${horario}`
+                : "Nenhum horário cadastrado — defina na disciplina"}
+            </span>
+          </div>
+        </div>
+
+        {isArquivada ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-11 w-full rounded-full font-semibold opacity-60"
+            disabled
+          >
+            Indisponível
+          </Button>
+        ) : (
+          <Button
+            asChild
+            variant="default"
+            size="sm"
+            className="mt-auto h-11 w-full shrink-0 rounded-full font-semibold shadow-md"
+          >
+            <a
+              href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}
+              className="inline-flex items-center justify-center gap-2"
+            >
+              Continuar
+              <ArrowUpRight className="h-4 w-4" />
+            </a>
+          </Button>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -140,6 +373,8 @@ function DisciplinaCard({
   const isArquivada = disciplina.ativo === false;
   const isFavorito = disciplina.favorito === true;
   const cor = disciplina.cor || "#6366f1";
+  const horarioLinha = primeiroHorarioResumo(disciplina);
+  const mono = monogramFromNome(disciplina.nome ?? "?");
 
   return (
     <div
@@ -149,51 +384,101 @@ function DisciplinaCard({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       className={cn(
-        "group flex flex-col h-[300px] rounded-xl border bg-card p-5 shadow-sm hover:shadow-lg transition-all duration-300",
+        "group relative flex max-h-[340px] min-h-[280px] flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-md ring-1 ring-black/[0.03] transition-all duration-300 dark:ring-white/[0.05] sm:max-h-none sm:h-[300px]",
         isArquivada
-          ? "opacity-60 hover:opacity-80 border-dashed"
-          : "hover:border-primary/30 hover:-translate-y-0.5",
-        isDragging && "opacity-50 scale-95",
+          ? "border-dashed opacity-60 hover:opacity-80"
+          : "hover:-translate-y-1 hover:shadow-xl",
+        isDragging && "scale-95 opacity-50",
       )}
-      style={{ borderLeftWidth: "4px", borderLeftColor: cor }}
     >
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-muted/30"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-x-0 top-0 h-24 opacity-40"
+        style={{
+          background: `linear-gradient(180deg, ${cor}33 0%, transparent 100%)`,
+        }}
+        aria-hidden
+      />
+      {cardPatternBg()}
+      <div
+        className="pointer-events-none absolute bottom-2 right-3 select-none text-5xl font-black tabular-nums tracking-tighter text-foreground/[0.07] dark:text-foreground/[0.12]"
+        aria-hidden
+      >
+        {mono}
+      </div>
+
+      <div
+        className="relative z-[1] h-1 w-2/5 max-w-[120px] shrink-0 rounded-br-2xl"
+        style={{ backgroundColor: cor }}
+        aria-hidden
+      />
+
       {/* Conteúdo rolável */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-2 pt-4">
         {/* Header */}
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-3 flex items-start justify-between gap-2">
           {/* Drag Handle */}
           <div className={cn(
-            "mt-1 text-muted-foreground",
+            "mt-0.5 text-muted-foreground",
             isArquivada ? "cursor-not-allowed opacity-50" : "cursor-grab active:cursor-grabbing hover:text-foreground"
           )}>
             <GripVertical className="h-5 w-5" />
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="mb-2 flex items-center gap-2 flex-wrap">
-              {isFavorito && (
-                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-              )}
-              <h3 className="font-semibold text-lg text-foreground truncate">
-                {disciplina.nome ?? "Sem nome"}
-              </h3>
+          <div className="min-w-0 flex-1 pr-1">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
               <span className={badgeTipo(disciplina.tipo)}>
                 {disciplina.tipo}
               </span>
               {isArquivada && (
-                <span className="rounded px-2 py-0.5 text-xs border bg-muted text-muted-foreground">
+                <span className="rounded-full border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                   Arquivada
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {disciplina.horasSemana}h/sem
-              </span>
-            </div>
+            <h3 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-foreground">
+              {disciplina.nome ?? "Sem nome"}
+            </h3>
+            <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Carga · {disciplina.horasSemana}h/semana
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {horarioLinha ? (
+                <>
+                  <span className="font-medium text-foreground/90">
+                    Agenda:{" "}
+                  </span>
+                  {horarioLinha}
+                </>
+              ) : (
+                "Sem horários — toque em abrir para cadastrar"
+              )}
+            </p>
           </div>
-          <DropdownMenu>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full md:opacity-0 md:group-hover:opacity-100"
+              disabled={isArquivada}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!isArquivada) onToggleFavorito();
+              }}
+              aria-label={isFavorito ? "Remover dos favoritos" : "Favoritar"}
+            >
+              <Bookmark
+                className={cn(
+                  "h-4 w-4",
+                  isFavorito && "fill-primary text-primary",
+                )}
+              />
+            </Button>
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -271,6 +556,7 @@ function DisciplinaCard({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
         {/* Professor, local e horários (uma vez cada) */}
         <div className="mb-3 space-y-1.5 text-xs text-muted-foreground">
@@ -299,7 +585,7 @@ function DisciplinaCard({
                   {disciplina.horarios.slice(0, 4).map((h, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-0.5"
+                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5"
                     >
                       <span className="font-medium text-foreground">
                         {DIAS[h.dia]}
@@ -334,7 +620,7 @@ function DisciplinaCard({
         </div>
       </div>
       {/* Botão Abrir fixo no rodapé */}
-      <div className="mt-auto pt-4 shrink-0">
+      <div className="relative z-[1] mt-auto shrink-0 border-t border-border/50 bg-muted/20 px-5 py-4 backdrop-blur-[2px]">
         {isArquivada ? (
           <TooltipProvider delayDuration={300}>
             <Tooltip>
@@ -342,10 +628,10 @@ function DisciplinaCard({
                 <Button
                   variant="default"
                   size="sm"
-                  className="w-full shadow-sm pointer-events-none opacity-70"
+                  className="h-11 w-full rounded-full shadow-sm pointer-events-none opacity-70"
                   disabled
                 >
-                  <GraduationCap className="h-4 w-4 mr-2" />
+                  <GraduationCap className="mr-2 h-4 w-4" />
                   Abrir
                 </Button>
               </TooltipTrigger>
@@ -359,11 +645,15 @@ function DisciplinaCard({
             asChild
             variant="default"
             size="sm"
-            className="w-full shadow-sm"
+            className="h-11 w-full rounded-full font-semibold shadow-md"
           >
-            <a href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}>
-              <GraduationCap className="h-4 w-4 mr-2" />
-              Abrir
+            <a
+              href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}
+              className="inline-flex items-center justify-center gap-2"
+            >
+              <GraduationCap className="h-4 w-4 shrink-0" />
+              Abrir disciplina
+              <ArrowUpRight className="h-4 w-4 shrink-0 opacity-90" />
             </a>
           </Button>
         )}
@@ -409,15 +699,20 @@ function DisciplinaCardList({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       className={cn(
-        "group rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-all duration-300",
+        "group overflow-hidden rounded-2xl border border-border/80 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-lg",
         isArquivada
           ? "opacity-60 hover:opacity-80 border-dashed"
-          : "hover:border-primary/30",
-        isDragging && "opacity-50 scale-95",
+          : "",
+        isDragging && "scale-95 opacity-50",
       )}
-      style={{ borderLeftWidth: "4px", borderLeftColor: cor }}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-stretch gap-0">
+        <div
+          className="w-1.5 shrink-0 self-stretch"
+          style={{ backgroundColor: cor }}
+          aria-hidden
+        />
+      <div className="flex flex-1 items-start gap-4 p-4">
         {/* Drag Handle */}
         <div className={cn(
           "mt-1 text-muted-foreground",
@@ -437,15 +732,15 @@ function DisciplinaCardList({
               {disciplina.tipo}
             </span>
             {isArquivada && (
-              <span className="rounded px-2 py-0.5 text-xs border bg-muted text-muted-foreground">
+              <span className="rounded-full border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                 Arquivada
               </span>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 font-medium">
               <Clock className="h-3.5 w-3.5" />
-              {disciplina.horasSemana}h/sem
+              {disciplina.horasSemana}h/semana
             </span>
             {disciplina.professor && (
               <span className="flex items-center gap-1">
@@ -464,7 +759,7 @@ function DisciplinaCardList({
                 {disciplina.horarios.slice(0, 4).map((h, i) => (
                   <span
                     key={i}
-                    className="rounded border bg-muted/50 px-1.5 py-0.5 text-xs"
+                    className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-xs"
                   >
                     {DIAS[h.dia]} {h.inicio}–{h.fim}
                   </span>
@@ -496,7 +791,7 @@ function DisciplinaCardList({
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" disabled className="pointer-events-none opacity-70">
+                  <Button variant="outline" size="sm" disabled className="pointer-events-none rounded-full opacity-70">
                     Abrir
                   </Button>
                 </TooltipTrigger>
@@ -506,7 +801,7 @@ function DisciplinaCardList({
               </Tooltip>
             </TooltipProvider>
           ) : (
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="default" size="sm" className="rounded-full px-5 font-semibold">
               <a href={disciplina.id ? `/disciplinas/${disciplina.id}` : "#"}>Abrir</a>
             </Button>
           )}
@@ -515,7 +810,7 @@ function DisciplinaCardList({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9"
+                className="h-9 w-9 rounded-full"
                 aria-label="Opções"
               >
                 <MoreVertical className="h-4 w-4" />
@@ -559,7 +854,7 @@ function DisciplinaCardList({
                           onClick={() => onUpdateCor(c.valor)}
                         >
                           <span
-                            className="w-4 h-4 rounded-full border mr-2 shrink-0"
+                            className="mr-2 h-4 w-4 shrink-0 rounded-full border"
                             style={{ backgroundColor: c.valor }}
                           />
                           {c.nome}
@@ -589,6 +884,7 @@ function DisciplinaCardList({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -688,6 +984,14 @@ export default function DisciplinasPage() {
     () => list.reduce((acc, d) => acc + d.horasSemana, 0),
     [list],
   );
+
+  const topThree = useMemo(() => list.slice(0, 3), [list]);
+  const showFeaturedStrip = viewMode === "grid" && page === 1 && list.length > 0;
+  const gridDisplayList = useMemo(() => {
+    if (!showFeaturedStrip) return paginatedList;
+    const ids = new Set(topThree.map((d) => d.id));
+    return paginatedList.filter((d) => !ids.has(d.id));
+  }, [showFeaturedStrip, paginatedList, topThree]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedId(id);
@@ -830,16 +1134,18 @@ export default function DisciplinasPage() {
     );
   }
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6">
-      <header className="mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold">Disciplinas</h1>
+    <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+      <header className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Disciplinas
+            </h1>
             <p className="text-sm text-muted-foreground">
               {list.length} {list.length === 1 ? "disciplina" : "disciplinas"}
               {list.length !== disciplinas.length && " (filtradas)"}
               {" · "}
-              {horasTotais}h/sem
+              {horasTotais}h/semana no total
             </p>
           </div>
           <AddDisciplinaModal
@@ -848,77 +1154,86 @@ export default function DisciplinasPage() {
             onOpenChange={setShouldOpenModal}
           />
         </div>
-        {/* Barra de busca e ações */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar disciplina..."
-              className="pl-9 h-10"
-            />
-            {q && (
-              <button
-                onClick={() => setQ("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar disciplina..."
+            className="h-12 rounded-full border-border/80 bg-muted/40 pl-11 pr-11 shadow-none transition-[box-shadow] focus-visible:ring-2 focus-visible:ring-primary/30"
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => setQ("")}
+              className="absolute right-3 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Limpar busca"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:pb-0">
+            {TIPO_FILTROS.map(({ value, label }) => (
+              <Button
+                key={value}
+                type="button"
+                variant={tipo === value ? "default" : "outline"}
+                size="sm"
+                className={cn(
+                  "shrink-0 rounded-full px-4 font-medium",
+                  tipo === value && "shadow-sm",
+                )}
+                onClick={() => setTipo(value)}
               >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+                {label}
+              </Button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Filtros em popover */}
+          <div className="flex flex-shrink-0 items-center justify-end gap-2">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 gap-2 rounded-full border-border/80"
+                >
                   <Filter className="h-4 w-4" />
-                  Filtros
-                  {(tipo !== "todas" || filtroCargaHoraria !== "todas") && (
+                  <span className="hidden sm:inline">Mais filtros</span>
+                  <span className="sm:hidden">Filtros</span>
+                  {filtroCargaHoraria !== "todas" && (
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64" align="end">
-                <div className="space-y-3">
+              <PopoverContent className="w-72 rounded-2xl" align="end">
+                <div className="space-y-4">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Tipo
-                    </label>
-                    <select
-                      value={tipo}
-                      onChange={(e) => setTipo(e.target.value as any)}
-                      className="mt-1 w-full h-9 rounded-md border bg-background px-3 text-sm"
-                    >
-                      <option value="todas">Todos</option>
-                      <option value="obrigatoria">Obrigatórias</option>
-                      <option value="eletiva">Eletivas</option>
-                      <option value="optativa">Optativas</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">
-                      Carga horária
+                      Carga horária semanal
                     </label>
                     <select
                       value={filtroCargaHoraria}
                       onChange={(e) => setFiltroCargaHoraria(e.target.value)}
-                      className="mt-1 w-full h-9 rounded-md border bg-background px-3 text-sm"
+                      className="mt-1.5 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm"
                     >
                       <option value="todas">Todas</option>
-                      <option value="1-2">1-2h/sem</option>
-                      <option value="3-4">3-4h/sem</option>
-                      <option value="5-6">5-6h/sem</option>
-                      <option value="7-8">7-8h/sem</option>
-                      <option value="9-">9h+</option>
+                      <option value="1-2">1–2h/semana</option>
+                      <option value="3-4">3–4h/semana</option>
+                      <option value="5-6">5–6h/semana</option>
+                      <option value="7-8">7–8h/semana</option>
+                      <option value="9-">9h ou mais</option>
                     </select>
                   </div>
-                  <div className="pt-2 border-t">
+                  <div className="border-t pt-3">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-start gap-2"
+                      className="w-full justify-start gap-2 rounded-xl"
                       onClick={handleFixarPosicoes}
                       disabled={fixandoPosicoes || disciplinas.length === 0}
                     >
@@ -927,25 +1242,27 @@ export default function DisciplinasPage() {
                       ) : (
                         <Pin className="h-4 w-4" />
                       )}
-                      Fixar posições
+                      Fixar posições na grade
                     </Button>
                   </div>
                 </div>
               </PopoverContent>
             </Popover>
 
-            <div className="flex rounded-md border bg-background p-1">
+            <div className="flex rounded-full border border-border/80 bg-muted/30 p-1">
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
                       onClick={() => setViewMode("grid")}
                       className={cn(
-                        "p-2 rounded transition-colors",
+                        "rounded-full p-2.5 transition-colors",
                         viewMode === "grid"
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted text-muted-foreground",
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
                       )}
+                      aria-pressed={viewMode === "grid"}
                     >
                       <Grid3x3 className="h-4 w-4" />
                     </button>
@@ -957,13 +1274,15 @@ export default function DisciplinasPage() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
                       onClick={() => setViewMode("list")}
                       className={cn(
-                        "p-2 rounded transition-colors",
+                        "rounded-full p-2.5 transition-colors",
                         viewMode === "list"
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted text-muted-foreground",
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
                       )}
+                      aria-pressed={viewMode === "list"}
                     >
                       <List className="h-4 w-4" />
                     </button>
@@ -980,18 +1299,17 @@ export default function DisciplinasPage() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
                       onClick={() => setMostrarArquivadas(!mostrarArquivadas)}
                       className={cn(
-                        "h-10 px-3 rounded-md border flex items-center gap-2 text-sm",
+                        "flex h-10 items-center gap-2 rounded-full border px-3 text-sm transition-colors",
                         mostrarArquivadas
-                          ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
-                          : "bg-background hover:bg-muted text-muted-foreground",
+                          ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                          : "border-border/80 bg-background text-muted-foreground hover:bg-muted",
                       )}
                     >
-                      <Archive className="h-4 w-4" />
-                      <span className="hidden sm:inline">
-                        {totalArquivadas}
-                      </span>
+                      <Archive className="h-4 w-4 shrink-0" />
+                      <span className="hidden sm:inline">{totalArquivadas}</span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1028,9 +1346,57 @@ export default function DisciplinasPage() {
           />
         </Card>
       ) : viewMode === "grid" ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {paginatedList.map((d, idx) => (
+        <div className="space-y-10">
+          {showFeaturedStrip && (
+            <section className="space-y-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-foreground">
+                    Em destaque
+                  </h2>
+                  <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+                    Atalhos para as disciplinas no topo da sua lista — favoritos e
+                    ordem da grade vêm primeiro.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-stretch md:gap-4 lg:gap-5">
+                {topThree.map((d, idx) => (
+                  <div
+                    key={d.id ?? `feat-${idx}`}
+                    className="h-full min-h-0 min-w-0 w-full"
+                  >
+                    <DisciplinaFeaturedCard
+                      disciplina={d}
+                      onToggleFavorito={() =>
+                        handleToggleFavorito(d.id, d.favorito === true)
+                      }
+                      onDelete={() => removeItem(d.id, d.nome)}
+                      onToggleAtivo={() =>
+                        handleToggleAtivo(d.id, d.nome, d.ativo !== false)
+                      }
+                      onUpdateCor={(cor) => handleUpdateCor(d.id, cor)}
+                      onEdit={() => setDisciplinaToEdit(d)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {showFeaturedStrip && gridDisplayList.length > 0 && (
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Mais disciplinas
+            </h2>
+          )}
+
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6",
+              showFeaturedStrip && gridDisplayList.length > 0 && "pt-2",
+            )}
+          >
+            {gridDisplayList.map((d, idx) => (
               <DisciplinaCard
                 key={d.id ?? `disciplina-${idx}`}
                 disciplina={d}
@@ -1052,21 +1418,23 @@ export default function DisciplinasPage() {
             ))}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-6">
+            <div className="flex items-center justify-center gap-3 pt-8">
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-10 w-10 rounded-full"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="min-w-[10rem] text-center text-sm font-medium text-muted-foreground">
                 Página {page} de {totalPages}
               </span>
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-10 w-10 rounded-full"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
               >
@@ -1074,10 +1442,10 @@ export default function DisciplinasPage() {
               </Button>
             </div>
           )}
-        </>
+        </div>
       ) : (
         <>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {paginatedList.map((d, idx) => (
               <DisciplinaCardList
                 key={d.id ?? `disciplina-list-${idx}`}
@@ -1100,21 +1468,23 @@ export default function DisciplinasPage() {
             ))}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-6">
+            <div className="flex items-center justify-center gap-3 pt-8">
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-10 w-10 rounded-full"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="min-w-[10rem] text-center text-sm font-medium text-muted-foreground">
                 Página {page} de {totalPages}
               </span>
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-10 w-10 rounded-full"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
               >
@@ -1341,7 +1711,11 @@ function AddDisciplinaModal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default" size="sm">
+        <Button
+          variant="default"
+          size="sm"
+          className="h-11 shrink-0 rounded-full px-6 font-semibold shadow-sm"
+        >
           + Nova Disciplina
         </Button>
       </DialogTrigger>

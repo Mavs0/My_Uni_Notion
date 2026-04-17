@@ -62,7 +62,9 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
     /\/disciplinas\/[^/]+\/notas\//.test(pathname);
   /** Calendário: usa toda a largura útil (sem max-w-6xl no main) */
   const isCalendarPage = pathname === "/calendar";
-  const isFullWidthMain = isNotasEditorPage || isCalendarPage;
+  const isChatPage = pathname === "/chat";
+  const isFullWidthMain =
+    isNotasEditorPage || isCalendarPage || isChatPage;
 
   return (
     <CommandPaletteProvider>
@@ -91,7 +93,11 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
             !isFocusModeActive &&
               isFullWidthMain &&
               !isCalendarPage &&
+              !isChatPage &&
               "p-0 max-w-none overflow-hidden pb-0 md:pb-0",
+            !isFocusModeActive &&
+              isChatPage &&
+              "max-w-none overflow-hidden p-2 sm:p-3 md:p-4 pb-20 md:pb-4",
             !isFocusModeActive &&
               isCalendarPage &&
               "p-0 max-w-none overflow-auto pb-24 md:pb-6",

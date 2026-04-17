@@ -67,6 +67,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { MessageRenderer } from "@/components/chat/MessageRenderer";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type Msg = {
   id: string;
@@ -1003,12 +1004,18 @@ export default function ChatPage() {
     );
   }
   return (
-    <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] gap-4">
-      {}
-      <aside className="hidden w-80 shrink-0 lg:flex lg:flex-col border rounded-lg bg-card shadow-sm">
-        <div className="p-5 border-b">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+    <div
+      className={cn(
+        "relative flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden rounded-2xl",
+        "bg-gradient-to-br from-background via-muted/30 to-primary/[0.06]",
+        "dark:via-background dark:to-emerald-950/25",
+        "lg:h-[min(100dvh,calc(100vh-5rem))] lg:max-h-[calc(100vh-5rem)] lg:flex-row lg:gap-4",
+      )}
+    >
+      <aside className="hidden w-80 shrink-0 lg:flex lg:flex-col lg:rounded-2xl lg:border lg:border-border/50 lg:bg-card/70 lg:shadow-xl lg:backdrop-blur-xl dark:lg:border-white/5 dark:lg:bg-card/45">
+        <div className="border-b border-border/50 p-5">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-emerald-600 shadow-lg shadow-primary/25">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
@@ -1079,7 +1086,7 @@ export default function ChatPage() {
           </div>
         </div>
         {}
-        <div className="border-b p-3 space-y-2 bg-muted/30">
+        <div className="space-y-2 border-b border-border/50 bg-muted/20 p-3 backdrop-blur-sm">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -1320,7 +1327,7 @@ export default function ChatPage() {
             </ul>
           )}
         </div>
-        <div className="border-t p-3 text-xs text-muted-foreground bg-muted/30">
+        <div className="border-t border-border/50 bg-muted/20 p-3 text-xs text-muted-foreground backdrop-blur-sm">
           <p className="flex items-center gap-2">
             <Sparkles className="h-3 w-3" />
             Dica: Use{" "}
@@ -1330,39 +1337,34 @@ export default function ChatPage() {
           </p>
         </div>
       </aside>
-      {}
-      <section className="flex min-w-0 flex-1 flex-col rounded-lg border bg-card shadow-sm">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 bg-card/60 shadow-xl backdrop-blur-md dark:border-white/5 dark:bg-card/35">
         {/* Header com modos */}
-        <div className="border-b bg-muted/30">
-          <div
-            className="flex items-center justify-between p-4 pb-0 border-b-2"
-            style={{ borderBottomColor: `${corDisciplina}40` }}
-          >
+        <div className="border-b border-border/50 bg-gradient-to-r from-muted/40 via-transparent to-primary/[0.04] dark:from-muted/15">
+          <div className="flex flex-col gap-3 border-b border-border/40 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="mb-1 flex items-center gap-3">
                 <div
-                  className="h-8 w-8 rounded-lg flex items-center justify-center"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-inner ring-2 ring-white/10"
                   style={{
-                    backgroundColor: `${corDisciplina}20`,
-                    border: `2px solid ${corDisciplina}40`,
+                    background: `linear-gradient(145deg, ${corDisciplina}35, ${corDisciplina}12)`,
+                    boxShadow: `0 8px 24px -8px ${corDisciplina}55`,
                   }}
                 >
-                  <BookOpen
-                    className="h-5 w-5"
+                  <BookOpen className="h-5 w-5" style={{ color: corDisciplina }} />
+                </div>
+                <div className="min-w-0">
+                  <h1
+                    className="truncate text-lg font-semibold tracking-tight sm:text-xl"
                     style={{ color: corDisciplina }}
-                  />
+                  >
+                    {disciplinaAtual?.nome || "Chat IA"}
+                  </h1>
+                  <p className="text-xs text-muted-foreground">
+                    Contexto: suas anotações desta disciplina
+                  </p>
                 </div>
-                <h1
-                  className="font-semibold truncate"
-                  style={{ color: corDisciplina }}
-                >
-                  {disciplinaAtual?.nome || "Chat IA"}
-                </h1>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="text-xs text-muted-foreground">
-                  Contexto: suas anotações dessa disciplina
-                </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 {disciplinaAtual && (
                   <TooltipProvider>
                     <Tooltip>
@@ -1394,7 +1396,7 @@ export default function ChatPage() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-1.5 ml-4 flex-wrap">
+            <div className="flex flex-wrap items-center gap-1.5 sm:ml-2">
               {current && modoAtual === "chat" && (
                 <>
                   <TooltipProvider>
@@ -1505,24 +1507,34 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Tabs de modos */}
-          <div className="px-4 pt-3">
-            <div className="flex gap-1 overflow-x-auto pb-0">
+          {/* Modos — pílulas estilo hub */}
+          <div className="px-3 pb-3 pt-1 sm:px-4">
+            <div className="flex flex-wrap gap-1.5 rounded-2xl border border-border/50 bg-muted/30 p-1.5 dark:bg-muted/15">
               {MODOS.map((modo) => {
                 const Icon = modo.icon;
                 const isActive = modoAtual === modo.id;
                 return (
                   <button
                     key={modo.id}
+                    type="button"
+                    title={modo.desc}
                     onClick={() => setModoAtual(modo.id as any)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                    className={cn(
+                      "flex min-h-[2.75rem] flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all sm:min-w-0 sm:flex-1 sm:text-sm",
                       isActive
-                        ? "bg-background text-foreground border border-b-0"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    }`}
+                        ? "bg-background text-foreground shadow-md ring-1 ring-border/80 dark:bg-background/95"
+                        : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+                    )}
+                    style={
+                      isActive
+                        ? {
+                            boxShadow: `0 1px 0 0 ${corDisciplina}40, 0 8px 24px -12px ${corDisciplina}66`,
+                          }
+                        : undefined
+                    }
                   >
-                    <Icon className="h-4 w-4" />
-                    {modo.label}
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{modo.label}</span>
                   </button>
                 );
               })}
@@ -1530,148 +1542,107 @@ export default function ChatPage() {
           </div>
         </div>
         {/* Área de conteúdo baseada no modo */}
-        <div className="flex-1 overflow-y-auto p-6 bg-background">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-transparent via-background/50 to-muted/15 p-4 sm:p-6 md:p-8">
           {!disciplinasAtivas || disciplinasAtivas.length === 0 ? (
-            <div className="grid h-full place-items-center text-center">
-              <div className="max-w-md">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
+              <div className="max-w-md rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 backdrop-blur-sm">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                   <BookOpen className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-foreground">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   Nenhuma disciplina cadastrada
                 </h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Você precisa cadastrar pelo menos uma disciplina para usar o
-                  chat de IA.
+                <p className="mb-6 text-sm text-muted-foreground">
+                  Cadastre uma disciplina para usar o chat e as ferramentas de IA.
                 </p>
-                <Button asChild variant="default">
+                <Button asChild className="rounded-full shadow-md">
                   <Link href="/disciplinas">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Cadastrar Disciplina
+                    <Plus className="mr-2 h-4 w-4" />
+                    Cadastrar disciplina
                   </Link>
                 </Button>
               </div>
             </div>
           ) : modoAtual === "chat" ? (
             currentMsgs.length === 0 ? (
-              <div className="grid h-full place-items-center text-center">
-                <div className="max-w-md">
+              <div className="flex min-h-[min(70vh,36rem)] flex-col items-center justify-center px-2 text-center">
+                <div className="w-full max-w-lg">
                   <div
-                    className="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                    className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl shadow-lg ring-2 ring-white/10"
                     style={{
-                      backgroundColor: `${corDisciplina}20`,
-                      border: `3px solid ${corDisciplina}40`,
+                      background: `linear-gradient(160deg, ${corDisciplina}45, ${corDisciplina}15)`,
+                      boxShadow: `0 20px 40px -20px ${corDisciplina}88`,
                     }}
                   >
-                    <Sparkles
-                      className="h-8 w-8"
-                      style={{ color: corDisciplina }}
-                    />
+                    <Sparkles className="h-10 w-10 text-white drop-shadow" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2 text-foreground">
-                    Comece uma conversa
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Faça perguntas sobre{" "}
-                    <b style={{ color: corDisciplina }}>
+                  <h2 className="mb-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    Como posso ajudar hoje?
+                  </h2>
+                  <p className="mb-6 text-sm leading-relaxed text-muted-foreground sm:text-base">
+                    Pergunte sobre{" "}
+                    <span className="font-medium text-foreground" style={{ color: corDisciplina }}>
                       {disciplinaAtual?.nome}
-                    </b>{" "}
-                    e receba respostas baseadas nas suas anotações.
+                    </span>{" "}
+                    — as respostas usam o que você escreveu nas anotações da disciplina.
                   </p>
-                  {/* Explicação sobre anotações */}
                   <div
-                    className="mb-6 rounded-lg border p-4 text-sm"
+                    className="mb-6 rounded-2xl border border-border/60 bg-card/80 p-4 text-left shadow-sm backdrop-blur-sm dark:border-white/5 dark:bg-card/40"
                     style={{
-                      backgroundColor: `${corDisciplina}10`,
-                      borderColor: `${corDisciplina}30`,
+                      borderColor: `${corDisciplina}35`,
+                      background: `linear-gradient(135deg, ${corDisciplina}12, transparent)`,
                     }}
                   >
-                    <div className="flex items-start gap-3">
-                      <FileText
-                        className="h-5 w-5 shrink-0 mt-0.5"
-                        style={{ color: corDisciplina }}
-                      />
-                      <div className="space-y-2">
-                        <p
-                          className="font-medium"
-                          style={{ color: corDisciplina }}
-                        >
-                          Como funcionam as anotações?
-                        </p>
-                        <ul className="space-y-1 text-muted-foreground text-xs list-disc list-inside">
-                          <li>
-                            As anotações são criadas e editadas na página da
-                            disciplina
-                          </li>
-                          <li>
-                            A IA usa automaticamente suas anotações como
-                            contexto para responder perguntas
-                          </li>
-                          <li>
-                            Quanto mais anotações você tiver, mais precisas
-                            serão as respostas
-                          </li>
+                    <div className="flex gap-3">
+                      <FileText className="mt-0.5 h-5 w-5 shrink-0" style={{ color: corDisciplina }} />
+                      <div className="space-y-2 text-sm">
+                        <p className="font-medium text-foreground">Como funcionam as anotações?</p>
+                        <ul className="list-inside list-disc space-y-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                          <li>Crie e edite notas na página da disciplina.</li>
+                          <li>A IA usa esse conteúdo como contexto automaticamente.</li>
+                          <li>Quanto mais você anotar, melhores tendem a ser as respostas.</li>
                         </ul>
                         {disciplinaAtual && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="mt-2 h-7 text-xs"
-                            style={{
-                              borderColor: `${corDisciplina}40`,
-                            }}
-                          >
-                            <Link
-                              href={`/disciplinas/${disciplinaAtual.id}`}
-                              className="flex items-center gap-1"
-                            >
-                              <FileText className="h-3 w-3" />
-                              Ir para Anotações
+                          <Button variant="secondary" size="sm" className="mt-2 rounded-full" asChild>
+                            <Link href={`/disciplinas/${disciplinaAtual.id}`} className="gap-1.5">
+                              <FileText className="h-3.5 w-3.5" />
+                              Ir para anotações
                             </Link>
                           </Button>
                         )}
                       </div>
                     </div>
                   </div>
-                  {/* Sugestões iniciais */}
                   {suggestions.length > 0 && (
-                    <div className="mb-6 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-2 justify-center">
-                        <Zap className="h-3 w-3" />
-                        Sugestões de perguntas:
+                    <div className="mb-6 space-y-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Sugestões rápidas
                       </p>
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        {suggestions.slice(0, 3).map((sugestao, idx) => (
-                          <Button
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {suggestions.slice(0, 4).map((sugestao, idx) => (
+                          <button
                             key={idx}
-                            variant="outline"
-                            size="sm"
+                            type="button"
                             onClick={() => {
                               setInput(sugestao);
                               inputRef.current?.focus();
                             }}
-                            className="text-xs h-8"
-                            style={{
-                              borderColor: `${corDisciplina}40`,
-                              color: corDisciplina,
-                            }}
+                            className="rounded-full border border-border/70 bg-background/90 px-3 py-2 text-left text-xs font-medium leading-snug text-foreground shadow-sm transition hover:border-primary/40 hover:bg-muted/50 sm:text-sm"
+                            style={{ borderColor: `${corDisciplina}33` }}
                           >
                             {sugestao}
-                          </Button>
+                          </button>
                         ))}
                       </div>
                     </div>
                   )}
                   <Button
                     onClick={() => setShowNewThreadDialog(true)}
-                    variant="outline"
-                    style={{
-                      borderColor: `${corDisciplina}40`,
-                    }}
+                    className="rounded-full px-6 shadow-md"
+                    style={{ backgroundColor: corDisciplina, borderColor: corDisciplina }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Conversa
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova conversa
                   </Button>
                 </div>
               </div>
@@ -1700,10 +1671,10 @@ export default function ChatPage() {
                     )}
                     <div className="flex flex-col gap-1 max-w-[75%]">
                       <div
-                        className={`rounded-lg px-4 py-3 shadow-sm ${
+                        className={`rounded-2xl px-4 py-3 shadow-sm ${
                           m.role === "user"
                             ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-foreground border"
+                            : "border bg-muted/90 text-foreground backdrop-blur-sm dark:bg-muted/50"
                         }`}
                         style={
                           m.role === "assistant"
@@ -1887,22 +1858,18 @@ export default function ChatPage() {
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {suggestions.map((sugestao, idx) => (
-                          <Button
+                          <button
                             key={idx}
-                            variant="outline"
-                            size="sm"
+                            type="button"
                             onClick={() => {
                               setInput(sugestao);
                               inputRef.current?.focus();
                             }}
-                            className="text-xs h-8"
-                            style={{
-                              borderColor: `${corDisciplina}40`,
-                              color: corDisciplina,
-                            }}
+                            className="rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-left text-xs font-medium text-foreground shadow-sm transition hover:bg-muted/60"
+                            style={{ borderColor: `${corDisciplina}40` }}
                           >
                             {sugestao}
-                          </Button>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -1911,15 +1878,20 @@ export default function ChatPage() {
               </div>
             )
           ) : modoAtual === "quiz" ? (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="mx-auto max-w-3xl space-y-6">
               {!quizData ? (
-                <Card className="p-6">
+                <Card
+                  className={cn(
+                    "overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-b from-emerald-500/[0.08] via-card/90 to-card/70 p-6 shadow-xl backdrop-blur-sm",
+                    "dark:from-emerald-500/15 dark:via-card/50 dark:to-card/40",
+                  )}
+                >
                   <div className="space-y-6">
                     <div className="text-center">
-                      <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                        <Brain className="h-8 w-8 text-primary" />
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/15 ring-2 ring-emerald-500/20">
+                        <Brain className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                       </div>
-                      <h3 className="text-xl font-semibold mb-2">Modo Quiz</h3>
+                      <h3 className="mb-2 text-xl font-semibold tracking-tight">Quiz da disciplina</h3>
                       <p className="text-sm text-muted-foreground">
                         A IA vai gerar perguntas baseadas no conteúdo de{" "}
                         <b className="text-foreground">
@@ -1995,7 +1967,7 @@ export default function ChatPage() {
                     <Button
                       onClick={gerarQuiz}
                       disabled={quizLoading}
-                      className="w-full"
+                      className="w-full rounded-xl shadow-md"
                       size="lg"
                     >
                       {quizLoading ? (
@@ -2037,7 +2009,10 @@ export default function ChatPage() {
                   </div>
 
                   {quizData.perguntas.map((pergunta) => (
-                    <Card key={pergunta.numero} className="p-5">
+                    <Card
+                      key={pergunta.numero}
+                      className="rounded-2xl border-border/60 p-5 shadow-md backdrop-blur-sm dark:border-white/5"
+                    >
                       <div className="space-y-4">
                         <div className="flex items-start gap-3">
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
@@ -2163,15 +2138,20 @@ export default function ChatPage() {
               )}
             </div>
           ) : modoAtual === "explicacao" ? (
-            <div className="max-w-3xl mx-auto space-y-6">
-              <Card className="p-6">
+            <div className="mx-auto max-w-3xl space-y-6">
+              <Card
+                className={cn(
+                  "rounded-2xl border border-amber-500/25 bg-gradient-to-b from-amber-500/[0.09] via-card/90 to-card/70 p-6 shadow-xl backdrop-blur-sm",
+                  "dark:from-amber-500/12 dark:via-card/50",
+                )}
+              >
                 <div className="space-y-6">
                   <div className="text-center">
-                    <div className="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
-                      <Lightbulb className="h-8 w-8 text-amber-500" />
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/15 ring-2 ring-amber-500/25">
+                      <Lightbulb className="h-8 w-8 text-amber-600 dark:text-amber-400" />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">
-                      Explicar Conceito
+                    <h3 className="mb-2 text-xl font-semibold tracking-tight">
+                      Explicar conceito
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       Digite um conceito e receba uma explicação detalhada com
@@ -2229,7 +2209,7 @@ export default function ChatPage() {
                     disabled={
                       explicacaoLoading || !explicacaoConfig.conceito.trim()
                     }
-                    className="w-full"
+                    className="w-full rounded-xl shadow-md"
                     size="lg"
                   >
                     {explicacaoLoading ? (
@@ -2248,22 +2228,27 @@ export default function ChatPage() {
               </Card>
 
               {explicacaoTexto && (
-                <Card className="p-6">
+                <Card className="rounded-2xl border border-border/60 bg-card/80 p-6 shadow-lg backdrop-blur-sm dark:border-white/5 dark:bg-card/50">
                   <MessageRenderer content={explicacaoTexto} />
                 </Card>
               )}
             </div>
           ) : modoAtual === "mapa_mental" ? (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="mx-auto max-w-4xl space-y-6">
               {!mapaMentalData ? (
-                <Card className="p-6">
+                <Card
+                  className={cn(
+                    "rounded-2xl border border-violet-500/25 bg-gradient-to-b from-violet-500/[0.09] via-card/90 to-card/70 p-6 shadow-xl backdrop-blur-sm",
+                    "dark:from-violet-500/12 dark:via-card/50",
+                  )}
+                >
                   <div className="space-y-6">
                     <div className="text-center">
-                      <div className="h-16 w-16 rounded-full bg-violet-500/10 flex items-center justify-center mx-auto mb-4">
-                        <Network className="h-8 w-8 text-violet-500" />
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/15 ring-2 ring-violet-500/25">
+                        <Network className="h-8 w-8 text-violet-600 dark:text-violet-400" />
                       </div>
-                      <h3 className="text-xl font-semibold mb-2">
-                        Mapa Mental
+                      <h3 className="mb-2 text-xl font-semibold tracking-tight">
+                        Mapa mental
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Cole um texto, envie um PDF ou resuma um documento para
@@ -2342,7 +2327,7 @@ export default function ChatPage() {
                       <Button
                         onClick={gerarMapaMental}
                         disabled={mapaLoading || !mapaConfig.texto.trim()}
-                        className="flex-1"
+                        className="flex-1 rounded-xl shadow-md"
                         size="lg"
                       >
                         {mapaLoading ? (
@@ -2512,7 +2497,7 @@ export default function ChatPage() {
         </div>
         {/* Input de chat - só aparece no modo chat */}
         {modoAtual === "chat" && (
-          <div className="border-t p-4 bg-muted/30">
+          <div className="border-t border-border/50 bg-card/40 p-3 backdrop-blur-lg dark:bg-card/25 sm:p-4">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -2520,8 +2505,11 @@ export default function ChatPage() {
               }}
               className="mx-auto max-w-4xl"
             >
-              <div className="flex items-end gap-3">
-                <div className="flex-1 relative">
+              <div
+                className="flex items-end gap-2 rounded-2xl border border-border/60 bg-background/95 p-2 shadow-inner dark:border-white/10 dark:bg-background/80 sm:gap-3 sm:p-3"
+                style={{ boxShadow: `0 0 0 1px ${corDisciplina}18 inset` }}
+              >
+                <div className="relative min-w-0 flex-1">
                   <textarea
                     ref={inputRef}
                     value={input}
@@ -2535,10 +2523,7 @@ export default function ChatPage() {
                         )}px`;
                       }
                     }}
-                    className="w-full min-h-[60px] max-h-[200px] rounded-lg border bg-background px-4 py-3 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 transition-all"
-                    style={{
-                      borderColor: `${corDisciplina}30`,
-                    }}
+                    className="max-h-[200px] min-h-[52px] w-full resize-none rounded-xl border-0 bg-transparent px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-0"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -2567,7 +2552,7 @@ export default function ChatPage() {
                     disciplinasAtivas.length === 0
                   }
                   size="lg"
-                  className="shrink-0"
+                  className="h-11 w-11 shrink-0 rounded-xl p-0 shadow-md sm:h-12 sm:w-12"
                   style={{
                     backgroundColor: corDisciplina,
                     borderColor: corDisciplina,

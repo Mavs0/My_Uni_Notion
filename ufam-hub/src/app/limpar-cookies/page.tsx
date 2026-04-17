@@ -1,7 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
@@ -23,7 +29,7 @@ export default function LimparCookiesPage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
-        <CardHeader>
+        {/* <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
             <AlertTriangle className="h-6 w-6" />
             Erro 431 / 494 — Cookies ou cabeçalhos demasiado grandes
@@ -34,10 +40,11 @@ export default function LimparCookiesPage() {
             exemplo com <code>avatar_url</code> em base64 no Auth). Use o botão abaixo ou, se
             esta página não carregar, limpe os cookies do site em Definições do browser.
           </CardDescription>
-        </CardHeader>
+        </CardHeader> */}
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Clique no botão abaixo para limpar todos os cookies e fazer login novamente.
+            Clique no botão abaixo para limpar todos os cookies e fazer login
+            novamente.
           </p>
           <div className="flex flex-col gap-2">
             <Button onClick={handleCleanup} className="w-full" size="lg">
