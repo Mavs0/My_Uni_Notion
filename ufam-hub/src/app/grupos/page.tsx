@@ -3,21 +3,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Users,
   Plus,
   Search,
   MessageSquare,
   Calendar,
   User,
-  Settings,
-  LogOut,
   Share2,
   LogIn,
   Lock,
@@ -27,6 +18,11 @@ import {
   ArchiveRestore,
   Eye,
   EyeOff,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -46,7 +42,70 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+function monogramGrupo(nome: string) {
+  const parts = nome.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`.toUpperCase();
+  }
+  return (nome.trim().slice(0, 2) || "?").toUpperCase();
+}
+
+function grupoCardPatternBg() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-[0.22]"
+      aria-hidden
+      style={{
+        backgroundImage:
+          "radial-gradient(circle at 1px 1px, rgba(120,120,128,0.12) 1px, transparent 0)",
+        backgroundSize: "18px 18px",
+      }}
+    />
+  );
+}
+
+function tagDisciplinaClass(i: number) {
+  const classes = [
+    "border-emerald-500/35 bg-emerald-500/12 text-emerald-800 dark:text-emerald-300",
+    "border-violet-500/35 bg-violet-500/12 text-violet-800 dark:text-violet-300",
+    "border-amber-500/35 bg-amber-500/12 text-amber-800 dark:text-amber-300",
+    "border-sky-500/35 bg-sky-500/12 text-sky-800 dark:text-sky-300",
+  ];
+  return classes[i % classes.length]!;
+}
+
+function periodoLetivoLabel(iso: string) {
+  const d = new Date(iso);
+  const m = d.getMonth() + 1;
+  const y = d.getFullYear();
+  const sem = m <= 6 ? "1" : "2";
+  return `${sem}º sem. ${y}`;
+}
+
+function porteGrupo(membros: number) {
+  if (membros < 6) {
+    return {
+      label: "Pequeno",
+      chipClass:
+        "border-sky-500/35 bg-sky-500/12 text-sky-800 dark:text-sky-300",
+    };
+  }
+  if (membros <= 20) {
+    return {
+      label: "Médio",
+      chipClass:
+        "border-amber-500/35 bg-amber-500/12 text-amber-800 dark:text-amber-300",
+    };
+  }
+  return {
+    label: "Grande",
+    chipClass:
+      "border-violet-500/35 bg-violet-500/12 text-violet-800 dark:text-violet-300",
+  };
+}
+
 interface Grupo {
   id: string;
   nome: string;
@@ -57,6 +116,11 @@ interface Grupo {
   codigo_acesso?: string;
   ativo?: boolean;
   created_at: string;
+  max_membros?: number;
+  membros_count?: number;
+  tags?: string[] | null;
+  foto_url?: string | null;
+  requer_aprovacao?: boolean;
   criador?: {
     id: string;
     raw_user_meta_data?: {
@@ -65,6 +129,23 @@ interface Grupo {
     };
   };
 }
+
+function iniciaisCriador(grupo: Grupo) {
+  const raw =
+    grupo.criador?.raw_user_meta_data?.nome ||
+    grupo.criador?.raw_user_meta_data?.email ||
+    "";
+  const parts = raw.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`.toUpperCase();
+  }
+  if (parts.length === 1 && parts[0]!.length >= 2) {
+    return parts[0]!.slice(0, 2).toUpperCase();
+  }
+  if (parts.length === 1) return parts[0]!.slice(0, 1).toUpperCase();
+  return "?";
+}
+
 export default function GruposPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -335,20 +416,22 @@ export default function GruposPage() {
   const isAdmin = (grupo: Grupo) => currentUserId !== null && grupo.criador_id === currentUserId;
 
   return (
-    <main className="mx-auto max-w-6xl p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Grupos de Estudo</h1>
-          <p className="text-muted-foreground mt-1">
+    <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Grupos de estudo
+          </h1>
+          <p className="text-sm text-muted-foreground">
             Colabore e estude junto com seus colegas
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Dialog open={showEntrarDialog} onOpenChange={setShowEntrarDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline">
-                <LogIn className="h-4 w-4 mr-2" />
-                Entrar em Grupo
+              <Button variant="outline" className="rounded-full border-border/80">
+                <LogIn className="mr-2 h-4 w-4" />
+                Entrar em grupo
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -442,9 +525,9 @@ export default function GruposPage() {
           </Dialog>
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Grupo
+              <Button className="rounded-full px-5 font-semibold shadow-sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Criar grupo
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -553,35 +636,35 @@ export default function GruposPage() {
           </Dialog>
         </div>
       </div>
-      <div className="flex gap-4 items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar grupos..."
-            className="pl-9"
+            className="h-12 rounded-full border-border/80 bg-muted/40 pl-11 shadow-none focus-visible:ring-2 focus-visible:ring-primary/30"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant={mostrarInativos ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMostrarInativos(!mostrarInativos)}
-          >
-            {mostrarInativos ? (
-              <>
-                <EyeOff className="h-4 w-4 mr-2" />
-                Ocultar Arquivados
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4 mr-2" />
-                Mostrar Arquivados
-              </>
-            )}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant={mostrarInativos ? "default" : "outline"}
+          size="sm"
+          className="h-11 shrink-0 rounded-full border-border/80 px-4"
+          onClick={() => setMostrarInativos(!mostrarInativos)}
+        >
+          {mostrarInativos ? (
+            <>
+              <EyeOff className="mr-2 h-4 w-4" />
+              Ocultar arquivados
+            </>
+          ) : (
+            <>
+              <Eye className="mr-2 h-4 w-4" />
+              Mostrar arquivados
+            </>
+          )}
+        </Button>
       </div>
       {loading ? (
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -591,279 +674,465 @@ export default function GruposPage() {
           </div>
         </div>
       ) : filteredGrupos.length === 0 ? (
-        <Card>
-          <CardContent className="py-4">
-            <EmptyState
-              icon={Users}
-              title={
-                grupos.length === 0
-                  ? "Nenhum grupo ainda"
-                  : "Nenhum grupo encontrado"
-              }
-              description={
-                grupos.length === 0
-                  ? "Crie seu primeiro grupo de estudo para começar a colaborar com colegas."
-                  : "Tente buscar com outros termos ou ajustar os filtros."
-              }
-              action={
-                grupos.length === 0
-                  ? {
-                      label: "Criar primeiro grupo",
-                      onClick: () => setShowCreateDialog(true),
-                      icon: Plus,
-                    }
-                  : undefined
-              }
-            />
-          </CardContent>
-        </Card>
+        <section className="rounded-3xl border border-border/80 bg-card/80 p-8 shadow-sm backdrop-blur-sm">
+          <EmptyState
+            icon={Users}
+            title={
+              grupos.length === 0
+                ? "Nenhum grupo ainda"
+                : "Nenhum grupo encontrado"
+            }
+            description={
+              grupos.length === 0
+                ? "Crie seu primeiro grupo de estudo para começar a colaborar com colegas."
+                : "Tente buscar com outros termos ou ajustar os filtros."
+            }
+            action={
+              grupos.length === 0
+                ? {
+                    label: "Criar primeiro grupo",
+                    onClick: () => setShowCreateDialog(true),
+                    icon: Plus,
+                  }
+                : undefined
+            }
+          />
+        </section>
       ) : (
-        <div className="grid gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {paginatedGrupos.map((grupo) => (
-            <Card
-              key={grupo.id}
-              className={cn(
-                "group flex flex-col min-h-0 transition-all duration-200 hover:shadow-lg hover:border-primary/15",
-                grupo.ativo === false && "opacity-60",
-                grupo.visibilidade === "privado"
-                  ? "border-l-4 border-l-primary/60"
-                  : "border-l-4 border-l-emerald-500/50"
-              )}
-            >
-              <CardHeader className="gap-3 pb-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <CardTitle className="text-lg truncate pr-1">
-                        {grupo.nome}
-                      </CardTitle>
-                      {grupo.ativo === false ? (
-                        <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md shrink-0">
-                          Arquivado
-                        </span>
-                      ) : (
-                        <span
-                          className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-md shrink-0",
-                            grupo.visibilidade === "privado"
-                              ? "text-primary bg-primary/10 border border-primary/20"
-                              : "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30"
-                          )}
-                        >
-                          {grupo.visibilidade === "publico" ? "Público" : "Privado"}
-                        </span>
-                      )}
-                    </div>
-                    {grupo.descricao && (
-                      <CardDescription className="mt-1.5 line-clamp-2">
-                        {grupo.descricao}
-                      </CardDescription>
-                    )}
-                  </div>
-                  {isAdmin(grupo) && (
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                              "h-8 w-8 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity",
-                              grupo.ativo === false
-                                ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
-                                : "text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
-                            )}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleToggleAtivo(
-                                grupo.id,
-                                grupo.nome,
-                                grupo.ativo !== false,
-                              );
-                            }}
-                          >
-                            {grupo.ativo === false ? (
-                              <ArchiveRestore className="h-4 w-4" />
-                            ) : (
-                              <Archive className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {grupo.ativo !== false
-                              ? "Arquivar grupo"
-                              : "Ativar grupo"}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+        <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 md:gap-6 xl:grid-cols-3 xl:gap-6">
+          {paginatedGrupos.map((grupo) => {
+            const membros = grupo.membros_count ?? 0;
+            const maxM = grupo.max_membros ?? 50;
+            const lotacaoPct =
+              maxM > 0 ? Math.min(100, Math.round((membros / maxM) * 100)) : 0;
+            const mono = monogramGrupo(grupo.nome);
+            const isPriv = grupo.visibilidade === "privado";
+            const tags = (grupo.tags ?? []).filter(Boolean);
+            const primeiraTag = tags[0];
+            const porte = porteGrupo(membros);
+            const vagasLivres =
+              maxM > 0 ? Math.max(0, maxM - membros) : null;
+            const alertaVagas =
+              vagasLivres !== null && vagasLivres <= 3 && grupo.ativo !== false;
+
+            return (
+              <article
+                key={grupo.id}
+                className={cn(
+                  "group relative flex min-h-[400px] w-full min-w-0 flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-md ring-1 ring-black/[0.03] transition-all duration-300 dark:ring-white/[0.05]",
+                  "hover:-translate-y-0.5 hover:shadow-xl",
+                  grupo.ativo === false && "border-dashed opacity-65",
+                )}
+              >
+                <div
+                  className={cn(
+                    "absolute inset-x-0 top-0 h-24 opacity-45",
+                    isPriv
+                      ? "bg-gradient-to-b from-primary/25 to-transparent"
+                      : "bg-gradient-to-b from-emerald-500/25 to-transparent",
                   )}
+                  aria-hidden
+                />
+                {grupoCardPatternBg()}
+                <div
+                  className="pointer-events-none absolute bottom-1 right-2 select-none text-5xl font-black tabular-nums tracking-tighter text-foreground/[0.06] dark:text-foreground/[0.1]"
+                  aria-hidden
+                >
+                  {mono}
                 </div>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
-                <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2.5 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <User className="h-4 w-4 shrink-0 text-muted-foreground/80" />
-                      <span className="truncate">
-                        {grupo.criador?.raw_user_meta_data?.nome ||
-                          grupo.criador?.raw_user_meta_data?.email ||
-                          "Criador"}
-                      </span>
-                    </div>
-                    {grupo.visibilidade === "privado" &&
-                      grupo.codigo_acesso && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Lock className="h-3.5 w-3.5" />
-                          <span className="font-mono text-xs font-semibold">
-                            {grupo.codigo_acesso}
+
+                <div
+                  className={cn(
+                    "relative z-[1] h-1 w-2/5 max-w-[120px] rounded-br-2xl",
+                    isPriv ? "bg-primary" : "bg-emerald-500",
+                  )}
+                  aria-hidden
+                />
+
+                <div className="relative z-[1] flex min-h-0 flex-1 flex-col p-5 pt-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="line-clamp-2 min-w-0 flex-1 text-lg font-bold leading-snug tracking-tight text-foreground">
+                          {grupo.nome}
+                        </h2>
+                        {primeiraTag ? (
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                              tagDisciplinaClass(
+                                Math.abs(
+                                  primeiraTag.split("").reduce(
+                                    (a, c) => a + c.charCodeAt(0),
+                                    0,
+                                  ),
+                                ),
+                              ),
+                            )}
+                          >
+                            {primeiraTag}
                           </span>
-                          {grupo.ativo === false ? (
-                            <span
-                              className="p-1 rounded cursor-not-allowed opacity-50"
-                              title="Desarquive o grupo para copiar o código"
-                            >
-                              <Copy className="h-3 w-3" />
-                            </span>
-                          ) : (
-                            <TooltipProvider delayDuration={300}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    onClick={() =>
-                                      handleCopyCodigo(grupo.codigo_acesso!)
-                                    }
-                                    className="p-1 hover:bg-muted rounded transition-colors"
-                                  >
-                                    {codigoCopiado === grupo.codigo_acesso ? (
-                                      <Check className="h-3 w-3 text-green-500" />
-                                    ) : (
-                                      <Copy className="h-3 w-3" />
-                                    )}
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Copiar código</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
+                        ) : null}
+                      </div>
+                      <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        <span className="font-medium text-foreground/85">
+                          Foco:{" "}
+                        </span>
+                        {grupo.descricao?.trim()
+                          ? grupo.descricao
+                          : "Adicione uma descrição na página do grupo para destacar o tema ou o conteúdo em estudo."}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      {grupo.ativo === false ? (
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground opacity-45">
+                                <ChevronRight className="h-5 w-5" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Desarquive o grupo para abrir</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                        >
+                          <Link
+                            href={`/grupos/${grupo.id}`}
+                            aria-label="Abrir grupo"
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </Link>
+                        </Button>
                       )}
+                      {isAdmin(grupo) && (
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  "h-9 w-9 shrink-0 rounded-full opacity-80 transition-opacity hover:opacity-100",
+                                  grupo.ativo === false
+                                    ? "text-emerald-600 hover:bg-emerald-500/10"
+                                    : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-700",
+                                )}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleToggleAtivo(
+                                    grupo.id,
+                                    grupo.nome,
+                                    grupo.ativo !== false,
+                                  );
+                                }}
+                              >
+                                {grupo.ativo === false ? (
+                                  <ArchiveRestore className="h-4 w-4" />
+                                ) : (
+                                  <Archive className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {grupo.ativo !== false
+                                  ? "Arquivar grupo"
+                                  : "Ativar grupo"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4 shrink-0 text-muted-foreground/80" />
-                    <span>
-                      {new Date(grupo.created_at).toLocaleDateString("pt-BR")}
+
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {grupo.ativo === false ? (
+                      <span className="shrink-0 rounded-full border border-amber-500/35 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                        Arquivado
+                      </span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                          isPriv
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "border-emerald-500/35 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+                        )}
+                      >
+                        {grupo.visibilidade === "publico"
+                          ? "Público"
+                          : "Privado"}
+                      </span>
+                    )}
+                    {grupo.requer_aprovacao && grupo.ativo !== false ? (
+                      <span className="shrink-0 rounded-full border border-amber-500/35 bg-amber-500/12 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
+                        Entrada sob aprovação
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="border-t border-border/60" />
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                      {periodoLetivoLabel(grupo.created_at)}
+                    </span>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                        porte.chipClass,
+                      )}
+                    >
+                      {porte.label}
+                    </span>
+                    {alertaVagas && vagasLivres !== null ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300"
+                        title="Poucas vagas restantes"
+                      >
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        {vagasLivres}{" "}
+                        {vagasLivres === 1 ? "vaga" : "vagas"}
+                      </span>
+                    ) : null}
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                      <TrendingUp className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      {lotacaoPct}% ocupação
                     </span>
                   </div>
-                </div>
-                <div className="flex gap-2 pt-4 mt-auto">
-                  {grupo.ativo === false ? (
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="flex-1 h-9 min-w-0 pointer-events-none opacity-70"
-                            disabled
+
+                  <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-border/50 bg-muted/20 p-3 dark:bg-muted/10 sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 text-xs font-medium text-foreground">
+                        <span>Membros</span>
+                        <span className="tabular-nums text-muted-foreground">
+                          {membros}
+                          {maxM > 0 ? (
+                            <span className="text-muted-foreground/80">
+                              {" "}
+                              / {maxM}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex min-w-0 items-center gap-2">
+                        <div className="flex shrink-0 -space-x-2">
+                          <Avatar className="h-8 w-8 border-2 border-background">
+                            <AvatarFallback className="text-[10px] font-semibold">
+                              {iniciaisCriador(grupo)}
+                            </AvatarFallback>
+                          </Avatar>
+                          {membros > 1 ? (
+                            <div
+                              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-semibold text-muted-foreground"
+                              title={`Mais ${membros - 1} ${
+                                membros - 1 === 1 ? "membro" : "membros"
+                              }`}
+                            >
+                              +{membros - 1}
+                            </div>
+                          ) : null}
+                        </div>
+                        <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+                          <User className="mr-1 inline h-3 w-3 align-text-bottom opacity-80" />
+                          {grupo.criador?.raw_user_meta_data?.nome ||
+                            grupo.criador?.raw_user_meta_data?.email ||
+                            "Criador"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 text-xs font-medium text-foreground">
+                        <span>Lotação</span>
+                        <span className="tabular-nums">{lotacaoPct}%</span>
+                      </div>
+                      {maxM > 0 ? (
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              isPriv ? "bg-primary/80" : "bg-emerald-500/80",
+                            )}
+                            style={{ width: `${lotacaoPct}%` }}
+                          />
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          Sem limite de vagas definido
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                      Criado em{" "}
+                      {new Date(grupo.created_at).toLocaleDateString("pt-BR")}
+                    </span>
+                    {grupo.visibilidade === "privado" &&
+                    grupo.codigo_acesso ? (
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Lock className="h-3.5 w-3.5 shrink-0" />
+                        <span className="font-mono text-[11px] font-semibold tracking-wide text-foreground">
+                          {grupo.codigo_acesso}
+                        </span>
+                        {grupo.ativo === false ? (
+                          <span
+                            className="cursor-not-allowed rounded p-1 opacity-50"
+                            title="Desarquive o grupo para copiar o código"
                           >
-                            <MessageSquare className="h-4 w-4 shrink-0" />
-                            Abrir
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Desarquive o grupo para abrir</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
-                    <Button
-                      asChild
-                      variant="default"
-                      size="sm"
-                      className="flex-1 h-9 min-w-0"
-                    >
-                      <Link
-                        href={`/grupos/${grupo.id}`}
-                        className="flex items-center justify-center gap-2"
+                            <Copy className="h-3 w-3" />
+                          </span>
+                        ) : (
+                          <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyCodigo(grupo.codigo_acesso!)
+                                  }
+                                  className="rounded-md p-1.5 transition-colors hover:bg-muted"
+                                >
+                                  {codigoCopiado === grupo.codigo_acesso ? (
+                                    <Check className="h-3.5 w-3.5 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copiar código</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-auto flex gap-2 border-t border-border/50 bg-muted/15 pt-4 dark:bg-muted/10">
+                    {grupo.ativo === false ? (
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-11 min-w-0 flex-1 rounded-full pointer-events-none opacity-70"
+                              disabled
+                            >
+                              <MessageSquare className="h-4 w-4 shrink-0" />
+                              Abrir
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Desarquive o grupo para abrir</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <Button
+                        asChild
+                        variant="default"
+                        size="sm"
+                        className="h-11 min-w-0 flex-1 rounded-full font-semibold shadow-sm"
                       >
-                        <MessageSquare className="h-4 w-4 shrink-0" />
-                        Abrir
-                      </Link>
-                    </Button>
-                  )}
-                  {grupo.ativo === false ? (
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9 shrink-0 pointer-events-none opacity-70"
-                            disabled
-                          >
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Desarquive o grupo para compartilhar</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
-                    <TooltipProvider delayDuration={300}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9 shrink-0"
-                            onClick={() => {
-                              const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
-                              navigator.clipboard.writeText(link);
-                              toast.success("Link de convite copiado!");
-                            }}
-                          >
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Copiar link de convite</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
+                        <Link
+                          href={`/grupos/${grupo.id}`}
+                          className="inline-flex items-center justify-center gap-2"
+                        >
+                          <MessageSquare className="h-4 w-4 shrink-0" />
+                          Abrir grupo
+                          <ArrowUpRight className="h-4 w-4 shrink-0 opacity-90" />
+                        </Link>
+                      </Button>
+                    )}
+                    {grupo.visibilidade === "publico" &&
+                      (grupo.ativo === false ? (
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-11 w-11 shrink-0 rounded-full pointer-events-none opacity-70"
+                                disabled
+                              >
+                                <Share2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Desarquive o grupo para compartilhar</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-11 w-11 shrink-0 rounded-full border-border/80"
+                                onClick={() => {
+                                  const link = `${window.location.origin}/grupos/convite/${grupo.link_convite}`;
+                                  navigator.clipboard.writeText(link);
+                                  toast.success("Link de convite copiado!");
+                                }}
+                              >
+                                <Share2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Copiar link de convite</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ))}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
 
       {!loading && filteredGrupos.length > 0 && totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
+        <div className="flex items-center justify-center gap-3 pt-6">
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="h-10 w-10 rounded-full"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
+            aria-label="Página anterior"
           >
-            Anterior
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-muted-foreground px-2">
+          <span className="min-w-[10rem] text-center text-sm font-medium text-muted-foreground">
             Página {page} de {totalPages}
           </span>
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="h-10 w-10 rounded-full"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
+            aria-label="Próxima página"
           >
-            Próxima
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       )}

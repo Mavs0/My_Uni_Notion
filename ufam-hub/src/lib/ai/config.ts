@@ -6,7 +6,7 @@ export function getAIModel() {
     throw new Error("GOOGLE_GENERATIVE_AI_API_KEY não configurada.");
   }
 
-  return google("gemini-1.5-flash");
+  return google("gemini-2.0-flash");
 }
 
 export function isProviderConfigured(): boolean {

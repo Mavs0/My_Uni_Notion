@@ -689,43 +689,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {searchParams.get("cleared") !== "1" ? (
-            <div className="rounded-xl border border-amber-500/55 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-50">
-              <div className="flex gap-3">
-                <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-                <div className="space-y-2">
-                  <p className="font-medium leading-snug">
-                    Erro 494/431 ou dezenas de cookies «sb-»? Os cookies httpOnly
-                    não se apagam só com JavaScript — usa o botão abaixo.
-                  </p>
-                  <a
-                    href="/api/auth/force-clear-session"
-                    className="inline-flex w-full items-center justify-center rounded-lg bg-amber-600 px-3 py-2.5 text-center text-sm font-semibold text-white shadow hover:bg-amber-700 sm:w-auto"
-                  >
-                    Limpar sessão neste site
-                  </a>
-                  <p className="text-xs opacity-90">
-                    Depois entra outra vez: o login corrige sozinho foto em base64 no
-                    perfil. Se ainda falhar, remove a foto no painel Supabase
-                    (Authentication → Users).
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Entra com email e senha — a sessão deve ficar normal. Se voltar erro
-              494/431, usa{" "}
-              <a
-                href="/api/auth/force-clear-session"
-                className="font-medium text-primary underline underline-offset-2"
-              >
-                limpar sessão
-              </a>
-              .
-            </p>
-          )}
-
           <Card className="rounded-2xl border border-border bg-card shadow-lg dark:border-zinc-800/80 dark:bg-zinc-950/70 dark:shadow-2xl dark:shadow-black/30 dark:backdrop-blur-sm">
             <CardHeader className="space-y-2 pb-6">
               <CardTitle className="text-center text-3xl font-bold tracking-tight text-foreground">

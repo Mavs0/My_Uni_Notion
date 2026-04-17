@@ -1,11 +1,10 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import {
-  MessageCircle,
   X,
   Send,
   Loader2,
-  Sparkles,
   Minimize2,
   Maximize2,
   Calendar,
@@ -16,6 +15,8 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card } from "./ui/card";
+import { cn } from "@/lib/utils";
+import { VirtualAssistantOrb } from "@/components/VirtualAssistantOrb";
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -34,6 +35,20 @@ const QUICK_QUESTIONS = [
   "O que tenho agendado para amanhã?",
 ];
 export function VirtualAssistant() {
+  const pathname = usePathname();
+  /** No editor de notas o painel "Assistente" fica à direita (~20rem); deslocamos o FAB para não sobrepor. */
+  const isNotasEditor =
+    typeof pathname === "string" &&
+    /\/disciplinas\/[^/]+\/notas\//.test(pathname);
+  const isChatPage = pathname === "/chat";
+  const dockClass = cn(
+    "fixed z-50 bottom-[max(1.5rem,env(safe-area-inset-bottom))]",
+    isNotasEditor && "max-lg:hidden",
+    isChatPage && "hidden",
+    isNotasEditor
+      ? "right-3 lg:right-[22rem]"
+      : "right-[max(1.5rem,env(safe-area-inset-right))]",
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -300,26 +315,31 @@ export function VirtualAssistant() {
   };
   if (!isOpen) {
     return (
-      <div className="fixed z-50 right-[max(1.5rem,env(safe-area-inset-right))] bottom-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className={dockClass}>
         <Button
           onClick={() => setIsOpen(true)}
-          size="lg"
-          className="h-14 w-14 rounded-full shadow-lg"
+          variant="ghost"
+          size="icon"
+          className="h-14 w-14 shrink-0 rounded-full p-0 shadow-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-primary/35"
+          aria-label="Abrir assistente virtual"
         >
-          <MessageCircle className="h-6 w-6" />
+          <VirtualAssistantOrb size="lg" />
         </Button>
       </div>
     );
   }
   return (
-    <div className="fixed z-50 right-[max(1.5rem,env(safe-area-inset-right))] bottom-[max(1.5rem,env(safe-area-inset-bottom))] w-96 max-w-[calc(100vw-3rem)]">
+    <div
+      className={cn(
+        dockClass,
+        "w-96 max-w-[min(calc(100vw-1.5rem),24rem)]",
+      )}
+    >
       <Card className="flex flex-col h-[600px] max-h-[calc(100vh-8rem)] shadow-2xl border-2">
         {}
         <div className="flex items-center justify-between p-4 border-b bg-muted/30">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center shadow-sm">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <VirtualAssistantOrb size="sm" className="shrink-0 shadow-md" />
             <div>
               <h3 className="font-semibold text-sm text-foreground">
                 Assistente Virtual
@@ -357,8 +377,8 @@ export function VirtualAssistant() {
               {messages.length === 0 ? (
                 <div className="space-y-4">
                   <div className="text-center py-6">
-                    <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                      <Sparkles className="h-6 w-6 text-muted-foreground" />
+                    <div className="mx-auto mb-3 flex justify-center">
+                      <VirtualAssistantOrb size="md" />
                     </div>
                     <p className="text-sm text-foreground font-medium mb-1">
                       Olá! Como posso ajudar?

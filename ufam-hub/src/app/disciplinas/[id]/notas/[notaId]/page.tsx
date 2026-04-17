@@ -137,8 +137,13 @@ export default function NotaPage() {
   const [linkUrl, setLinkUrl] = useState("");
   const [explorerOpen, setExplorerOpen] = useState(false);
   /** Painel direito visível por padrão — comentários na lateral. */
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightTab, setRightTab] = useState<"assistente" | "comentarios">("comentarios");
+  const [assistenteMsgs, setAssistenteMsgs] = useState<
+    { role: "user" | "assistant"; content: string }[]
+  >([]);
+  const [assistenteInput, setAssistenteInput] = useState("");
+  const [assistenteBusy, setAssistenteBusy] = useState(false);
   const [comentarios, setComentarios] = useState<NotaComentario[]>([]);
   const [novoComentario, setNovoComentario] = useState("");
   const [loadingComentarios, setLoadingComentarios] = useState(false);
@@ -153,6 +158,7 @@ export default function NotaPage() {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const comentariosEndRef = useRef<HTMLDivElement>(null);
+  const assistenteEndRef = useRef<HTMLDivElement>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const headingIdRef = useRef(0);
 
@@ -309,16 +315,100 @@ export default function NotaPage() {
     };
   }, []);
 
+  /** Desktop (lg+): painel Assistente/Comentários aberto por defeito; mobile: editor a largura total. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    if (mq.matches) setRightPanelOpen(true);
+  }, []);
+
   useEffect(() => {
     if (rightTab !== "comentarios" || !rightPanelOpen) return;
     comentariosEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [comentarios.length, rightTab, rightPanelOpen]);
+
+  useEffect(() => {
+    if (rightTab !== "assistente" || !rightPanelOpen) return;
+    assistenteEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [assistenteMsgs, assistenteBusy, rightTab, rightPanelOpen]);
 
   const notasFiltradas = useMemo(() => {
     const q = notasSearch.trim().toLowerCase();
     if (!q) return notasLista;
     return notasLista.filter((n) => n.titulo.toLowerCase().includes(q));
   }, [notasLista, notasSearch]);
+
+  const enviarAssistente = async () => {
+    const text = assistenteInput.trim();
+    if (!text || assistenteBusy) return;
+    const prevHistory = assistenteMsgs;
+    setAssistenteInput("");
+    setAssistenteMsgs((m) => [
+      ...m,
+      { role: "user", content: text },
+      { role: "assistant", content: "" },
+    ]);
+    setAssistenteBusy(true);
+    let acc = "";
+    try {
+      const res = await fetch("/api/ai/nota-assistente", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          disciplinaId,
+          notaId: isNova ? null : notaId,
+          question: text,
+          history: prevHistory,
+          draftTitulo: titulo,
+          draftContent: content_md,
+        }),
+      });
+      const ct = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        let msg = "Erro ao responder";
+        if (ct.includes("application/json")) {
+          const j = await res.json();
+          msg = j.error || msg;
+        } else {
+          msg = (await res.text()) || msg;
+        }
+        throw new Error(msg);
+      }
+      if (!res.body) throw new Error("Resposta vazia do servidor");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setAssistenteMsgs((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role === "assistant") {
+            next[next.length - 1] = { role: "assistant", content: acc };
+          }
+          return next;
+        });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro no assistente");
+      setAssistenteMsgs((prev) => {
+        const next = [...prev];
+        if (
+          next[next.length - 1]?.role === "assistant" &&
+          !next[next.length - 1]?.content
+        ) {
+          next.pop();
+        }
+        if (next[next.length - 1]?.role === "user") next.pop();
+        return next;
+      });
+      setAssistenteInput(text);
+    } finally {
+      setAssistenteBusy(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!titulo.trim()) {
@@ -535,7 +625,7 @@ export default function NotaPage() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
       <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background">
-        <div className="flex items-center gap-1.5 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground sm:px-6">
+        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap border-b border-border/60 px-4 py-2 text-xs text-muted-foreground sm:px-6">
           <Link href="/disciplinas" className="hover:text-foreground transition-colors">
             Disciplinas
           </Link>
@@ -553,8 +643,8 @@ export default function NotaPage() {
             {titulo || "Sem título"}
           </span>
         </div>
-        <div className="flex h-14 items-center justify-between gap-4 px-4 sm:gap-6 sm:px-6">
-          <div className="flex min-w-0 items-center gap-4">
+        <div className="flex min-h-14 flex-col gap-3 px-4 py-3 sm:h-14 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:py-0 sm:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
             <Button variant="ghost" size="icon" asChild className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
               <Link href={`/disciplinas/${disciplinaId}`}>
                 <ArrowLeft className="h-5 w-5" />
@@ -563,27 +653,27 @@ export default function NotaPage() {
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50">
               <FileText className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="flex min-w-0 items-baseline gap-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4">
               <input
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
                 placeholder="Sem título"
-                className="min-w-0 max-w-[min(100%,28rem)] bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground sm:max-w-md lg:max-w-xl"
+                className="min-w-0 w-full max-w-full bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground sm:max-w-[min(100%,28rem)] md:max-w-md lg:max-w-xl"
               />
-              <span className="shrink-0 text-sm text-muted-foreground">
+              <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
                 {saving ? "Salvando…" : nota?.updated_at ? `Salvo · ${formatEditedAgo(nota.updated_at)}` : "Não salvo"}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-2">
             <Button
               size="sm"
               onClick={openShare}
               disabled={isNova}
-              className="h-9 gap-2 rounded-lg bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+              className="h-9 gap-2 rounded-lg bg-primary px-3 text-primary-foreground hover:bg-primary/90 sm:px-4"
             >
               <Share2 className="h-4 w-4" />
-              Compartilhar
+              <span className="hidden sm:inline">Compartilhar</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -604,7 +694,7 @@ export default function NotaPage() {
             </DropdownMenu>
           </div>
         </div>
-        <div className="flex h-11 flex-wrap items-center gap-1 border-t border-border bg-muted/30 px-4">
+        <div className="flex h-11 min-h-11 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden border-t border-border bg-muted/30 px-2 py-0 sm:px-4">
           <Button
             variant="ghost"
             size="sm"
@@ -626,7 +716,7 @@ export default function NotaPage() {
               <MessageSquare className="h-4 w-4" />
             )}
             <span className="hidden sm:inline">
-              {rightPanelOpen ? "Fechar painel" : "Comentários"}
+              {rightPanelOpen ? "Fechar painel" : "Abrir painel"}
             </span>
           </Button>
           <div className="mx-2 hidden h-5 w-px bg-border sm:block" />
@@ -693,7 +783,20 @@ export default function NotaPage() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Explorador + sumário (anexo 03 — painel de documentos) */}
         {explorerOpen && (
-          <aside className="flex w-[min(100vw-2rem,15rem)] shrink-0 flex-col border-r border-border bg-card/50 sm:w-64">
+          <>
+            <button
+              type="button"
+              aria-label="Fechar explorador"
+              className="fixed inset-0 z-[45] bg-black/50 lg:hidden"
+              onClick={() => setExplorerOpen(false)}
+            />
+            <aside
+              className={cn(
+                "flex min-h-0 w-[min(88vw,18rem)] max-w-[85vw] shrink-0 flex-col overflow-hidden border-r border-border bg-card/50 shadow-2xl",
+                "fixed inset-y-0 left-0 z-[46]",
+                "lg:static lg:z-auto lg:h-auto lg:w-64 lg:max-w-none lg:shadow-none",
+              )}
+            >
             <div className="border-b border-border px-3 py-3">
               <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 <BookOpen className="h-3.5 w-3.5" />
@@ -772,10 +875,11 @@ export default function NotaPage() {
               </nav>
             </div>
           </aside>
+          </>
         )}
 
-        <main className="min-w-0 flex-1 overflow-auto bg-muted/15">
-          <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 py-6 sm:px-8 sm:py-10 lg:px-12 lg:py-12 xl:px-16">
+        <main className="relative z-0 min-w-0 flex-1 overflow-auto bg-muted/15">
+          <div className="mx-auto w-full max-w-[min(100%,88rem)] px-3 py-5 sm:px-8 sm:py-10 lg:px-12 lg:py-12 xl:px-16">
             {(viewMode === "edit" || viewMode === "split") && (
               <input
                 value={titulo}
@@ -811,7 +915,7 @@ export default function NotaPage() {
                     onChange={(e) => setContent_md(e.target.value)}
                     placeholder="Escreva aqui… Use Markdown."
                     className={cn(
-                      "min-h-[min(70vh,42rem)] w-full resize-y rounded-xl border border-border/50 bg-muted/30 px-4 py-4 text-[1.0625rem] leading-[1.8] outline-none placeholder:text-muted-foreground/45 focus:border-primary/35 focus:ring-2 focus:ring-primary/15 sm:px-5 sm:py-5 sm:text-[1.075rem]",
+                      "min-h-[min(70vh,42rem)] w-full resize-y break-words rounded-xl border border-border/50 bg-muted/30 px-4 py-4 text-[1.0625rem] leading-[1.8] outline-none placeholder:text-muted-foreground/45 focus:border-primary/35 focus:ring-2 focus:ring-primary/15 sm:px-5 sm:py-5 sm:text-[1.075rem]",
                       viewMode === "edit" && "min-h-[min(75vh,48rem)]",
                     )}
                   />
@@ -888,7 +992,20 @@ export default function NotaPage() {
         </main>
 
         {rightPanelOpen && (
-          <aside className="flex w-[min(100vw-2rem,20rem)] shrink-0 flex-col border-l border-border bg-card/50 sm:w-80">
+          <>
+            <button
+              type="button"
+              aria-label="Fechar painel lateral"
+              className="fixed inset-0 z-[45] bg-black/50 lg:hidden"
+              onClick={() => setRightPanelOpen(false)}
+            />
+            <aside
+              className={cn(
+                "flex min-h-0 w-[min(100vw-0.75rem,20rem)] max-w-[min(100vw-0.5rem,22rem)] shrink-0 flex-col overflow-hidden border-l border-border bg-card/50 shadow-2xl",
+                "fixed inset-y-0 right-0 z-[46] max-h-[100dvh]",
+                "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:w-80 lg:max-w-none lg:shadow-none",
+              )}
+            >
             <div className="flex shrink-0 border-b border-border">
               <button
                 type="button"
@@ -923,24 +1040,116 @@ export default function NotaPage() {
               </button>
             </div>
             {rightTab === "assistente" && (
-              <div className="flex flex-1 flex-col">
-                <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-                  <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
+                  <div className="rounded-lg border border-border/80 bg-muted/25 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
                     <p className="font-medium text-foreground">UFAM Hub · Assistente</p>
-                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      Em breve você poderá fazer perguntas sobre o conteúdo desta nota, como no painel lateral de IA do anexo de referência.
+                    <p className="mt-1">
+                      Pergunte com base no texto desta anotação (Markdown). A conversa fica só neste painel até você limpar.
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[
+                        "Resuma os pontos principais desta nota.",
+                        "O que eu deveria revisar primeiro?",
+                        "Explique o trecho mais difícil em linguagem simples.",
+                      ].map((hint) => (
+                        <button
+                          key={hint}
+                          type="button"
+                          disabled={assistenteBusy}
+                          onClick={() => setAssistenteInput(hint)}
+                          className="max-w-full rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-left text-[11px] leading-snug text-foreground/90 transition-colors hover:bg-muted disabled:opacity-50"
+                        >
+                          {hint}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  {assistenteMsgs.map((m, i) => (
+                    <div
+                      key={`${i}-${m.role}-${m.content.slice(0, 24)}`}
+                      className={cn(
+                        "flex w-full",
+                        m.role === "user" ? "justify-end" : "justify-start",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "max-w-[min(95%,100%)] break-words rounded-xl px-3 py-2 text-sm",
+                          m.role === "user"
+                            ? "bg-primary/15 text-foreground"
+                            : "border border-border/70 bg-muted/30 text-foreground",
+                        )}
+                      >
+                        {m.role === "user" ? (
+                          <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                        ) : m.content ? (
+                          <div
+                            className={cn(
+                              "prose prose-sm dark:prose-invert max-w-none break-words",
+                              "prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5",
+                            )}
+                          >
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkBreaks]}
+                            >
+                              {m.content}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          assistenteBusy && (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={assistenteEndRef} aria-hidden className="h-px shrink-0" />
                 </div>
-                <div className="border-t border-border p-3">
+                <div className="shrink-0 border-t border-border p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {isNova ? "Rascunho" : "Nota salva"} · contexto do editor
+                    </span>
+                    {assistenteMsgs.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-[10px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        onClick={() => setAssistenteMsgs([])}
+                        disabled={assistenteBusy}
+                      >
+                        Limpar conversa
+                      </button>
+                    )}
+                  </div>
                   <div className="flex gap-2 rounded-xl border border-border bg-muted/30 p-2">
-                    <Input
-                      disabled
+                    <Textarea
+                      value={assistenteInput}
+                      onChange={(e) => setAssistenteInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void enviarAssistente();
+                        }
+                      }}
                       placeholder="Pergunte sobre esta nota…"
-                      className="h-10 flex-1 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
+                      disabled={assistenteBusy}
+                      rows={2}
+                      className="min-h-[2.75rem] flex-1 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
                     />
-                    <Button size="icon" className="h-10 w-10 shrink-0 rounded-lg" disabled>
-                      <Sparkles className="h-4 w-4" />
+                    <Button
+                      type="button"
+                      size="icon"
+                      className="h-10 w-10 shrink-0 self-end rounded-lg"
+                      disabled={assistenteBusy || !assistenteInput.trim()}
+                      onClick={() => void enviarAssistente()}
+                      aria-label="Enviar"
+                    >
+                      {assistenteBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -1087,6 +1296,7 @@ export default function NotaPage() {
               </div>
             )}
           </aside>
+          </>
         )}
       </div>
 

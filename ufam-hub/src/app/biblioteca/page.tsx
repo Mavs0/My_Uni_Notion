@@ -52,6 +52,7 @@ import {
   PinOff,
   FolderOpen,
   Share2,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   Tooltip,
@@ -63,6 +64,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 const BIBLIOTECA_PINNED_KEY = "biblioteca-pinned";
 
@@ -88,6 +90,83 @@ function formatAgo(dateStr: string) {
   if (diffDays < 7) return `Há ${diffDays} dias`;
   if (diffDays < 30) return `Há ${Math.floor(diffDays / 7)} semana(s)`;
   return `Há ${Math.floor(diffDays / 30)} mês(es)`;
+}
+
+function monogramTitulo(titulo: string) {
+  const parts = titulo.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`.toUpperCase();
+  }
+  return (titulo.trim().slice(0, 2) || "?").toUpperCase();
+}
+
+function tipoMaterialVisual(tipo: string) {
+  const t = tipo.toLowerCase();
+  if (t === "link") {
+    return {
+      gradient:
+        "bg-gradient-to-b from-sky-500/25 to-transparent dark:from-sky-500/20",
+      stripe: "bg-sky-500",
+      badge:
+        "border-sky-500/35 bg-sky-500/10 text-sky-800 dark:text-sky-300",
+    };
+  }
+  if (t === "arquivo") {
+    return {
+      gradient:
+        "bg-gradient-to-b from-violet-500/25 to-transparent dark:from-violet-500/20",
+      stripe: "bg-violet-500",
+      badge:
+        "border-violet-500/35 bg-violet-500/10 text-violet-800 dark:text-violet-300",
+    };
+  }
+  if (t === "anotacao") {
+    return {
+      gradient:
+        "bg-gradient-to-b from-amber-500/25 to-transparent dark:from-amber-500/20",
+      stripe: "bg-amber-500",
+      badge:
+        "border-amber-500/35 bg-amber-500/10 text-amber-900 dark:text-amber-400",
+    };
+  }
+  if (t === "flashcard") {
+    return {
+      gradient:
+        "bg-gradient-to-b from-emerald-500/25 to-transparent dark:from-emerald-500/20",
+      stripe: "bg-emerald-500",
+      badge:
+        "border-emerald-500/35 bg-emerald-500/12 text-emerald-900 dark:text-emerald-400",
+    };
+  }
+  if (t === "mapa_mental") {
+    return {
+      gradient:
+        "bg-gradient-to-b from-fuchsia-500/25 to-transparent dark:from-fuchsia-500/20",
+      stripe: "bg-fuchsia-500",
+      badge:
+        "border-fuchsia-500/35 bg-fuchsia-500/12 text-fuchsia-900 dark:text-fuchsia-300",
+    };
+  }
+  return {
+    gradient:
+      "bg-gradient-to-b from-primary/25 to-transparent dark:from-primary/20",
+    stripe: "bg-primary",
+    badge: "border-primary/35 bg-primary/10 text-primary",
+  };
+}
+
+function bibliotecaCardPatternBg() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-[0.22]"
+      aria-hidden
+      style={{
+        backgroundImage:
+          "radial-gradient(circle at 1px 1px, rgba(120,120,128,0.12) 1px, transparent 0)",
+        backgroundSize: "18px 18px",
+      }}
+    />
+  );
 }
 
 interface Material {
@@ -633,13 +712,13 @@ export default function BibliotecaPage() {
   const goToMaterial = (id: string) => router.push(`/biblioteca/${id}`);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Biblioteca de Materiais
+    <main className="mx-auto max-w-7xl space-y-10 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Biblioteca de materiais
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+          <p className="text-sm text-muted-foreground sm:text-base">
             Explore e compartilhe materiais de estudo
           </p>
         </div>
@@ -654,9 +733,9 @@ export default function BibliotecaPage() {
           }}
         >
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Material
+            <Button className="rounded-full px-5 font-semibold shadow-sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar material
             </Button>
           </DialogTrigger>
           <DialogContent 
@@ -1088,21 +1167,24 @@ export default function BibliotecaPage() {
       {/* Busca e filtros */}
       <section>
         <h2 className={SECTION_TITLE + " mb-3"}>Busca e filtros</h2>
-        <Card className="border border-border">
-          <CardContent className="p-4 sm:p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
+        <Card className="rounded-2xl border border-border/80 shadow-sm">
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   placeholder="Buscar por título ou descrição..."
-                  className="pl-9 h-10 rounded-lg"
+                  className="h-12 rounded-full border-border/80 bg-muted/40 pl-11 shadow-none focus-visible:ring-2 focus-visible:ring-primary/30"
                 />
               </div>
-              <Button onClick={handleSearch} className="h-10 rounded-lg shrink-0">
-                <Search className="h-4 w-4 mr-2" />
+              <Button
+                onClick={handleSearch}
+                className="h-12 shrink-0 rounded-full px-6"
+              >
+                <Search className="mr-2 h-4 w-4" />
                 Buscar
               </Button>
             </div>
@@ -1390,39 +1472,52 @@ export default function BibliotecaPage() {
         {loadingQuick ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="p-4">
-                <div className="animate-pulse flex flex-col gap-2">
-                  <div className="h-10 w-10 rounded-lg bg-muted" />
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
+              <Card
+                key={i}
+                className="rounded-2xl border border-border/70 p-4 shadow-sm"
+              >
+                <div className="flex flex-col gap-2 animate-pulse">
+                  <div className="h-10 w-10 rounded-xl bg-muted" />
+                  <div className="h-4 w-3/4 rounded bg-muted" />
+                  <div className="h-3 w-1/2 rounded bg-muted" />
                 </div>
               </Card>
             ))}
           </div>
         ) : quickAccessMaterials.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
             {quickAccessMaterials.map((m) => {
               const Icon = getMaterialIcon(m.tipo);
+              const qv = tipoMaterialVisual(m.tipo);
               return (
                 <Card
                   key={m.id}
-                  className="p-4 cursor-pointer hover:shadow-md transition-shadow border rounded-xl"
+                  className={cn(
+                    "cursor-pointer border border-border/70 bg-card p-4 shadow-sm ring-1 ring-black/[0.03] transition-all duration-200",
+                    "rounded-2xl hover:-translate-y-0.5 hover:shadow-lg dark:ring-white/[0.05]",
+                  )}
                   onClick={() => goToMaterial(m.id)}
                 >
+                  <div
+                    className={cn("mb-3 h-1 w-12 rounded-full", qv.stripe)}
+                    aria-hidden
+                  />
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/15">
                         <Icon className="h-5 w-5 text-primary" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{m.titulo}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="truncate text-sm font-semibold leading-tight">
+                          {m.titulo}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                           {formatAgo(m.created_at)}
                         </p>
                       </div>
                     </div>
                     {(m.grupo?.nome || m.visibilidade === "publico") && (
-                      <Share2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <Share2 className="h-4 w-4 shrink-0 text-muted-foreground opacity-70" />
                     )}
                   </div>
                 </Card>
@@ -1448,11 +1543,14 @@ export default function BibliotecaPage() {
         {loadingPinned && pinnedIds.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto pb-2">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="flex-shrink-0 w-[200px] p-4">
-                <div className="animate-pulse flex flex-col gap-2">
-                  <div className="h-10 w-10 rounded-lg bg-muted" />
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
+              <Card
+                key={i}
+                className="w-[220px] flex-shrink-0 rounded-2xl border border-border/70 p-4 shadow-sm"
+              >
+                <div className="flex flex-col gap-2 animate-pulse">
+                  <div className="h-10 w-10 rounded-xl bg-muted" />
+                  <div className="h-4 w-3/4 rounded bg-muted" />
+                  <div className="h-3 w-1/2 rounded bg-muted" />
                 </div>
               </Card>
             ))}
@@ -1461,16 +1559,24 @@ export default function BibliotecaPage() {
           <div className="flex gap-3 overflow-x-auto pb-2">
             {pinnedMaterials.map((m) => {
               const Icon = getMaterialIcon(m.tipo);
+              const pv = tipoMaterialVisual(m.tipo);
               return (
                 <Card
                   key={m.id}
-                  className="flex-shrink-0 w-[200px] p-4 cursor-pointer hover:shadow-md transition-shadow border rounded-xl relative"
+                  className={cn(
+                    "relative w-[220px] flex-shrink-0 cursor-pointer border border-border/70 bg-card p-4 shadow-sm ring-1 ring-black/[0.03] transition-all duration-200",
+                    "rounded-2xl hover:-translate-y-0.5 hover:shadow-lg dark:ring-white/[0.05]",
+                  )}
                   onClick={() => goToMaterial(m.id)}
                 >
+                  <div
+                    className={cn("mb-2 h-1 w-10 rounded-full", pv.stripe)}
+                    aria-hidden
+                  />
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute top-2 right-2 h-8 w-8 text-primary"
+                    className="absolute right-2 top-2 h-8 w-8 rounded-full text-primary hover:bg-primary/10"
                     onClick={(e) => {
                       e.stopPropagation();
                       togglePin(m.id);
@@ -1480,12 +1586,14 @@ export default function BibliotecaPage() {
                     <PinOff className="h-4 w-4" />
                   </Button>
                   <div className="flex items-center gap-3 pr-8">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/15">
                       <Icon className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{m.titulo}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-sm font-semibold leading-tight">
+                        {m.titulo}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {formatAgo(m.created_at)}
                       </p>
                     </div>
@@ -1517,7 +1625,7 @@ export default function BibliotecaPage() {
             </CardContent>
           </Card>
         ) : recentTableMaterials.length > 0 ? (
-          <Card className="rounded-xl border border-border overflow-hidden">
+          <Card className="overflow-hidden rounded-2xl border border-border/80 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1601,67 +1709,122 @@ export default function BibliotecaPage() {
           </div>
         </div>
       ) : materiaisFiltrados.length === 0 ? (
-        <Card>
-          <CardContent className="py-4">
-            <EmptyState
-              icon={Library}
-              title="Nenhum material encontrado"
-              description="Tente buscar com outros termos, ajustar os filtros ou adicione o primeiro material ao grupo."
-              action={{
-                label: "Adicionar material",
-                onClick: () => setShowAddDialog(true),
-                icon: Plus,
-              }}
-            />
-          </CardContent>
-        </Card>
+        <section className="rounded-3xl border border-border/80 bg-card/80 p-8 shadow-sm backdrop-blur-sm">
+          <EmptyState
+            icon={Library}
+            title="Nenhum material encontrado"
+            description="Tente buscar com outros termos, ajustar os filtros ou adicione o primeiro material ao grupo."
+            action={{
+              label: "Adicionar material",
+              onClick: () => setShowAddDialog(true),
+              icon: Plus,
+            }}
+          />
+        </section>
       ) : (
         <>
         {totalMateriais > 0 && (
-          <p className="text-sm text-muted-foreground">
+          <p className="mb-5 text-sm text-muted-foreground">
             Mostrando {(page - 1) * ITEMS_PER_PAGE + 1}–
             {Math.min(page * ITEMS_PER_PAGE, totalMateriais)} de {totalMateriais}{" "}
             {totalMateriais === 1 ? "material" : "materiais"}
           </p>
         )}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {materiaisFiltrados.map((material) => (
-              <div key={material.id} className="flex min-h-[380px]">
-                <Card
-                  className={`flex flex-col h-full w-full min-h-[380px] hover:shadow-md transition-shadow cursor-pointer rounded-xl ${
-                    material.ativo === false ? "opacity-60" : ""
-                  }`}
+        <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-6">
+          {materiaisFiltrados.map((material) => {
+            const tv = tipoMaterialVisual(material.tipo);
+            const tipoLabel = material.tipo.replace(/_/g, " ");
+            const Mono = monogramTitulo(material.titulo);
+            return (
+              <div
+                key={material.id}
+                className="flex h-full min-h-0 min-w-0"
+              >
+                <article
+                  className={cn(
+                    "group relative flex min-h-[420px] w-full flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-md ring-1 ring-black/[0.03] transition-all duration-300 dark:ring-white/[0.05]",
+                    "cursor-pointer hover:-translate-y-0.5 hover:shadow-xl",
+                    material.ativo === false && "border-dashed opacity-65",
+                  )}
                   onClick={() => goToMaterial(material.id)}
                 >
-                  <CardHeader className="flex-shrink-0 space-y-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <CardTitle className="text-lg line-clamp-2">
-                            {material.titulo}
-                          </CardTitle>
+                  <div
+                    className={cn(
+                      "absolute inset-x-0 top-0 h-24 opacity-40",
+                      tv.gradient,
+                    )}
+                    aria-hidden
+                  />
+                  {bibliotecaCardPatternBg()}
+                  <div
+                    className="pointer-events-none absolute bottom-1 right-2 select-none text-5xl font-black tabular-nums tracking-tighter text-foreground/[0.06] dark:text-foreground/[0.1]"
+                    aria-hidden
+                  >
+                    {Mono}
+                  </div>
+                  <div
+                    className={cn(
+                      "relative z-[1] h-1 w-2/5 max-w-[120px] rounded-br-2xl",
+                      tv.stripe,
+                    )}
+                    aria-hidden
+                  />
+
+                  <div className="relative z-[1] flex min-h-0 flex-1 flex-col p-5">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
                           {material.ativo === false && (
-                            <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded flex-shrink-0">
+                            <span className="shrink-0 rounded-full border border-amber-500/35 bg-amber-500/12 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-400">
                               Arquivado
                             </span>
                           )}
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
+                              tv.badge,
+                            )}
+                          >
+                            {material.tipo === "arquivo" && (
+                              <FileText className="h-3 w-3 shrink-0" />
+                            )}
+                            {material.tipo === "link" && (
+                              <LinkIcon className="h-3 w-3 shrink-0" />
+                            )}
+                            {(material.tipo === "anotacao" ||
+                              material.tipo === "flashcard") && (
+                              <FileText className="h-3 w-3 shrink-0" />
+                            )}
+                            {!["arquivo", "link", "anotacao", "flashcard"].includes(
+                              material.tipo,
+                            ) && (
+                              <FolderOpen className="h-3 w-3 shrink-0" />
+                            )}
+                            {tipoLabel}
+                          </span>
                         </div>
-                        <CardDescription className="mt-1 line-clamp-2 min-h-[2.5rem]">
-                          {material.descricao || "\u00A0"}
-                        </CardDescription>
+                        <h3 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-foreground">
+                          {material.titulo}
+                        </h3>
+                        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                          {material.descricao?.trim()
+                            ? material.descricao
+                            : "Sem descrição"}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 items-start gap-1">
                         <TooltipProvider delayDuration={300}>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className={`h-8 w-8 ${
+                                className={cn(
+                                  "h-9 w-9 rounded-full",
                                   pinnedIds.includes(material.id)
                                     ? "text-primary hover:bg-primary/10"
-                                    : "text-muted-foreground hover:text-primary"
-                                }`}
+                                    : "text-muted-foreground hover:text-primary",
+                                )}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   togglePin(material.id);
@@ -1691,17 +1854,18 @@ export default function BibliotecaPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`h-8 w-8 ${
+                                  className={cn(
+                                    "h-9 w-9 rounded-full",
                                     material.ativo === false
-                                      ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
-                                      : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
-                                  }`}
+                                      ? "text-emerald-600 hover:bg-emerald-500/10"
+                                      : "text-amber-600 hover:bg-amber-500/10",
+                                  )}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleToggleAtivo(
                                       material.id,
                                       material.titulo,
-                                      material.ativo !== false
+                                      material.ativo !== false,
                                     );
                                   }}
                                 >
@@ -1722,135 +1886,143 @@ export default function BibliotecaPage() {
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                          {material.tipo === "arquivo" && (
-                            <FileText className="h-3 w-3" />
-                          )}
-                          {material.tipo === "link" && (
-                            <LinkIcon className="h-3 w-3" />
-                          )}
-                          {material.tipo === "anotacao" && (
-                            <FileText className="h-3 w-3" />
-                          )}
-                          {material.tipo === "flashcard" && (
-                            <FileText className="h-3 w-3" />
-                          )}
-                          <span className="capitalize">{material.tipo}</span>
-                        </div>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 flex flex-col pt-0">
-                    <div className="flex-1 flex flex-col space-y-3 min-h-0">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground flex-shrink-0">
-                        <div className="flex items-center gap-1">
-                          <Eye className="h-4 w-4" />
-                          <span>{material.visualizacoes || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Download className="h-4 w-4" />
-                          <span>{material.downloads || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Heart className="h-4 w-4" />
-                          <span>{material.curtidas || 0}</span>
-                        </div>
+
+                    <div className="mb-4 rounded-xl border border-border/50 bg-muted/25 px-3 py-3 dark:bg-muted/15">
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                        <span
+                          className="inline-flex items-center gap-1.5"
+                          title="Visualizações"
+                        >
+                          <Eye className="h-4 w-4 shrink-0 opacity-90" />
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {material.visualizacoes || 0}
+                          </span>
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1.5"
+                          title="Downloads"
+                        >
+                          <Download className="h-4 w-4 shrink-0 opacity-90" />
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {material.downloads || 0}
+                          </span>
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1.5"
+                          title="Curtidas"
+                        >
+                          <Heart className="h-4 w-4 shrink-0 opacity-90" />
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {material.curtidas || 0}
+                          </span>
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between text-sm flex-shrink-0">
-                        {material.usuario ? (
-                          <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-                            <User className="h-4 w-4 flex-shrink-0" />
-                            <span className="truncate">
-                              {material.usuario.raw_user_meta_data?.nome ||
-                                material.usuario.raw_user_meta_data?.email ||
-                                "Usuário"}
+                    </div>
+
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                      {material.usuario ? (
+                        <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                          <User className="h-4 w-4 shrink-0 opacity-90" />
+                          <span className="truncate">
+                            {material.usuario.raw_user_meta_data?.nome ||
+                              material.usuario.raw_user_meta_data?.email ||
+                              "Usuário"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                      {material.grupo && (
+                        <div className="flex max-w-[140px] items-center gap-1 text-muted-foreground">
+                          <Users className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate text-xs">
+                            {material.grupo.nome}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mb-4 flex min-h-[1.75rem] flex-wrap gap-1.5">
+                      {material.tags && material.tags.length > 0 ? (
+                        <>
+                          {material.tags.slice(0, 3).map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 text-xs text-foreground/90"
+                            >
+                              <Tag className="h-3 w-3 opacity-70" />
+                              {tag}
                             </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                        {material.grupo && (
-                          <div className="flex items-center gap-1 text-muted-foreground flex-shrink-0">
-                            <Users className="h-3 w-3" />
-                            <span className="text-xs truncate max-w-[100px]">
-                              {material.grupo.nome}
+                          ))}
+                          {material.tags.length > 3 && (
+                            <span className="self-center text-xs text-muted-foreground">
+                              +{material.tags.length - 3}
                             </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1 min-h-[1.75rem] overflow-hidden">
-                        {material.tags && material.tags.length > 0 ? (
-                          <>
-                            {material.tags.slice(0, 3).map((tag, idx) => (
-                              <span
-                                key={idx}
-                                className="text-xs bg-muted px-2 py-0.5 rounded flex items-center gap-1"
-                              >
-                                <Tag className="h-3 w-3" />
-                                {tag}
-                              </span>
-                            ))}
-                            {material.tags.length > 3 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{material.tags.length - 3}
-                              </span>
-                            )}
-                          </>
-                        ) : null}
-                      </div>
-                      <div className="flex gap-2 pt-2 mt-auto flex-shrink-0">
+                          )}
+                        </>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-auto flex gap-2 border-t border-border/50 bg-muted/10 pt-4 dark:bg-muted/5">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-11 min-w-0 flex-1 rounded-full font-semibold shadow-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToMaterial(material.id);
+                        }}
+                      >
+                        <Eye className="mr-2 h-4 w-4 shrink-0" />
+                        Ver detalhes
+                        <ArrowUpRight className="ml-1 h-4 w-4 shrink-0 opacity-90" />
+                      </Button>
+                      {material.arquivo_url && (
                         <Button
-                          variant="default"
-                          size="sm"
-                          className="flex-1 rounded-lg"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 shrink-0 rounded-full border-border/80"
                           onClick={(e) => {
                             e.stopPropagation();
-                            goToMaterial(material.id);
+                            handleDownload(material);
                           }}
+                          aria-label="Download"
                         >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Ver detalhes
+                          <Download className="h-4 w-4" />
                         </Button>
-                        {material.arquivo_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownload(material);
-                            }}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </article>
               </div>
-            ))}
+            );
+          })}
           {totalPages > 1 && (
-            <div className="col-span-full flex items-center justify-center gap-4 py-6 border-t mt-4">
+            <div className="col-span-full mt-2 flex items-center justify-center gap-3 border-t pt-8">
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-10 w-10 rounded-full"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1 || loadingInfinite}
+                aria-label="Página anterior"
               >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Anterior
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-muted-foreground min-w-[140px] text-center">
+              <span className="min-w-[10rem] text-center text-sm font-medium text-muted-foreground">
                 Página {page} de {totalPages}
               </span>
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-10 w-10 rounded-full"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages || loadingInfinite}
+                aria-label="Próxima página"
               >
-                Próxima
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           )}

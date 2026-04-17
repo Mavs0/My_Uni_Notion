@@ -36,6 +36,8 @@ import {
   Palette,
   Check,
   Pencil,
+  ChevronRight,
+  LayoutDashboard,
 } from "lucide-react";
 import { EditDisciplinaDialog } from "@/components/EditDisciplinaDialog";
 import {
@@ -153,22 +155,29 @@ function Section({
   right,
   icon,
   cor,
+  className,
 }: {
   title: string;
   children: React.ReactNode;
   right?: React.ReactNode;
   icon?: React.ReactNode;
   cor?: string;
+  className?: string;
 }) {
   return (
     <section
-      className="rounded-xl border border-border bg-card p-6 shadow-sm transition-shadow lg:p-7 hover:shadow-md"
+      className={cn(
+        "rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition-shadow lg:p-7",
+        "dark:border-border dark:bg-card dark:shadow-none",
+        "hover:shadow-md",
+        className,
+      )}
       style={{
-        borderLeftWidth: cor ? "4px" : "1px",
+        borderLeftWidth: cor ? "3px" : "1px",
         borderLeftColor: cor || undefined,
       }}
     >
-      <header className="mb-5 flex items-center justify-between gap-4">
+      <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
           {icon && <span style={{ color: cor }}>{icon}</span>}
           {title}
@@ -272,6 +281,9 @@ export default function DisciplinaDetailPage() {
   const [blocosAssistidos, setBlocosAssistidos] = useState<number>(0);
   const [notaToDelete, setNotaToDelete] = useState<string | null>(null);
   const [editDisciplinaOpen, setEditDisciplinaOpen] = useState(false);
+  const [disciplinaTab, setDisciplinaTab] = useState<
+    "visao" | "anotacoes" | "materiais" | "tarefas" | "avaliacoes"
+  >("visao");
 
   useEffect(() => {
     const saved = localStorage.getItem(storeKey("materials"));
@@ -391,24 +403,114 @@ export default function DisciplinaDetailPage() {
     100,
     Math.round((horasAssistidas / Math.max(1, disciplina.horasSemana)) * 100)
   );
-  return (
-    <main className="mx-auto max-w-5xl space-y-8 px-6 py-8 lg:px-8">
-      {/* Cabeçalho da disciplina */}
-      <header className="space-y-6">
+  const progressoSemanalCard = (
+    <div
+      className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:border-border dark:bg-card lg:p-6"
+      style={{
+        borderLeftWidth: "3px",
+        borderLeftColor: corDisciplina,
+      }}
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <Target
+          className="h-4 w-4 shrink-0"
+          style={{ color: corDisciplina }}
+        />
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Progresso semanal
+        </h3>
+      </div>
+      <div className="mb-2 flex justify-between text-sm">
+        <span className="text-muted-foreground">Horas assistidas</span>
+        <span className="tabular-nums font-medium">
+          {horasAssistidas}/{disciplina.horasSemana}h
+        </span>
+      </div>
+      <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${pctSemana}%`,
+            background: `linear-gradient(to right, ${corDisciplina}, ${corDisciplina}CC)`,
+          }}
+        />
+      </div>
+      <div className="mt-2 text-right">
+        <span className="text-xs font-medium" style={{ color: corDisciplina }}>
+          {pctSemana}% concluído
+        </span>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBlocosAssistidos((v) => Math.max(0, v - 1))}
+                className="flex-1 rounded-lg"
+              >
+                − 1 bloco
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Remover {horasPorBloco}h</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setBlocosAssistidos((v) => v + 1)}
+                className="flex-1 rounded-lg"
+                style={{
+                  backgroundColor: corDisciplina,
+                  borderColor: corDisciplina,
+                }}
+              >
+                + 1 bloco
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Adicionar {horasPorBloco}h</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      {blocosAssistidos > 0 && (
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push("/disciplinas")}
-          className="gap-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+          onClick={() => setBlocosAssistidos(0)}
+          className="mt-3 w-full rounded-lg text-xs text-muted-foreground hover:bg-muted"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para disciplinas
+          Zerar progresso
         </Button>
+      )}
+    </div>
+  );
 
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
-          {/* Info da disciplina */}
-          <div className="flex-1">
-            <div className="flex items-start gap-4">
+  return (
+    <main className="mx-auto min-h-[calc(100dvh-5rem)] max-w-6xl space-y-6 bg-zinc-50/70 px-4 py-6 sm:px-6 lg:space-y-8 lg:px-8 dark:bg-transparent">
+      <header className="space-y-5">
+        <nav
+          className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
+          aria-label="Navegação"
+        >
+          <Link
+            href="/disciplinas"
+            className="inline-flex items-center gap-1.5 rounded-lg transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Disciplinas
+          </Link>
+          <ChevronRight className="h-4 w-4 shrink-0 opacity-40" aria-hidden />
+          <span className="max-w-[min(100%,32rem)] truncate font-medium text-foreground">
+            {disciplina.nome}
+          </span>
+        </nav>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-1 items-start gap-4">
               <div
                 className="hidden sm:flex h-14 w-14 items-center justify-center rounded-xl shrink-0 transition-all"
                 style={{
@@ -513,97 +615,170 @@ export default function DisciplinaDetailPage() {
                 ) : null}
               </div>
             </div>
-          </div>
-
-          {/* Card de progresso semanal */}
-          <div
-            className="lg:w-[320px] shrink-0 rounded-xl border border-border bg-card p-5 shadow-sm transition-all lg:p-6"
-            style={{
-              borderLeftWidth: "4px",
-              borderLeftColor: corDisciplina,
-            }}
-          >
-            <div className="mb-4 flex items-center gap-2">
-              <Target className="h-4 w-4 shrink-0" style={{ color: corDisciplina }} />
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Progresso Semanal
-              </h3>
-            </div>
-            <div className="mb-2 flex justify-between text-sm">
-              <span className="text-muted-foreground">Horas assistidas</span>
-              <span className="tabular-nums font-medium">
-                {horasAssistidas}/{disciplina.horasSemana}h
-              </span>
-            </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full transition-all duration-500 rounded-full"
-                style={{
-                  width: `${pctSemana}%`,
-                  background: `linear-gradient(to right, ${corDisciplina}, ${corDisciplina}CC)`,
-                }}
-              />
-            </div>
-            <div className="mt-2 text-right">
-              <span
-                className="text-xs font-medium"
-                style={{ color: corDisciplina }}
-              >
-                {pctSemana}% concluído
-              </span>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setBlocosAssistidos((v) => Math.max(0, v - 1))
-                      }
-                      className="flex-1 rounded-lg"
-                    >
-                      − 1 bloco
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Remover {horasPorBloco}h</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setBlocosAssistidos((v) => v + 1)}
-                      className="flex-1 rounded-lg"
-                      style={{
-                        backgroundColor: corDisciplina,
-                        borderColor: corDisciplina,
-                      }}
-                    >
-                      + 1 bloco
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Adicionar {horasPorBloco}h</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            {blocosAssistidos > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setBlocosAssistidos(0)}
-                className="mt-3 w-full rounded-lg text-xs text-muted-foreground hover:bg-muted"
-              >
-                Zerar progresso
-              </Button>
-            )}
-          </div>
         </div>
       </header>
+
+      <nav
+        className="-mx-1 flex gap-0 overflow-x-auto border-b border-zinc-200/90 dark:border-zinc-800"
+        aria-label="Secções da disciplina"
+      >
+        {(
+          [
+            {
+              id: "visao" as const,
+              label: "Visão geral",
+              Icon: LayoutDashboard,
+              count: null as number | null,
+            },
+            {
+              id: "anotacoes" as const,
+              label: "Anotações",
+              Icon: BookOpen,
+              count: notas.length,
+            },
+            {
+              id: "materiais" as const,
+              label: "Materiais",
+              Icon: Folder,
+              count: materiais.length,
+            },
+            {
+              id: "tarefas" as const,
+              label: "Tarefas",
+              Icon: ClipboardList,
+              count: tarefas.length,
+            },
+            {
+              id: "avaliacoes" as const,
+              label: "Avaliações",
+              Icon: Calendar,
+              count: avaliacoes.length,
+            },
+          ] as const
+        ).map(({ id, label, Icon, count }) => {
+          const active = disciplinaTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setDisciplinaTab(id)}
+              className={cn(
+                "flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                active
+                  ? "border-current bg-zinc-100/80 dark:bg-zinc-900/50"
+                  : "border-transparent text-muted-foreground hover:bg-zinc-50/80 hover:text-foreground dark:hover:bg-zinc-900/30",
+              )}
+              style={
+                active
+                  ? {
+                      borderBottomColor: corDisciplina,
+                      color: corDisciplina,
+                    }
+                  : undefined
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0 opacity-90" />
+              <span>{label}</span>
+              {count != null && count > 0 && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {disciplinaTab === "visao" && (
+        <div className="grid animate-in fade-in gap-6 duration-200 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:border-border dark:bg-card">
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Sobre a disciplina
+              </h3>
+              <dl className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                    <GraduationCap className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-xs font-medium text-muted-foreground">
+                      Modalidade
+                    </dt>
+                    <dd className="text-sm font-medium capitalize text-foreground">
+                      {disciplina.tipo}
+                    </dd>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">
+                      Carga horária
+                    </dt>
+                    <dd className="text-sm font-medium">
+                      {disciplina.horasSemana}h por semana
+                    </dd>
+                  </div>
+                </div>
+                {disciplina.local ? (
+                  <div className="flex gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-xs font-medium text-muted-foreground">
+                        Local
+                      </dt>
+                      <dd className="text-sm font-medium">{disciplina.local}</dd>
+                    </div>
+                  </div>
+                ) : null}
+                {disciplina.horarios?.length ? (
+                  <div className="flex gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                      <Calendar className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <dt className="mb-2 text-xs font-medium text-muted-foreground">
+                        Horários
+                      </dt>
+                      <dd className="flex flex-wrap gap-2">
+                        {disciplina.horarios.map((h, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs"
+                            style={{
+                              backgroundColor: `${corDisciplina}10`,
+                              borderColor: `${corDisciplina}30`,
+                            }}
+                          >
+                            <span
+                              className="font-medium"
+                              style={{ color: corDisciplina }}
+                            >
+                              {DIAS[h.dia]}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {h.inicio}–{h.fim}
+                            </span>
+                          </span>
+                        ))}
+                      </dd>
+                    </div>
+                  </div>
+                ) : null}
+              </dl>
+            </div>
+          </div>
+          <div className="min-w-0 lg:max-w-md">{progressoSemanalCard}</div>
+        </div>
+      )}
+
       {/* Seção de Anotações */}
+      {disciplinaTab === "anotacoes" && (
       <Section
         title="Anotações"
         icon={<BookOpen className="h-4 w-4" />}
@@ -652,7 +827,9 @@ export default function DisciplinaDetailPage() {
           </div>
         )}
       </Section>
+      )}
       {/* Seção de Materiais */}
+      {disciplinaTab === "materiais" && (
       <Section
         title="Materiais"
         icon={<Folder className="h-4 w-4" />}
@@ -783,7 +960,9 @@ export default function DisciplinaDetailPage() {
           </ul>
         )}
       </Section>
+      )}
       {/* Seção de Tarefas */}
+      {disciplinaTab === "tarefas" && (
       <Section
         title="Tarefas"
         icon={<ClipboardList className="h-4 w-4" />}
@@ -859,7 +1038,9 @@ export default function DisciplinaDetailPage() {
           </ul>
         )}
       </Section>
+      )}
       {/* Seção de Avaliações */}
+      {disciplinaTab === "avaliacoes" && (
       <Section
         title="Avaliações"
         icon={<Calendar className="h-4 w-4" />}
@@ -1010,6 +1191,7 @@ export default function DisciplinaDetailPage() {
           </ul>
         )}
       </Section>
+      )}
       {/* Dialog de confirmação para excluir nota */}
       <Dialog
         open={!!notaToDelete}

@@ -24,6 +24,7 @@ import {
   Check,
   Users,
   Shield,
+  Search,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -80,6 +81,7 @@ export function CompartilharNotaDialog({
   const [ownerName, setOwnerName] = React.useState("Você");
   const [ownerEmail, setOwnerEmail] = React.useState("");
   const [copied, setCopied] = React.useState(false);
+  const [peopleSearch, setPeopleSearch] = React.useState("");
 
   const load = React.useCallback(async () => {
     if (!notaId) return;
@@ -172,7 +174,13 @@ export function CompartilharNotaDialog({
     try {
       await ensureShare(vis, emailGeral);
       toast.success(
-        compartilhada ? "Acesso atualizado." : "Link de compartilhamento criado.",
+        vis === "geral"
+          ? compartilhada
+            ? "Acesso de convidados atualizado."
+            : "Convite registrado."
+          : compartilhada
+            ? "Link público atualizado."
+            : "Link público criado.",
       );
       await load();
     } catch (e: unknown) {
@@ -221,9 +229,38 @@ export function CompartilharNotaDialog({
       setTimeout(() => {
         setCopied(false);
         setInviteEmail("");
+        setPeopleSearch("");
       }, 200);
     }
   };
+
+  const peopleRows = React.useMemo(() => {
+    const rows: { id: string; title: string; subtitle: string; role: string }[] =
+      [
+        {
+          id: "owner",
+          title: ownerName,
+          subtitle: ownerEmail,
+          role: "Proprietário",
+        },
+      ];
+    if (compartilhada?.email_permitido) {
+      rows.push({
+        id: "guest",
+        title: "Convidado",
+        subtitle: compartilhada.email_permitido,
+        role: "Pode ver",
+      });
+    }
+    const q = peopleSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.title.toLowerCase().includes(q) ||
+        r.subtitle.toLowerCase().includes(q) ||
+        r.role.toLowerCase().includes(q),
+    );
+  }, [ownerName, ownerEmail, compartilhada?.email_permitido, peopleSearch]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -249,51 +286,7 @@ export function CompartilharNotaDialog({
             </div>
           ) : (
             <>
-              {/* Convidar por e-mail */}
-              <section className="space-y-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-                  <Input
-                    placeholder="E-mail ou nome…"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="h-11 min-w-0 rounded-xl border-border bg-muted/30 sm:flex-1"
-                    onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-                  />
-                  <div className="flex gap-2 sm:shrink-0">
-                    <Select
-                      value={inviteRole}
-                      onValueChange={(v) => setInviteRole(v as "view" | "edit")}
-                    >
-                      <SelectTrigger className="h-11 min-w-[7.5rem] flex-1 rounded-xl border-border sm:w-[124px] sm:flex-none">
-                        <SelectValue placeholder="Permissão" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="view">Pode ver</SelectItem>
-                        <SelectItem value="edit">Pode editar</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      className="h-11 shrink-0 rounded-xl px-4 font-medium whitespace-nowrap sm:px-5"
-                      onClick={handleInvite}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Convidar"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  &quot;Pode editar&quot; (coedição) virá em uma versão futura.
-                </p>
-              </section>
-
-              <div className="h-px bg-border" />
-
-              {/* Acesso geral */}
+              {/* Acesso geral — sempre visível para alternar o modo */}
               <section className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Acesso geral
@@ -317,8 +310,7 @@ export function CompartilharNotaDialog({
                         Apenas convidados
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Só as pessoas com acesso podem abrir usando o link (e-mail
-                        logado na plataforma).
+                        Convide por e-mail e defina a permissão. Sem link público.
                       </p>
                     </div>
                   </button>
@@ -352,117 +344,230 @@ export function CompartilharNotaDialog({
                     modos acima e toque em &quot;Aplicar&quot; para substituir.
                   </p>
                 )}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full rounded-xl"
-                  disabled={saving}
-                  onClick={applyGeneralAccess}
-                >
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : compartilhada ? (
-                    "Aplicar acesso geral"
-                  ) : (
-                    "Criar link com este acesso"
-                  )}
-                </Button>
               </section>
 
-              <div className="h-px bg-border" />
+              {generalMode === "invited" && (
+                <>
+                  <div className="h-px bg-border" />
 
-              {/* Pessoas com acesso */}
-              <section className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Pessoas com acesso
-                </p>
-                <ul className="space-y-2">
-                  <li className="flex flex-col gap-2 rounded-xl border border-border bg-muted/15 px-3 py-3 sm:flex-row sm:items-center sm:gap-3">
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <Avatar className="h-9 w-9 shrink-0">
-                        <AvatarFallback className="text-xs bg-primary/15 text-primary">
-                          {ownerName.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{ownerName}</p>
-                        {ownerEmail && (
-                          <p className="break-all text-xs text-muted-foreground">
-                            {ownerEmail}
-                          </p>
+                  {/* Convidar por e-mail */}
+                  <section className="space-y-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                      <Input
+                        placeholder="E-mail do convidado"
+                        type="email"
+                        autoComplete="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        className="h-11 min-w-0 rounded-xl border-border bg-muted/30 sm:flex-1"
+                        onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                      />
+                      <div className="flex gap-2 sm:shrink-0">
+                        <Select
+                          value={inviteRole}
+                          onValueChange={(v) => setInviteRole(v as "view" | "edit")}
+                        >
+                          <SelectTrigger className="h-11 min-w-[7.5rem] flex-1 rounded-xl border-border sm:w-[124px] sm:flex-none">
+                            <SelectValue placeholder="Permissão" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="view">Pode ver</SelectItem>
+                            <SelectItem value="edit">Pode editar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          className="h-11 shrink-0 rounded-xl px-4 font-medium whitespace-nowrap sm:px-5"
+                          onClick={handleInvite}
+                          disabled={saving}
+                        >
+                          {saving ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Convidar"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      &quot;Pode editar&quot; (coedição) virá em uma versão futura.
+                    </p>
+                  </section>
+
+                  <div className="h-px bg-border" />
+
+                  {/* Pessoas com acesso */}
+                  <section className="space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Pessoas com acesso
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Quem pode abrir esta anotação com o e-mail logado na plataforma.
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por nome ou e-mail…"
+                        value={peopleSearch}
+                        onChange={(e) => setPeopleSearch(e.target.value)}
+                        className="h-10 rounded-xl border-border bg-muted/20 pl-9"
+                      />
+                    </div>
+                    <ul className="space-y-2">
+                      {peopleRows.length === 0 ? (
+                        <li className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+                          Nenhum resultado para essa busca.
+                        </li>
+                      ) : (
+                        peopleRows.map((row) => (
+                          <li
+                            key={row.id}
+                            className="flex flex-col gap-2 rounded-xl border border-border bg-muted/15 px-3 py-3 sm:flex-row sm:items-center sm:gap-3"
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <Avatar className="h-9 w-9 shrink-0">
+                                <AvatarFallback
+                                  className={cn(
+                                    "text-xs",
+                                    row.id === "owner" &&
+                                      "bg-primary/15 text-primary",
+                                  )}
+                                >
+                                  {row.id === "owner"
+                                    ? ownerName.slice(0, 2).toUpperCase()
+                                    : (row.subtitle || row.title)
+                                        .slice(0, 2)
+                                        .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold">
+                                  {row.title}
+                                </p>
+                                {row.subtitle && (
+                                  <p className="break-all text-xs text-muted-foreground">
+                                    {row.subtitle}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div
+                              className={cn(
+                                "flex shrink-0 items-center gap-1.5 self-start sm:self-center sm:pl-0 pl-12",
+                                row.id === "owner"
+                                  ? "text-xs font-semibold text-emerald-600 dark:text-emerald-400"
+                                  : "text-xs text-muted-foreground",
+                              )}
+                            >
+                              {row.id === "owner" ? (
+                                <>
+                                  <Shield className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="whitespace-nowrap">{row.role}</span>
+                                </>
+                              ) : (
+                                <span className="whitespace-nowrap">{row.role}</span>
+                              )}
+                            </div>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </section>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full rounded-xl"
+                    disabled={saving}
+                    onClick={applyGeneralAccess}
+                  >
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : compartilhada ? (
+                      "Aplicar acesso geral"
+                    ) : (
+                      "Criar convite com este acesso"
+                    )}
+                  </Button>
+                </>
+              )}
+
+              {generalMode === "link" && (
+                <>
+                  <div className="h-px bg-border" />
+                  <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Link de compartilhamento
+                    </p>
+                    {compartilhada?.visibilidade === "geral" && (
+                      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
+                        O acesso ainda está em &quot;Apenas convidados&quot;. Use
+                        &quot;Gerar link público&quot; para permitir qualquer pessoa com o
+                        link.
+                      </p>
+                    )}
+                    {link ? (
+                      <p
+                        className={cn(
+                          "break-all font-mono text-[11px] leading-relaxed sm:text-xs",
+                          compartilhada?.visibilidade === "geral"
+                            ? "text-muted-foreground"
+                            : "text-foreground",
                         )}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5 self-start text-xs font-semibold text-emerald-600 dark:text-emerald-400 sm:self-center sm:pl-0 pl-12">
-                      <Shield className="h-3.5 w-3.5 shrink-0" />
-                      <span className="whitespace-nowrap">Proprietário</span>
-                    </div>
-                  </li>
-                  {compartilhada?.email_permitido && (
-                    <li className="flex flex-col gap-2 rounded-xl border border-border bg-muted/15 px-3 py-3 sm:flex-row sm:items-center sm:gap-3">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarFallback className="text-xs">
-                            {compartilhada.email_permitido.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">
-                            Convidado
-                          </p>
-                          <p className="break-all text-xs text-muted-foreground">
-                            {compartilhada.email_permitido}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="shrink-0 self-start text-xs text-muted-foreground sm:self-center sm:pl-0 pl-12 whitespace-nowrap">
-                        Pode ver
-                      </span>
-                    </li>
-                  )}
-                </ul>
-              </section>
-
+                        title={link}
+                      >
+                        {shortLink}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Ainda não há link público. Toque em &quot;Aplicar&quot; abaixo
+                        para gerar o link com acesso aberto.
+                      </p>
+                    )}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full rounded-xl"
+                      disabled={saving}
+                      onClick={applyGeneralAccess}
+                    >
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : compartilhada?.visibilidade === "publico" ? (
+                        "Atualizar configuração do link"
+                      ) : (
+                        "Gerar link público"
+                      )}
+                    </Button>
+                  </section>
+                </>
+              )}
             </>
           )}
         </div>
 
-        {/* Rodapé: link + ações (uma faixa, sem cortar) */}
-        <div className="shrink-0 space-y-3 border-t border-border bg-muted/30 px-5 py-4 sm:px-6">
-          <div className="min-w-0">
-            <p className="mb-1 text-xs font-medium text-muted-foreground">
-              Link de compartilhamento
-            </p>
-            {link ? (
-              <p
-                className="break-all font-mono text-[11px] leading-relaxed text-foreground sm:text-xs"
-                title={link}
-              >
-                {shortLink}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground italic leading-relaxed">
-                Ainda não há link — escolha o acesso e toque em &quot;Criar link&quot;
-                ou &quot;Aplicar&quot; acima.
-              </p>
-            )}
-          </div>
+        {/* Rodapé: no modo convidados só fecha; no modo link, copiar + concluir */}
+        <div className="shrink-0 border-t border-border bg-muted/30 px-5 py-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-2 rounded-full border-border bg-background"
-              disabled={!link}
-              onClick={copyLink}
-            >
-              {copied ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Link2 className="h-4 w-4" />
-              )}
-              Copiar link
-            </Button>
+            {generalMode === "link" && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2 rounded-full border-border bg-background"
+                disabled={!link || loading}
+                onClick={copyLink}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Link2 className="h-4 w-4" />
+                )}
+                Copiar link
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"

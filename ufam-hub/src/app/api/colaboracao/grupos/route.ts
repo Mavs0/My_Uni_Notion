@@ -238,6 +238,24 @@ export async function GET(request: NextRequest) {
             raw_user_meta_data: {},
           };
         }
+
+        const ids = (data as any[]).map((g) => g.id as string);
+        const countClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+          ? createSupabaseAdmin()
+          : supabase;
+        const { data: membrosRows } = await countClient
+          .from("grupo_membros")
+          .select("grupo_id")
+          .in("grupo_id", ids)
+          .eq("status", "ativo");
+        const membrosCountMap = new Map<string, number>();
+        for (const row of membrosRows || []) {
+          const gid = (row as { grupo_id: string }).grupo_id;
+          membrosCountMap.set(gid, (membrosCountMap.get(gid) || 0) + 1);
+        }
+        for (const grupo of data as any[]) {
+          grupo.membros_count = membrosCountMap.get(grupo.id) ?? 0;
+        }
       }
     } else {
       let query = supabase

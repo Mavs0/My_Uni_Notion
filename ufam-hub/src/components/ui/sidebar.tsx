@@ -7,7 +7,6 @@ import {
   BookOpen,
   GraduationCap,
   FileText,
-  Brain,
   Users,
   Library,
   MessageSquare,
@@ -97,7 +96,9 @@ const navSections: NavSection[] = [
             i18n: "avaliacoes",
           },
           { title: "Anotações", href: "/busca-anotacoes", icon: FileText },
+          /* Flashcards / revisão: atalho na página de Anotações (ações rápidas)
           { title: "Flashcards", href: "/revisao", icon: Brain },
+          */
           {
             title: "Chat IA",
             href: "/chat",
