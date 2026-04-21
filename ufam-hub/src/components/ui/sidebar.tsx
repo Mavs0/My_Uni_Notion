@@ -22,7 +22,9 @@ import {
   Zap,
   UserPlus,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
+import { COLAB_WEB_LOGIN_URL } from "@/lib/external-links";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader } from "./sheet";
@@ -112,7 +114,7 @@ const navSections: NavSection[] = [
         title: "Conectar",
         icon: Link2,
         items: [
-          { title: "Descobrir", href: "/descobrir", icon: Users },
+          // { title: "Descobrir", href: "/descobrir", icon: Users },
           { title: "Feed", href: "/feed", icon: Activity },
           { title: "Eventos", href: "/eventos", icon: Calendar },
         ],
@@ -380,6 +382,36 @@ export function Sidebar() {
             (!collapsed || isMobile) && "mt-auto",
           )}
         >
+          {collapsed && !isMobile ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={COLAB_WEB_LOGIN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
+                  )}
+                >
+                  <ExternalLink className="h-5 w-5 shrink-0 opacity-80" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                ColabWeb — entregas IComp
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <a
+              href={COLAB_WEB_LOGIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={isMobile ? () => setMobileMenuOpen(false) : undefined}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <ExternalLink className="h-5 w-5 shrink-0 opacity-80" />
+              <span className="flex-1 text-left">ColabWeb</span>
+            </a>
+          )}
           <Link
             href="/descobrir"
             onClick={isMobile ? () => setMobileMenuOpen(false) : undefined}
@@ -389,7 +421,7 @@ export function Sidebar() {
             )}
           >
             <UserPlus className="h-5 w-5 shrink-0" />
-            {(!collapsed || isMobile) && <span>Convidar colegas</span>}
+            {(!collapsed || isMobile) && <span>Convidar usuários</span>}
           </Link>
           <Link
             href="/ajuda"

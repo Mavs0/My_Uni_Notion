@@ -90,8 +90,11 @@ export function useAvaliacoes(filters?: {
           const { error } = await response.json();
           throw new Error(error || "Erro ao criar avaliação");
         }
+        const data = await response.json().catch(() => ({}));
         await fetchAvaliacoes();
-        return { success: true };
+        const id =
+          typeof data?.avaliacao?.id === "string" ? data.avaliacao.id : undefined;
+        return { success: true as const, id };
       } catch (err: any) {
         console.error("Erro ao criar avaliação:", err);
         return { success: false, error: err.message };

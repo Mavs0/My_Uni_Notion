@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/popover";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EditDisciplinaDialog } from "@/components/EditDisciplinaDialog";
+import { FormStepper } from "@/components/forms/FormStepper";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1720,73 +1721,63 @@ function AddDisciplinaModal({
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-        {/* Stepper */}
-        <div className="flex items-center justify-center gap-1 px-6 pt-6 pb-2 border-b">
-          {[1, 2].map((s) => (
-            <div key={s} className="flex items-center">
-              <button
-                type="button"
-                onClick={() => setStep(s)}
-                className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-colors ${
-                  step === s
-                    ? "bg-primary text-primary-foreground"
-                    : step > s
-                      ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {s}
-              </button>
-              {s < 2 && <div className="w-8 h-0.5 bg-muted mx-0.5" />}
-            </div>
-          ))}
-        </div>
-        <div className="px-2 text-center text-xs text-muted-foreground mb-4 mt-2">
-          {step === 1 && "Informações gerais"}
-          {step === 2 && "Horários"}
-        </div>
+        <FormStepper
+          currentStep={step}
+          labels={["Info geral", "Horários"] as const}
+        />
 
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 pt-4">
           {step === 1 && (
             <div className="grid gap-6">
-              <DialogHeader>
+              <DialogHeader className="text-left space-y-2">
                 <DialogTitle className="text-xl flex items-center gap-2">
-                  <BookOpen className="h-6 w-6 text-primary" />
-                  Informações da disciplina
+                  <BookOpen className="h-6 w-6 text-primary shrink-0" />
+                  Nova Disciplina
                 </DialogTitle>
                 <DialogDescription>
-                  Preencha os dados básicos. Campos marcados com * são
-                  obrigatórios.
+                  Cadastre os detalhes da disciplina.
                 </DialogDescription>
               </DialogHeader>
 
-              <div>
-                <Label
-                  htmlFor="nome"
-                  className="flex items-center gap-2 block mb-4"
-                >
-                  Nome da Disciplina <span className="text-destructive">*</span>
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="nome" className="leading-snug">
+                  Nome da disciplina{" "}
+                  <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="nome"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  placeholder="Ex: Programação Web, Cálculo I, Estrutura de Dados"
+                  placeholder="Ex.: Banco de Dados II"
                   className="h-10"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="tipo" className="block mb-4">
-                    Tipo <span className="text-destructive">*</span>
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="professor" className="leading-snug">
+                  Professor
+                </Label>
+                <Input
+                  id="professor"
+                  value={professor}
+                  onChange={(e) => setProfessor(e.target.value)}
+                  placeholder="Ex.: Prof. João da Silva"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="tipo" className="leading-snug">
+                    Tipo da disciplina{" "}
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={tipo}
                     onValueChange={(v) => setTipo(v as TTipo)}
                   >
                     <SelectTrigger id="tipo" className="h-10">
-                      <SelectValue placeholder="Selecione o tipo" />
+                      <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent className="z-[100]">
                       <SelectItem value="obrigatoria">Obrigatória</SelectItem>
@@ -1795,9 +1786,9 @@ function AddDisciplinaModal({
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="horasSemana" className="block mb-4">
-                    Carga Horária Semanal (h){" "}
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="horasSemana" className="leading-snug">
+                    Horas por semana{" "}
                     <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -1810,74 +1801,52 @@ function AddDisciplinaModal({
                       const value = Number(e.target.value);
                       if (value > 0 && value <= 40) setHorasSemana(value);
                     }}
-                    placeholder="Ex: 4, 6, 8"
+                    placeholder="Ex.: 4"
                     className="h-10"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Total de horas por semana
-                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label
-                    htmlFor="local"
-                    className="flex items-center gap-2 block mb-4"
-                  >
-                    <MapPin className="h-4 w-4" />
-                    Local (opcional)
-                  </Label>
-                  <Input
-                    id="local"
-                    value={local}
-                    onChange={(e) => setLocal(e.target.value)}
-                    placeholder="Ex: Sala 05, Lab Virtu"
-                    className="h-10"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="professor"
-                    className="flex items-center gap-2 block mb-4"
-                  >
-                    <User className="h-4 w-4" />
-                    Professor (opcional)
-                  </Label>
-                  <Input
-                    id="professor"
-                    value={professor}
-                    onChange={(e) => setProfessor(e.target.value)}
-                    placeholder="Ex: Prof. João Silva"
-                    className="h-10"
-                  />
-                </div>
+              <div className="flex flex-col gap-3">
+                <Label
+                  htmlFor="local"
+                  className="flex items-center gap-2 leading-snug"
+                >
+                  <MapPin className="h-4 w-4 shrink-0 opacity-70" />
+                  Local
+                </Label>
+                <Input
+                  id="local"
+                  value={local}
+                  onChange={(e) => setLocal(e.target.value)}
+                  placeholder="Ex.: Sala 205 / Bloco A"
+                  className="h-10"
+                />
               </div>
             </div>
           )}
 
           {step === 2 && (
             <div className="grid gap-6">
-              <DialogHeader>
+              <DialogHeader className="text-left space-y-2">
                 <DialogTitle className="text-xl flex items-center gap-2">
-                  <Clock className="h-6 w-6 text-primary" />
-                  Horários das aulas
+                  <Clock className="h-6 w-6 text-primary shrink-0" />
+                  Nova Disciplina
                 </DialogTitle>
                 <DialogDescription>
-                  Adicione os horários da disciplina. Este passo é opcional.
+                  Defina os horários da disciplina.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4">
-                <Label className="flex items-center gap-2 block mb-2">
-                  <Clock className="h-4 w-4" />
-                  Horários (opcional)
-                </Label>
-                <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        Dia da Semana
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">
+                  Adicionar horário
+                </p>
+                <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
+                    <div className="sm:col-span-4 flex flex-col gap-2.5">
+                      <Label className="text-xs text-muted-foreground leading-snug">
+                        Dia da semana
                       </Label>
                       <Select
                         value={String(novoHorario.dia)}
@@ -1897,9 +1866,9 @@ function AddDisciplinaModal({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        Início
+                    <div className="sm:col-span-3 flex flex-col gap-2.5">
+                      <Label className="text-xs text-muted-foreground leading-snug">
+                        Hora início
                       </Label>
                       <Input
                         type="time"
@@ -1913,9 +1882,9 @@ function AddDisciplinaModal({
                         className="h-10"
                       />
                     </div>
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        Fim
+                    <div className="sm:col-span-3 flex flex-col gap-2.5">
+                      <Label className="text-xs text-muted-foreground leading-snug">
+                        Hora fim
                       </Label>
                       <Input
                         type="time"
@@ -1929,60 +1898,52 @@ function AddDisciplinaModal({
                         className="h-10"
                       />
                     </div>
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        onClick={adicionarHorario}
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Adicionar
-                      </Button>
-                    </div>
                   </div>
-                  {horarios.length > 0 && (
-                    <div className="space-y-2 pt-3 border-t">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        Horários adicionados ({horarios.length})
-                      </Label>
-                      <div className="space-y-2">
-                        {horarios.map((h, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between rounded-lg border bg-background p-3 text-sm hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                                {DIAS[h.dia].charAt(0)}
-                              </div>
-                              <div>
-                                <div className="font-medium">{DIAS[h.dia]}</div>
-                                <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                  {h.inicio} — {h.fim}
-                                </div>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                removerHorario(idx);
-                                toast.success("Horário removido");
-                              }}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              title="Remover horário"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-dashed border-2 text-muted-foreground hover:text-foreground"
+                    onClick={adicionarHorario}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar outro horário
+                  </Button>
                 </div>
+
+                {horarios.length > 0 && (
+                  <div className="flex flex-col gap-2.5">
+                    <Label className="text-xs font-medium text-muted-foreground leading-snug">
+                      Horários ({horarios.length})
+                    </Label>
+                    <ul className="space-y-2">
+                      {horarios.map((h, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-center justify-between rounded-lg border bg-background px-3 py-2.5 text-sm"
+                        >
+                          <span>
+                            <span className="font-medium">{DIAS[h.dia]}</span>
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {h.inicio} – {h.fim}
+                            </span>
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                            onClick={() => removerHorario(idx)}
+                            aria-label="Remover horário"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2017,7 +1978,7 @@ function AddDisciplinaModal({
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={salvar}>Adicionar Disciplina</Button>
+              <Button onClick={salvar}>Salvar disciplina</Button>
             )}
           </div>
         </DialogFooter>

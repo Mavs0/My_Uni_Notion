@@ -47,7 +47,7 @@ const HELP_ARTICLES: HelpArticle[] = [
     id: "comecando",
     title: "Começando no UFAM Hub",
     description:
-      "Aprenda os primeiros passos para usar a plataforma: criar conta, adicionar disciplinas e começar a organizar seus estudos.",
+      "Primeiros passos: criar conta (e-mail e palavra-passe), conhecer a barra superior, o menu lateral e o assistente rápido no canto do ecrã.",
     category: "Básico",
     icon: LayoutDashboard,
     href: "/ajuda/comecando",
@@ -87,11 +87,19 @@ const HELP_ARTICLES: HelpArticle[] = [
     id: "chat-ia",
     title: "Usando o Chat IA",
     description:
-      "Descubra como usar a inteligência artificial para tirar dúvidas, gerar quizzes e mapas mentais.",
+      "Assistente virtual (robô) para perguntas rápidas em qualquer página e Chat IA completo em /chat: conversas por disciplina, quizzes, mapas mentais e mais.",
     category: "IA",
     icon: Brain,
     href: "/ajuda/chat-ia",
-    tags: ["ia", "chat", "quizzes", "mapas mentais", "dúvidas"],
+    tags: [
+      "ia",
+      "chat",
+      "assistente",
+      "robô",
+      "quizzes",
+      "mapas mentais",
+      "dúvidas",
+    ],
   },
   {
     id: "pomodoro",
@@ -137,11 +145,18 @@ const HELP_ARTICLES: HelpArticle[] = [
     id: "configuracoes",
     title: "Configurações e Personalização",
     description:
-      "Personalize a plataforma, configure notificações, temas e preferências de acessibilidade.",
+      "Tema claro, escuro ou sistema (guardado no perfil), notificações, acessibilidade e integrações. A marca UFAM Hub adapta-se automaticamente ao tema.",
     category: "Configurações",
     icon: Settings,
     href: "/ajuda/configuracoes",
-    tags: ["configurações", "personalização", "temas", "acessibilidade"],
+    tags: [
+      "configurações",
+      "personalização",
+      "temas",
+      "dark mode",
+      "logo",
+      "acessibilidade",
+    ],
   },
 ];
 
@@ -187,8 +202,8 @@ export default function AjudaPage() {
           <h1 className="text-3xl font-bold">Central de Ajuda</h1>
         </div>
         <p className="text-muted-foreground">
-          Encontre respostas para suas dúvidas e aprenda a usar todas as
-          funcionalidades da plataforma
+          Guias atualizados sobre disciplinas, avaliações, IA, produtividade e
+          definições da conta. Usa a pesquisa ou filtra por categoria.
         </p>
       </header>
 
@@ -346,7 +361,13 @@ export default function AjudaPage() {
           <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
             <li>Usar termos diferentes na busca</li>
             <li>Verificar todas as categorias</li>
-            <li>Usar o Chat IA para fazer perguntas específicas</li>
+            <li>
+              Usar o assistente virtual (ícone no canto) ou o{" "}
+              <Link href="/chat" className="text-primary hover:underline">
+                Chat IA
+              </Link>{" "}
+              para perguntas mais longas
+            </li>
             <li>Verificar a documentação completa de cada funcionalidade</li>
           </ul>
         </CardContent>

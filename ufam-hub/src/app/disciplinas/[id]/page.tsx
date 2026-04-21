@@ -37,9 +37,12 @@ import {
   Check,
   Pencil,
   ChevronRight,
+  ChevronLeft,
   LayoutDashboard,
   Search,
+  ExternalLink,
 } from "lucide-react";
+import { COLAB_WEB_LOGIN_URL } from "@/lib/external-links";
 import { EditDisciplinaDialog } from "@/components/EditDisciplinaDialog";
 import {
   Tooltip,
@@ -62,6 +65,16 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { FormStepper } from "@/components/forms/FormStepper";
 
 type TTipo = "obrigatoria" | "eletiva" | "optativa";
 type Disciplina = {
@@ -125,6 +138,25 @@ function toLocalInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`;
+}
+
+const RESUMO_AVALIACAO_MAX_DISC = 500;
+
+function splitDateTimeLocalDisc(isoLocal: string) {
+  if (!isoLocal || !isoLocal.includes("T")) {
+    const t = new Date(Date.now() + 86400000);
+    const s = toLocalInputValue(t);
+    const [d, tm] = s.split("T");
+    return { date: d, time: (tm || "09:00").slice(0, 5) };
+  }
+  const [d, tm] = isoLocal.split("T");
+  return { date: d || "", time: (tm || "09:00").slice(0, 5) };
+}
+
+function joinDateTimeLocalDisc(date: string, time: string) {
+  if (!date) return "";
+  const t = time && time.length >= 4 ? time.slice(0, 5) : "09:00";
+  return `${date}T${t}`;
 }
 function daysUntil(dtISO: string | null | undefined) {
   if (dtISO == null) return NaN;
@@ -1240,20 +1272,7 @@ export default function DisciplinaDetailPage() {
         right={
           <NovaAvaliacaoButton
             disciplinaId={disciplina.id}
-            onCreate={async (a) => {
-              const result = await createAvaliacao({
-                disciplinaId: a.disciplinaId,
-                tipo: a.tipo,
-                dataISO: a.dataISO,
-                descricao: a.descricao,
-                resumo_assuntos: a.resumo_assuntos,
-              });
-              if (!result.success) {
-                toast.error(result.error || "Erro ao criar avaliação");
-              } else {
-                toast.success("Avaliação criada com sucesso!");
-              }
-            }}
+            createAvaliacao={createAvaliacao}
           />
         }
       >
@@ -1848,26 +1867,45 @@ function AddMaterial({ onAdd }: { onAdd: (m: Material) => void }) {
 
 function NovaAvaliacaoButton({
   disciplinaId,
-  onCreate,
+  createAvaliacao,
 }: {
   disciplinaId: string;
-  onCreate: (a: Avaliacao) => void;
+  createAvaliacao: (a: {
+    disciplinaId: string;
+    tipo: AvaliacaoTipo;
+    dataISO: string;
+    descricao?: string;
+    resumo_assuntos?: string;
+    gerado_por_ia?: boolean;
+  }) => Promise<
+    | { success: true; id?: string }
+    | { success: false; error?: string }
+  >;
 }) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(1);
   const [tipo, setTipo] = useState<AvaliacaoTipo>("prova");
-  const [dataLocal, setDataLocal] = useState<string>(
-    toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000))
+  const defaultDt = () =>
+    splitDateTimeLocalDisc(
+      toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000)),
+    );
+  const [dataAval, setDataAval] = useState(() => defaultDt().date);
+  const [horaAval, setHoraAval] = useState(() => defaultDt().time);
+  const [localEntrega, setLocalEntrega] = useState<"plataforma" | "sala">(
+    "plataforma",
   );
-  const [descricao, setDescricao] = useState("");
+  const [lembreteAtivo, setLembreteAtivo] = useState(true);
   const [resumo, setResumo] = useState("");
   const [loadingResumo, setLoadingResumo] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function descricaoEntrega() {
+    return localEntrega === "plataforma"
+      ? "Entrega: plataforma"
+      : "Entrega: sala de aula";
+  }
 
   async function gerarResumoIA() {
-    if (!disciplinaId) {
-      toast.error("Selecione uma disciplina primeiro");
-      return;
-    }
-
     setLoadingResumo(true);
     try {
       const response = await fetch("/api/ai/resumo-estudo", {
@@ -1876,48 +1914,97 @@ function NovaAvaliacaoButton({
         body: JSON.stringify({
           disciplinaId,
           tipoAvaliacao: tipo,
-          descricao: descricao || undefined,
+          descricao: descricaoEntrega(),
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || "Erro ao gerar resumo");
       }
-
       const data = await response.json();
-      setResumo(data.resumo || "");
+      setResumo(String(data.resumo || "").slice(0, RESUMO_AVALIACAO_MAX_DISC));
       toast.success("Resumo gerado com sucesso!");
     } catch (err: any) {
-      console.error("Erro ao gerar resumo:", err);
       toast.error(err.message || "Erro ao gerar resumo com IA");
     } finally {
       setLoadingResumo(false);
     }
   }
 
-  function salvar() {
-    const iso = new Date(dataLocal).toISOString();
-    onCreate({
-      id: `a_${Date.now()}`,
+  function validateStep2() {
+    const e: Record<string, string> = {};
+    const joined = joinDateTimeLocalDisc(dataAval, horaAval);
+    if (!dataAval) e.dataAval = "Informe a data";
+    if (!horaAval) e.horaAval = "Informe a hora";
+    if (joined && Number.isNaN(new Date(joined).getTime())) {
+      e.dataAval = "Data ou hora inválida";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  async function salvar() {
+    if (!validateStep2()) {
+      toast.error("Corrija data e hora antes de salvar");
+      return;
+    }
+    const joined = joinDateTimeLocalDisc(dataAval, horaAval);
+    const iso = new Date(joined).toISOString();
+    const result = await createAvaliacao({
       disciplinaId,
       tipo,
       dataISO: iso,
-      descricao,
-      resumo_assuntos: resumo || undefined,
-      gerado_por_ia: !!resumo,
+      descricao: descricaoEntrega(),
+      resumo_assuntos: resumo.trim() || undefined,
+      gerado_por_ia: !!resumo.trim(),
     });
-    setDescricao("");
+    if (!result.success) {
+      toast.error(result.error || "Erro ao criar avaliação");
+      return;
+    }
+    let msg = "Avaliação criada com sucesso";
+    if (lembreteAtivo && result.id) {
+      try {
+        const r = await fetch("/api/reminders/auto-create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            tipo: "avaliacao",
+            referencia_id: result.id,
+          }),
+        });
+        if (r.ok) msg = "Avaliação criada. Lembretes agendados.";
+      } catch {
+        /* noop */
+      }
+    }
+    toast.success(msg);
+    setStep(1);
     setResumo("");
+    const d = defaultDt();
+    setDataAval(d.date);
+    setHoraAval(d.time);
+    setErrors({});
     setOpen(false);
   }
 
   function resetForm() {
+    setStep(1);
     setTipo("prova");
-    setDataLocal(toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000)));
-    setDescricao("");
+    const d = defaultDt();
+    setDataAval(d.date);
+    setHoraAval(d.time);
+    setLocalEntrega("plataforma");
+    setLembreteAtivo(true);
     setResumo("");
+    setErrors({});
   }
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (!v) resetForm();
+  };
 
   return (
     <>
@@ -1932,94 +2019,213 @@ function NovaAvaliacaoButton({
         <Plus className="h-4 w-4 mr-1" />
         Nova Avaliação
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Nova Avaliação
-            </DialogTitle>
-            <DialogDescription>
-              Adicione uma nova prova, trabalho ou seminário para esta
-              disciplina
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Tipo *</label>
-                <select
-                  value={tipo}
-                  onChange={(e) => setTipo(e.target.value as AvaliacaoTipo)}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="prova">Prova</option>
-                  <option value="trabalho">Trabalho</option>
-                  <option value="seminario">Seminário</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Data e hora *</label>
-                <Input
-                  type="datetime-local"
-                  value={dataLocal}
-                  onChange={(e) => setDataLocal(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Descrição (opcional)
-              </label>
-              <textarea
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Ex: Capítulos 1-5, todo o conteúdo de arrays..."
-                className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">
-                  Resumo de estudo (opcional)
-                </label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={gerarResumoIA}
-                  disabled={loadingResumo}
-                >
-                  {loadingResumo ? (
-                    <>
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      Gerar com IA
-                    </>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          <FormStepper
+            currentStep={step}
+            labels={["Info geral", "Resumo com IA"] as const}
+          />
+          <div className="px-6 pb-6 pt-4">
+            {step === 1 && (
+              <div className="grid gap-6">
+                <DialogHeader className="text-left space-y-2">
+                  <DialogTitle className="text-xl flex items-center gap-2">
+                    <ClipboardList className="h-6 w-6 text-primary shrink-0" />
+                    Nova Avaliação
+                  </DialogTitle>
+                  <DialogDescription>
+                    Preencha as informações gerais da avaliação nesta disciplina.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-3">
+                  <Label className="leading-snug">Tipo da avaliação</Label>
+                  <Select
+                    value={tipo}
+                    onValueChange={(v) => setTipo(v as AvaliacaoTipo)}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="prova">Prova</SelectItem>
+                      <SelectItem value="trabalho">Trabalho</SelectItem>
+                      <SelectItem value="seminario">Seminário</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <Label className="leading-snug">Local da entrega</Label>
+                  <Select
+                    value={localEntrega}
+                    onValueChange={(v) =>
+                      setLocalEntrega(v as "plataforma" | "sala")
+                    }
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="plataforma">Plataforma</SelectItem>
+                      <SelectItem value="sala">Sala de aula</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {localEntrega === "plataforma" && (
+                    <p className="text-xs text-muted-foreground leading-relaxed flex gap-2">
+                      <ExternalLink
+                        className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary"
+                        aria-hidden
+                      />
+                      <span>
+                        No IComp, muitas entregas são pelo{" "}
+                        <a
+                          href={COLAB_WEB_LOGIN_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-primary underline-offset-2 hover:underline"
+                        >
+                          ColabWeb
+                        </a>
+                        .
+                      </span>
+                    </p>
                   )}
-                </Button>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3.5">
+                  <div className="space-y-1 pr-3">
+                    <Label htmlFor="lem-disc" className="text-sm font-medium leading-snug">
+                      Ativar lembrete
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Lembrar no dia da avaliação
+                    </p>
+                  </div>
+                  <Switch
+                    id="lem-disc"
+                    checked={lembreteAtivo}
+                    onCheckedChange={setLembreteAtivo}
+                  />
+                </div>
               </div>
-              <textarea
-                value={resumo}
-                onChange={(e) => setResumo(e.target.value)}
-                placeholder="Tópicos e assuntos para estudar..."
-                className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
-              />
-            </div>
+            )}
+            {step === 2 && (
+              <div className="grid gap-6">
+                <DialogHeader className="text-left space-y-2">
+                  <DialogTitle className="text-xl flex items-center gap-2">
+                    <Sparkles className="h-6 w-6 text-primary shrink-0" />
+                    Nova Avaliação
+                  </DialogTitle>
+                  <DialogDescription>
+                    Data, hora e resumo da avaliação com IA.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-3">
+                    <Label className="leading-snug">Data da avaliação</Label>
+                    <Input
+                      type="date"
+                      value={dataAval}
+                      onChange={(e) => {
+                        setDataAval(e.target.value);
+                        setErrors((p) => ({ ...p, dataAval: "" }));
+                      }}
+                      className={cn(
+                        "h-10",
+                        errors.dataAval && "border-destructive",
+                      )}
+                    />
+                    {errors.dataAval && (
+                      <p className="text-xs text-destructive">{errors.dataAval}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <Label className="leading-snug">Hora da avaliação</Label>
+                    <Input
+                      type="time"
+                      value={horaAval}
+                      onChange={(e) => {
+                        setHoraAval(e.target.value);
+                        setErrors((p) => ({ ...p, horaAval: "" }));
+                      }}
+                      className={cn(
+                        "h-10",
+                        errors.horaAval && "border-destructive",
+                      )}
+                    />
+                    {errors.horaAval && (
+                      <p className="text-xs text-destructive">{errors.horaAval}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <Label htmlFor="resumo-disc" className="leading-snug">
+                      Resumo da avaliação
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      {resumo.length}/{RESUMO_AVALIACAO_MAX_DISC}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Você pode escrever ou gerar um resumo com IA.
+                  </p>
+                  <textarea
+                    id="resumo-disc"
+                    value={resumo}
+                    onChange={(e) =>
+                      setResumo(
+                        e.target.value.slice(0, RESUMO_AVALIACAO_MAX_DISC),
+                      )
+                    }
+                    placeholder="Descreva os principais tópicos..."
+                    rows={5}
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto border-dashed"
+                    onClick={gerarResumoIA}
+                    disabled={loadingResumo}
+                  >
+                    {loadingResumo ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Gerar resumo com IA
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={salvar}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Criar Avaliação
-            </Button>
+          <DialogFooter className="flex flex-row items-center justify-between gap-4 border-t bg-muted/20 p-4">
+            <div>
+              {step > 1 ? (
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Voltar
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+              )}
+            </div>
+            <div>
+              {step < 2 ? (
+                <Button onClick={() => setStep(2)}>
+                  Próximo
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={salvar}>Salvar avaliação</Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

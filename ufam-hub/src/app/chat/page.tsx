@@ -200,17 +200,19 @@ export default function ChatPage() {
   const [mapaTitleToSave, setMapaTitleToSave] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [storageHydrated, setStorageHydrated] = useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storeKey);
       if (raw) {
         const data: Thread[] = JSON.parse(raw);
-        console.log("📂 Threads carregadas do localStorage:", data.length);
         setThreads(data);
         if (data[0]) setCurrentId(data[0].id);
       }
     } catch (error) {
-      console.error("❌ Erro ao carregar threads do localStorage:", error);
+      console.error("Erro ao carregar threads do localStorage:", error);
+    } finally {
+      setStorageHydrated(true);
     }
   }, []);
   useEffect(() => {
@@ -221,11 +223,11 @@ export default function ChatPage() {
     }
   }, [disciplinasAtivas, disciplinaId]);
   useEffect(() => {
+    if (!storageHydrated) return;
     try {
       localStorage.setItem(storeKey, JSON.stringify(threads));
-      console.log("💾 Threads salvas no localStorage:", threads.length);
     } catch (error) {
-      console.error("❌ Erro ao salvar threads no localStorage:", error);
+      console.error("Erro ao salvar threads no localStorage:", error);
     }
     const allTags = new Set<string>();
     threads.forEach((t) => {
@@ -234,7 +236,7 @@ export default function ChatPage() {
       }
     });
     setAvailableTags(Array.from(allTags).sort());
-  }, [threads]);
+  }, [threads, storageHydrated]);
   const current = useMemo(
     () => threads.find((t) => t.id === currentId) || null,
     [threads, currentId]
@@ -342,8 +344,9 @@ export default function ChatPage() {
     });
     return filtered;
   }, [threads, filterFavorites, searchQuery, sortBy, filterTag]);
-  async function send() {
-    if (!input.trim()) return;
+  async function send(overrideText?: string) {
+    const textToSend = (overrideText ?? input).trim();
+    if (!textToSend) return;
     if (!disciplinasAtivas || disciplinasAtivas.length === 0) {
       setStreamErr(
         "Você precisa cadastrar pelo menos uma disciplina para usar o chat de IA."
@@ -372,53 +375,43 @@ export default function ChatPage() {
     const msgUser: Msg = {
       id: `m_${Date.now()}_u`,
       role: "user",
-      text: input,
+      text: textToSend,
       ts: Date.now(),
     };
-    setInput("");
+    const msgAsstId = `m_${Date.now() + 1}_a`;
+    setMsgAsstId(msgAsstId);
+    if (!overrideText) setInput("");
     setThreads((prev) =>
       prev.map((t) => {
-        if (t.id === tId) {
-          const newMsgs = [...t.msgs, msgUser];
-          const newTitle = t.msgs.length === 0 
-            ? msgUser.text.length > 50 
+        if (t.id !== tId) return t;
+        const newMsgs = [
+          ...t.msgs,
+          msgUser,
+          { id: msgAsstId, role: "assistant" as const, text: "", ts: Date.now() },
+        ];
+        const newTitle =
+          t.msgs.length === 0
+            ? msgUser.text.length > 50
               ? msgUser.text.substring(0, 50) + "..."
               : msgUser.text
             : t.title;
-          return { 
-            ...t, 
-            msgs: newMsgs, 
-            title: newTitle,
-            updatedAt: Date.now() 
-          };
-        }
-        return t;
+        return {
+          ...t,
+          msgs: newMsgs,
+          title: newTitle,
+          updatedAt: Date.now(),
+        };
       })
     );
-    const msgAsstId = `m_${Date.now()}_a`;
-    setMsgAsstId(msgAsstId);
-    setThreads((prev) =>
-      prev.map((t) =>
-        t.id === tId
-          ? {
-              ...t,
-              msgs: [
-                ...t.msgs,
-                { id: msgAsstId, role: "assistant", text: "", ts: Date.now() },
-              ],
-              updatedAt: Date.now(),
-            }
-          : t
-      )
-    );
     setLoading(true);
+    const disciplinaParaApi = disciplinaId;
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          disciplinaId: current?.disciplinaId ?? disciplinaId,
+          disciplinaId: disciplinaParaApi,
           question: msgUser.text,
         }),
       });
@@ -433,77 +426,50 @@ export default function ChatPage() {
         }
         throw new Error(errorMessage);
       }
-      console.log("📊 Response status:", res.status);
-      console.log("📊 Response ok:", res.ok);
-      console.log(
-        "📊 Response headers:",
-        Object.fromEntries(res.headers.entries())
-      );
-      console.log("📊 Response body:", res.body ? "presente" : "ausente");
       if (!res.body) {
-        console.error("❌ Response não tem body!");
         const errorText = await res
           .text()
           .catch(() => "Não foi possível ler o erro");
-        console.error("❌ Response text:", errorText);
-        throw new Error("Resposta da API não contém dados");
+        throw new Error(errorText || "Resposta da API não contém dados");
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let acc = "";
-      let chunkCount = 0;
-      let hasReceivedData = false;
-      console.log("📡 Iniciando leitura do stream...");
       const timeout = setTimeout(() => {
-        console.error("⏱️ Timeout: nenhum dado recebido após 30 segundos");
         reader.cancel();
       }, 30000);
       try {
         while (true) {
           const { value, done } = await reader.read();
+          if (value && value.length > 0) {
+            clearTimeout(timeout);
+            const chunk = decoder.decode(value, { stream: true });
+            if (chunk && chunk.length > 0) {
+              acc += chunk;
+              setIsTyping(true);
+              setThreads((prev) =>
+                prev.map((t) =>
+                  t.id === tId
+                    ? {
+                        ...t,
+                        msgs: t.msgs.map((m) =>
+                          m.id === msgAsstId ? { ...m, text: acc } : m
+                        ),
+                        updatedAt: Date.now(),
+                      }
+                    : t
+                )
+              );
+              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+            }
+          }
           if (done) {
             clearTimeout(timeout);
-            console.log(
-              `✅ Stream finalizado. Total de chunks: ${chunkCount}, Texto acumulado: ${acc.length} caracteres, Dados recebidos: ${hasReceivedData}`
-            );
             break;
-          }
-          if (value && value.length > 0) {
-            hasReceivedData = true;
-            clearTimeout(timeout);
-          }
-          chunkCount++;
-          const chunk = decoder.decode(value, { stream: true });
-          if (chunkCount <= 5 || chunkCount % 10 === 0) {
-            console.log(
-              `📦 Chunk ${chunkCount} recebido (${chunk.length} chars, ${value.length} bytes raw):`,
-              chunk.substring(0, 200).replace(/\n/g, "\\n")
-            );
-          }
-          if (chunk && chunk.length > 0) {
-            acc += chunk;
-            setIsTyping(true);
-            setThreads((prev) =>
-              prev.map((t) =>
-                t.id === tId
-                  ? {
-                      ...t,
-                      msgs: t.msgs.map((m) =>
-                        m.id === msgAsstId ? { ...m, text: acc } : m
-                      ),
-                      updatedAt: Date.now(),
-                    }
-                  : t
-              )
-            );
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
           }
         }
         if (!acc.trim()) {
           clearTimeout(timeout);
-          console.error("❌ Stream vazio recebido após processamento");
-          console.error("Chunks recebidos:", chunkCount);
-          console.error("Dados recebidos:", hasReceivedData);
           throw new Error(
             "Resposta vazia da API - verifique se a API de IA está configurada corretamente"
           );
@@ -522,10 +488,6 @@ export default function ChatPage() {
                 }
               : t
           )
-        );
-        console.log(
-          "✅ Stream processado com sucesso. Texto final:",
-          acc.substring(0, 100) + "..."
         );
       } catch (streamError) {
         clearTimeout(timeout);
@@ -789,6 +751,7 @@ export default function ChatPage() {
       const res = await fetch("/api/ai/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           disciplinaId,
           tema: quizConfig.tema,
@@ -796,8 +759,14 @@ export default function ChatPage() {
           dificuldade: quizConfig.dificuldade,
         }),
       });
-      if (!res.ok) throw new Error("Erro ao gerar quiz");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof data.error === "string"
+            ? data.error
+            : `Erro ao gerar quiz (${res.status})`;
+        throw new Error(msg);
+      }
       if (data.quiz) {
         setQuizData(data.quiz);
       } else {
@@ -805,6 +774,9 @@ export default function ChatPage() {
       }
     } catch (error: any) {
       setStreamErr(error.message);
+      if (error.message?.includes("Cota") || error.message?.includes("quota")) {
+        toast.error(error.message);
+      }
     } finally {
       setQuizLoading(false);
     }
@@ -836,13 +808,21 @@ export default function ChatPage() {
       const res = await fetch("/api/ai/explicar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           conceito: explicacaoConfig.conceito,
           disciplinaId,
           nivel: explicacaoConfig.nivel,
         }),
       });
-      if (!res.ok) throw new Error("Erro ao explicar conceito");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : `Erro ao explicar conceito (${res.status})`,
+        );
+      }
       if (!res.body) throw new Error("Resposta sem conteúdo");
 
       const reader = res.body.getReader();
@@ -910,14 +890,21 @@ export default function ChatPage() {
       const res = await fetch("/api/ai/mapa-mental", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           texto: mapaConfig.texto,
           titulo: mapaConfig.titulo,
           disciplinaId,
         }),
       });
-      if (!res.ok) throw new Error("Erro ao gerar mapa mental");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof data.error === "string"
+            ? data.error
+            : `Erro ao gerar mapa mental (${res.status})`;
+        throw new Error(msg);
+      }
       if (data.mapaMental) {
         setMapaMentalData(data.mapaMental);
       } else {
@@ -925,6 +912,9 @@ export default function ChatPage() {
       }
     } catch (error: any) {
       setStreamErr(error.message);
+      if (error.message?.includes("Cota") || error.message?.includes("quota")) {
+        toast.error(error.message);
+      }
     } finally {
       setMapaLoading(false);
     }
@@ -1041,7 +1031,11 @@ export default function ChatPage() {
           </div>
           <div className="flex gap-2">
             <Select
-              value={disciplinaId || undefined}
+              value={
+                disciplinaId ||
+                disciplinasAtivas[0]?.id ||
+                undefined
+              }
               onValueChange={setDisciplinaId}
               disabled={!disciplinasAtivas || disciplinasAtivas.length === 0}
             >
@@ -1624,8 +1618,7 @@ export default function ChatPage() {
                             key={idx}
                             type="button"
                             onClick={() => {
-                              setInput(sugestao);
-                              inputRef.current?.focus();
+                              void send(sugestao);
                             }}
                             className="rounded-full border border-border/70 bg-background/90 px-3 py-2 text-left text-xs font-medium leading-snug text-foreground shadow-sm transition hover:border-primary/40 hover:bg-muted/50 sm:text-sm"
                             style={{ borderColor: `${corDisciplina}33` }}
@@ -1862,8 +1855,7 @@ export default function ChatPage() {
                             key={idx}
                             type="button"
                             onClick={() => {
-                              setInput(sugestao);
-                              inputRef.current?.focus();
+                              void send(sugestao);
                             }}
                             className="rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-left text-xs font-medium text-foreground shadow-sm transition hover:bg-muted/60"
                             style={{ borderColor: `${corDisciplina}40` }}
