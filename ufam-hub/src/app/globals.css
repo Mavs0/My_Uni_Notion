@@ -61,6 +61,81 @@
   }
 }
 
+/* Assistente flutuante (robô) — UFAM Hub */
+@keyframes floating-assistant-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-10px);
+  }
+  55% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes floating-assistant-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.88);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes floating-assistant-shadow-scale {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.38;
+  }
+  50% {
+    transform: scaleX(0.72);
+    opacity: 0.22;
+  }
+}
+
+@keyframes floating-assistant-particle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.65;
+    transform: translateY(-3px);
+  }
+}
+
+.floating-assistant-y {
+  animation: floating-assistant-y 3.5s ease-in-out infinite;
+}
+
+.floating-assistant-glow {
+  animation: floating-assistant-glow-pulse 3.5s ease-in-out infinite;
+}
+
+.floating-assistant-shadow {
+  animation: floating-assistant-shadow-scale 3.5s ease-in-out infinite;
+}
+
+.floating-assistant-particle {
+  animation: floating-assistant-particle 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-assistant-y,
+  .floating-assistant-glow,
+  .floating-assistant-shadow,
+  .floating-assistant-particle {
+    animation: none !important;
+  }
+}
+
 @keyframes toast-progress {
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }

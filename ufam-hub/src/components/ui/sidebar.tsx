@@ -193,184 +193,193 @@ export function Sidebar() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-5">
-        {navSections.map((section) => (
-          <div key={section.title}>
-            {(!collapsed || isMobile) && (
-              <h3 className="mb-2 px-2 text-[11px] font-medium text-muted-foreground tracking-wide">
-                {section.title}
-              </h3>
-            )}
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                if (isSubmenu(item)) {
-                  const Icon = item.icon;
-                  const isOpen = openSubmenus.has(item.title);
-                  const hasActive = isSubmenuActive(item);
+          {navSections.map((section) => (
+            <div key={section.title}>
+              {(!collapsed || isMobile) && (
+                <h3 className="mb-2 px-2 text-[11px] font-medium text-muted-foreground tracking-wide">
+                  {section.title}
+                </h3>
+              )}
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  if (isSubmenu(item)) {
+                    const Icon = item.icon;
+                    const isOpen = openSubmenus.has(item.title);
+                    const hasActive = isSubmenuActive(item);
 
-                  if (collapsed && !isMobile) {
-                    return (
-                      <DropdownMenu key={item.title}>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className={cn(
-                              "flex w-full items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                              hasActive
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                            )}
+                    if (collapsed && !isMobile) {
+                      return (
+                        <DropdownMenu key={item.title}>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(
+                                "flex w-full items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                                hasActive
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                              )}
+                            >
+                              <Icon className="h-5 w-5 shrink-0" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            side="right"
+                            align="start"
+                            sideOffset={8}
+                            className="rounded-xl border border-border/60 bg-card/95 shadow-lg p-0 min-w-[11rem] overflow-hidden"
                           >
-                            <Icon className="h-5 w-5 shrink-0" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          side="right"
-                          align="start"
-                          sideOffset={8}
-                          className="rounded-xl border border-border/60 bg-card/95 shadow-lg p-0 min-w-[11rem] overflow-hidden"
+                            <DropdownMenuLabel className="px-3 py-2 border-b border-border/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground rounded-t-xl focus:bg-transparent">
+                              {item.title}
+                            </DropdownMenuLabel>
+                            <div className="p-1.5 space-y-0.5">
+                              {item.items.map((sub) => {
+                                const SubIcon = sub.icon;
+                                const isActive =
+                                  pathname === sub.href ||
+                                  pathname.startsWith(sub.href + "/");
+                                return (
+                                  <DropdownMenuItem key={sub.href} asChild>
+                                    <Link
+                                      href={sub.href}
+                                      className={cn(
+                                        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer",
+                                        isActive
+                                          ? "bg-primary text-primary-foreground shadow-sm"
+                                          : "text-muted-foreground focus:bg-accent focus:text-accent-foreground",
+                                      )}
+                                    >
+                                      <SubIcon className="h-4 w-4 shrink-0 opacity-80" />
+                                      {sub.title}
+                                    </Link>
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                            </div>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      );
+                    }
+
+                    return (
+                      <div key={item.title}>
+                        <button
+                          type="button"
+                          onClick={() => toggleSubmenu(item.title)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            hasActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                            collapsed && !isMobile && "justify-center",
+                          )}
                         >
-                          <DropdownMenuLabel className="px-3 py-2 border-b border-border/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground rounded-t-xl focus:bg-transparent">
-                            {item.title}
-                          </DropdownMenuLabel>
-                          <div className="p-1.5 space-y-0.5">
-                            {item.items.map((sub) => {
-                              const SubIcon = sub.icon;
-                              const isActive =
-                                pathname === sub.href ||
-                                pathname.startsWith(sub.href + "/");
-                              return (
-                                <DropdownMenuItem key={sub.href} asChild>
+                          <Icon className="h-5 w-5 shrink-0" />
+                          {(!collapsed || isMobile) && (
+                            <>
+                              <span className="flex-1 text-left">
+                                {item.title}
+                              </span>
+                              <ChevronDown
+                                className={cn(
+                                  "h-4 w-4 transition-transform",
+                                  isOpen && "rotate-180",
+                                )}
+                              />
+                            </>
+                          )}
+                        </button>
+                        {isOpen && (!collapsed || isMobile) && (
+                          <div className="ml-2 mt-2 rounded-xl border border-border/60 bg-muted/30 overflow-hidden">
+                            <div className="px-3 py-2 border-b border-border/60">
+                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                {item.title}
+                              </p>
+                            </div>
+                            <div className="p-1.5 space-y-0.5">
+                              {item.items.map((sub) => {
+                                const SubIcon = sub.icon;
+                                const isActive =
+                                  pathname === sub.href ||
+                                  pathname.startsWith(sub.href + "/");
+                                return (
                                   <Link
+                                    key={sub.href}
                                     href={sub.href}
+                                    onClick={
+                                      isMobile
+                                        ? () => setMobileMenuOpen(false)
+                                        : undefined
+                                    }
                                     className={cn(
-                                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer",
+                                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                                       isActive
                                         ? "bg-primary text-primary-foreground shadow-sm"
-                                        : "text-muted-foreground focus:bg-accent focus:text-accent-foreground",
+                                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                                     )}
                                   >
                                     <SubIcon className="h-4 w-4 shrink-0 opacity-80" />
-                                    {sub.title}
+                                    <span>{sub.title}</span>
                                   </Link>
-                                </DropdownMenuItem>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        )}
+                      </div>
                     );
                   }
 
-                  return (
-                    <div key={item.title}>
-                      <button
-                        type="button"
-                        onClick={() => toggleSubmenu(item.title)}
-                        className={cn(
-                          "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                          hasActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                          collapsed && !isMobile && "justify-center",
-                        )}
-                      >
-                        <Icon className="h-5 w-5 shrink-0" />
-                        {(!collapsed || isMobile) && (
-                          <>
-                            <span className="flex-1 text-left">
-                              {item.title}
-                            </span>
-                            <ChevronDown
-                              className={cn(
-                                "h-4 w-4 transition-transform",
-                                isOpen && "rotate-180",
-                              )}
-                            />
-                          </>
-                        )}
-                      </button>
-                      {isOpen && (!collapsed || isMobile) && (
-                        <div className="ml-2 mt-2 rounded-xl border border-border/60 bg-muted/30 overflow-hidden">
-                          <div className="px-3 py-2 border-b border-border/60">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              {item.title}
-                            </p>
-                          </div>
-                          <div className="p-1.5 space-y-0.5">
-                            {item.items.map((sub) => {
-                              const SubIcon = sub.icon;
-                              const isActive =
-                                pathname === sub.href ||
-                                pathname.startsWith(sub.href + "/");
-                              return (
-                                <Link
-                                  key={sub.href}
-                                  href={sub.href}
-                                  onClick={
-                                    isMobile
-                                      ? () => setMobileMenuOpen(false)
-                                      : undefined
-                                  }
-                                  className={cn(
-                                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                                    isActive
-                                      ? "bg-primary text-primary-foreground shadow-sm"
-                                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                                  )}
-                                >
-                                  <SubIcon className="h-4 w-4 shrink-0 opacity-80" />
-                                  <span>{sub.title}</span>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
+                  const Icon = item.icon;
+                  const isActive =
+                    pathname === item.href ||
+                    pathname.startsWith(item.href + "/");
+                  const linkElement = (
+                    <Link
+                      href={item.href}
+                      onClick={
+                        isMobile ? () => setMobileMenuOpen(false) : undefined
+                      }
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                        collapsed && !isMobile && "justify-center",
                       )}
-                    </div>
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      {(!collapsed || isMobile) && <span>{item.title}</span>}
+                    </Link>
                   );
-                }
-
-                const Icon = item.icon;
-                const isActive =
-                  pathname === item.href ||
-                  pathname.startsWith(item.href + "/");
-                const linkElement = (
-                  <Link
-                    href={item.href}
-                    onClick={
-                      isMobile ? () => setMobileMenuOpen(false) : undefined
-                    }
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                      collapsed && !isMobile && "justify-center",
-                    )}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {(!collapsed || isMobile) && <span>{item.title}</span>}
-                  </Link>
-                );
-                if (collapsed && !isMobile) {
+                  if (collapsed && !isMobile) {
+                    return (
+                      <Tooltip key={item.href}>
+                        <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
+                        <TooltipContent side="right">
+                          {item.title}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
                   return (
-                    <Tooltip key={item.href}>
-                      <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
-                      <TooltipContent side="right">{item.title}</TooltipContent>
-                    </Tooltip>
+                    <React.Fragment key={item.href}>
+                      {linkElement}
+                    </React.Fragment>
                   );
-                }
-                return (
-                  <React.Fragment key={item.href}>{linkElement}</React.Fragment>
-                );
-              })}
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
         </div>
 
         {/* Footer (inspiração: invite, help, CTA) */}
-        <div className={cn("border-t border-border/50 p-3 space-y-0.5", (!collapsed || isMobile) && "mt-auto")}>
+        <div
+          className={cn(
+            "border-t border-border/50 p-3 space-y-0.5",
+            (!collapsed || isMobile) && "mt-auto",
+          )}
+        >
           <Link
             href="/descobrir"
             onClick={isMobile ? () => setMobileMenuOpen(false) : undefined}
@@ -422,12 +431,7 @@ export function Sidebar() {
               "flex items-center gap-2 min-w-0 rounded-lg hover:opacity-90 transition-opacity",
               collapsed && "justify-center w-full",
             )}
-          >
-            <Logo size="sm" showText={false} variant="minimal" className="shrink-0" />
-            {!collapsed && (
-              <span className="font-semibold text-sm truncate">UFAM Hub</span>
-            )}
-          </Link>
+          ></Link>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

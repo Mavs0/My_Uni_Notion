@@ -24,6 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <link rel="preload" href="/logo-dark.png?v2" as="image" />
+        <link rel="preload" href="/logo-light.png?v2" as="image" />
+      </head>
       <body
         className="antialiased min-h-screen bg-background text-foreground font-sans"
         suppressHydrationWarning
