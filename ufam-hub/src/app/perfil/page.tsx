@@ -29,8 +29,6 @@ import {
   Chrome,
   Github,
   UserPlus,
-  MapPin,
-  Sparkles,
 } from "lucide-react";
 import {
   Card,
@@ -491,27 +489,30 @@ export default function PerfilPage() {
   };
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+      <div className="mx-auto w-full max-w-[min(100%,1280px)] px-2 py-6 sm:px-4">
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
     );
   }
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 pb-10 pt-2 sm:px-6">
+    <div className="mx-auto w-full max-w-[min(100%,1280px)] space-y-8 px-2 pb-16 pt-2 sm:px-4">
       <header className="animate-in fade-in slide-in-from-top-4 duration-500">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Conta
+        </p>
+        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                 <User className="h-5 w-5" />
               </span>
-              Meu Perfil
+              Definições da conta
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              Visão geral da sua conta e configurações — estilo painel, com
-              destaque para métricas e segurança.
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Perfil, palavra-passe e segurança — organizado em secções, ao
+              estilo de um painel de definições.
             </p>
           </div>
         </div>
@@ -531,88 +532,56 @@ export default function PerfilPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 xl:items-start">
-        <aside className="space-y-4 xl:col-span-4 xl:sticky xl:top-20 xl:self-start">
-          <div className="relative overflow-hidden rounded-2xl border border-violet-500/25 bg-gradient-to-b from-violet-500/[0.12] via-card to-card p-6 shadow-xl">
-            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-500/25 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-fuchsia-500/10 blur-2xl" />
-            <div className="relative flex flex-col items-center text-center">
-              <div className="relative mb-4">
-                <Avatar className="h-28 w-28 ring-4 ring-violet-500/35 ring-offset-2 ring-offset-background">
-                  <AvatarImage src={formData.avatar_url} alt={formData.nome} />
-                  <AvatarFallback className="text-lg">
-                    {getInitials(formData.nome, formData.email)}
-                  </AvatarFallback>
-                </Avatar>
-                <span
-                  className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-emerald-500 text-background shadow-md"
-                  title="Conta ativa"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                </span>
-              </div>
-              <h2 className="text-xl font-semibold tracking-tight">
-                {formData.nome?.trim() || "Seu nome"}
-              </h2>
-              <p className="mt-1 max-w-[260px] break-all text-sm text-muted-foreground">
-                {formData.email}
-              </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-300">
-                  Estudante
-                </span>
-                {formData.curso?.trim() ? (
-                  <span className="rounded-full border border-border/80 bg-muted/40 px-3 py-1 text-xs">
-                    {formData.curso}
-                  </span>
-                ) : null}
-                {formData.periodo?.trim() ? (
-                  <span className="rounded-full border border-border/80 bg-muted/40 px-3 py-1 text-xs">
-                    {formData.periodo}º período
-                  </span>
-                ) : null}
-              </div>
-              {(formData.matricula?.trim() || formData.telefone?.trim()) && (
-                <div className="mt-4 w-full space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 text-left text-xs">
-                  {formData.matricula?.trim() ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Hash className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-                      <span className="truncate">{formData.matricula}</span>
-                    </div>
-                  ) : null}
-                  {formData.telefone?.trim() ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-                      <span>{formData.telefone}</span>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-              <div className="mt-4 flex w-full items-center justify-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 text-violet-400" />
-                <span>UFAM Hub</span>
-              </div>
-              <Separator className="my-5 bg-border/60" />
-              <div className="flex w-full flex-col gap-2">
-                <Button
-                  className="w-full bg-violet-600 text-white hover:bg-violet-500"
-                  onClick={() => {
-                    setActiveTab("informacoes");
-                    setIsEditing(true);
-                  }}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Editar perfil
-                </Button>
-                <Button variant="outline" className="w-full" asChild>
-                  <Link href="/disciplinas">Ver disciplinas</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </aside>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) =>
+          handleActionWithUnsavedCheck(() => setActiveTab(v))
+        }
+        className="w-full"
+      >
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+          <TabsList
+            aria-label="Secções das definições"
+            className="flex h-auto w-full flex-col items-stretch gap-1 rounded-2xl border border-border bg-card/50 p-2 lg:sticky lg:top-20 lg:w-56 lg:shrink-0"
+          >
+            <TabsTrigger
+              value="informacoes"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <User className="h-4 w-4 shrink-0 opacity-70" />
+              Informações
+            </TabsTrigger>
+            <TabsTrigger
+              value="senha"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <Lock className="h-4 w-4 shrink-0 opacity-70" />
+              Palavra-passe
+            </TabsTrigger>
+            <TabsTrigger
+              value="seguranca"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <Shield className="h-4 w-4 shrink-0 opacity-70" />
+              Segurança
+            </TabsTrigger>
+            <TabsTrigger
+              value="amizades"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <UserPlus className="h-4 w-4 shrink-0 opacity-70" />
+              Solicitações
+            </TabsTrigger>
+            <TabsTrigger
+              value="logins"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <Chrome className="h-4 w-4 shrink-0 opacity-70" />
+              Outros logins
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="min-w-0 space-y-6 xl:col-span-8">
+          <div className="min-w-0 flex-1 space-y-6">
           {stats && (
             <div className="grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500 sm:grid-cols-3">
               <div
@@ -693,96 +662,57 @@ export default function PerfilPage() {
             </div>
           )}
 
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <div className="rounded-2xl border border-border/80 bg-card/40 p-1.5 shadow-sm backdrop-blur-sm">
-              <TabsList className="flex h-auto min-h-10 w-full flex-wrap justify-start gap-1 bg-transparent p-0 md:grid md:grid-cols-5 md:justify-stretch [&>button]:shrink-0 [&>button]:rounded-xl [&>button]:px-2 sm:[&>button]:px-3">
-                <TabsTrigger
-                  value="informacoes"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Informações</span>
-                  <span className="sm:hidden">Info</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="senha"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <Lock className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Alterar Senha</span>
-                  <span className="sm:hidden">Senha</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="seguranca"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <Shield className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Segurança</span>
-                  <span className="sm:hidden">2FA</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="amizades"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <UserPlus className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Solicitações</span>
-                  <span className="sm:hidden">Amigos</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="logins"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <Chrome className="h-4 w-4" />
-                  <span className="hidden sm:inline">Outros Logins</span>
-                  <span className="sm:hidden">Logins</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-        {/* Tab: Informações da Conta */}
-        <TabsContent value="informacoes" className="mt-4 space-y-6">
-          <Card className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Tab: Informações */}
+        <TabsContent value="informacoes" className="mt-0 space-y-6 focus-visible:outline-none">
+          <Card className="animate-in fade-in slide-in-from-bottom-6 duration-700 rounded-3xl border-border/80 shadow-sm">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <CardTitle>Informações Pessoais</CardTitle>
+              <CardTitle className="text-xl">Informações pessoais</CardTitle>
               <CardDescription>
-                Suas informações de perfil e contato
+                Nome, contacto e dados académicos
               </CardDescription>
             </div>
-            {!isEditing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-                className="shrink-0 w-full sm:w-auto"
-              >
-                <Edit2 className="h-4 w-4 mr-2" />
-                Editar
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/disciplinas">Ver disciplinas</Link>
               </Button>
-            )}
+              {!isEditing && (
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  Editar
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {}
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <Avatar className="h-24 w-24">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+            <div className="relative shrink-0">
+              <Avatar className="h-28 w-28 ring-4 ring-emerald-500/20 ring-offset-2 ring-offset-card">
                 <AvatarImage src={formData.avatar_url} alt={formData.nome} />
-                <AvatarFallback>
+                <AvatarFallback className="text-xl">
                   {getInitials(formData.nome, formData.email)}
                 </AvatarFallback>
               </Avatar>
+              {!isEditing ? (
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-emerald-500 text-background shadow-md"
+                  title="Conta ativa"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                </span>
+              ) : null}
               {isEditing && (
-                <div className="absolute bottom-0 right-0">
+                <div className="absolute -bottom-0.5 -right-0.5">
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8 rounded-full"
+                    className="h-9 w-9 rounded-full border-2 border-card bg-background/95 shadow-md"
                     onClick={() => {
                       setShowAvatarModal(true);
                       setAvatarMethod("upload");
@@ -796,7 +726,7 @@ export default function PerfilPage() {
                 </div>
               )}
             </div>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1 space-y-3">
               {isEditing ? (
                 <Input
                   name="nome"
@@ -806,14 +736,29 @@ export default function PerfilPage() {
                   className="text-lg font-semibold"
                 />
               ) : (
-                <h2 className="text-2xl font-semibold">
+                <h2 className="text-2xl font-semibold tracking-tight">
                   {formData.nome || "Sem nome"}
                 </h2>
               )}
-              <p className="text-sm text-zinc-500 mt-1 flex items-center gap-2">
-                <Mail className="h-4 w-4" />
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Mail className="h-4 w-4 shrink-0" />
                 {formData.email}
               </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                  Estudante
+                </span>
+                {formData.curso?.trim() ? (
+                  <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs">
+                    {formData.curso}
+                  </span>
+                ) : null}
+                {formData.periodo?.trim() ? (
+                  <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs">
+                    {formData.periodo}º período
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
           <Separator />
@@ -967,10 +912,10 @@ export default function PerfilPage() {
       </Card>
 
           {/* Informações da Conta */}
-          <Card className="animate-in fade-in slide-in-from-bottom-14 duration-700">
+          <Card className="animate-in fade-in slide-in-from-bottom-14 duration-700 rounded-3xl border-border/80 shadow-sm">
             <CardHeader>
-              <CardTitle>Informações da Conta</CardTitle>
-              <CardDescription>Dados da sua conta</CardDescription>
+              <CardTitle>Informações da conta</CardTitle>
+              <CardDescription>Email e data de registo</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 rounded-lg border">
@@ -1002,7 +947,7 @@ export default function PerfilPage() {
         </TabsContent>
 
         {/* Tab: Alterar Senha */}
-        <TabsContent value="senha" className="mt-4 space-y-6">
+        <TabsContent value="senha" className="mt-0 space-y-6 focus-visible:outline-none">
           <Card className="animate-in fade-in slide-in-from-bottom-8 duration-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1165,7 +1110,7 @@ export default function PerfilPage() {
         </TabsContent>
 
         {/* Tab: Segurança da Conta */}
-        <TabsContent value="seguranca" className="mt-4 space-y-6">
+        <TabsContent value="seguranca" className="mt-0 space-y-6 focus-visible:outline-none">
           <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -1345,12 +1290,12 @@ export default function PerfilPage() {
         </TabsContent>
 
         {/* Tab: Solicitações de Amizade */}
-        <TabsContent value="amizades" className="mt-4 space-y-6">
+        <TabsContent value="amizades" className="mt-0 space-y-6 focus-visible:outline-none">
           <FriendRequestsManager />
         </TabsContent>
 
         {/* Tab: Outros Logins */}
-        <TabsContent value="logins" className="mt-4 space-y-6">
+        <TabsContent value="logins" className="mt-0 space-y-6 focus-visible:outline-none">
           <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1419,9 +1364,9 @@ export default function PerfilPage() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+          </div>
         </div>
-      </div>
+      </Tabs>
 
       {/* Dialogs */}
       <Dialog open={showAvatarModal} onOpenChange={setShowAvatarModal}>

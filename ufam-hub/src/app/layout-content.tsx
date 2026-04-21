@@ -63,6 +63,15 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
   /** Calendário: usa toda a largura útil (sem max-w-6xl no main) */
   const isCalendarPage = pathname === "/calendar";
   const isChatPage = pathname === "/chat";
+  const isGruposWide =
+    pathname === "/grupos" ||
+    (typeof pathname === "string" && pathname.startsWith("/grupos/"));
+  /** Perfil público /perfil/[id]: layout largo estilo portfolio */
+  const isPublicProfileWide =
+    typeof pathname === "string" && /^\/perfil\/.+/.test(pathname);
+  /** Meu perfil /perfil: definições em duas colunas */
+  const isMeuPerfilWide = pathname === "/perfil";
+  const isDashboardWide = pathname === "/dashboard";
   const isFullWidthMain =
     isNotasEditorPage || isCalendarPage || isChatPage;
 
@@ -89,7 +98,17 @@ function FocusModeWrapper({ children }: { children: React.ReactNode }) {
             "flex-1 w-full min-h-0",
             !isFocusModeActive &&
               !isFullWidthMain &&
+              !isGruposWide &&
+              !isPublicProfileWide &&
+              !isMeuPerfilWide &&
+              !isDashboardWide &&
               "p-4 max-w-6xl mx-auto pb-24 md:pb-4",
+            !isFocusModeActive &&
+              (isGruposWide ||
+                isPublicProfileWide ||
+                isMeuPerfilWide ||
+                isDashboardWide) &&
+              "mx-auto w-full max-w-none p-4 pb-24 md:pb-4",
             !isFocusModeActive &&
               isFullWidthMain &&
               !isCalendarPage &&

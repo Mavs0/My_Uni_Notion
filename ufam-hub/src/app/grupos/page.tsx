@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,6 +23,10 @@ import {
   ChevronRight,
   TrendingUp,
   AlertTriangle,
+  LayoutGrid,
+  List,
+  ArrowDownWideNarrow,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -44,6 +48,10 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { darkenHex } from "@/lib/grupo-ui";
+import { GruposOnlineSidebar } from "@/components/grupos/GruposOnlineSidebar";
+
+const HUB_ACCENT = "#059669";
 function monogramGrupo(nome: string) {
   const parts = nome.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
@@ -69,7 +77,7 @@ function grupoCardPatternBg() {
 function tagDisciplinaClass(i: number) {
   const classes = [
     "border-emerald-500/35 bg-emerald-500/12 text-emerald-800 dark:text-emerald-300",
-    "border-violet-500/35 bg-violet-500/12 text-violet-800 dark:text-violet-300",
+    "border-slate-500/35 bg-slate-500/12 text-slate-800 dark:text-slate-300",
     "border-amber-500/35 bg-amber-500/12 text-amber-800 dark:text-amber-300",
     "border-sky-500/35 bg-sky-500/12 text-sky-800 dark:text-sky-300",
   ];
@@ -102,7 +110,7 @@ function porteGrupo(membros: number) {
   return {
     label: "Grande",
     chipClass:
-      "border-violet-500/35 bg-violet-500/12 text-violet-800 dark:text-violet-300",
+      "border-slate-500/35 bg-slate-500/12 text-slate-800 dark:text-slate-300",
   };
 }
 
@@ -175,6 +183,43 @@ export default function GruposPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const GRUPOS_PER_PAGE = 9;
+  const [sortBy, setSortBy] = useState<"recent" | "name" | "members">(
+    "recent",
+  );
+  const [density, setDensity] = useState<"comfortable" | "compact">(
+    "comfortable",
+  );
+  const [quickFilter, setQuickFilter] = useState<"all" | "has_spots">("all");
+
+  const hubStats = useMemo(() => {
+    const ativos = grupos.filter((g) => g.ativo !== false).length;
+    const arquivados = grupos.filter((g) => g.ativo === false).length;
+    const totalMembros = grupos.reduce(
+      (s, g) => s + (g.membros_count ?? 0),
+      0,
+    );
+    const comVaga = grupos.filter((g) => {
+      if (g.ativo === false) return false;
+      const m = g.membros_count ?? 0;
+      const max = g.max_membros ?? 50;
+      return max > m;
+    }).length;
+    return {
+      total: grupos.length,
+      ativos,
+      arquivados,
+      totalMembros,
+      comVaga,
+    };
+  }, [grupos]);
+
+  const hubHeroStyle = useMemo((): CSSProperties => {
+    const deep = darkenHex(HUB_ACCENT, 0.3);
+    return {
+      background: `linear-gradient(135deg, ${HUB_ACCENT} 0%, ${deep} 100%)`,
+      boxShadow: `0 24px 48px -12px ${HUB_ACCENT}55`,
+    };
+  }, []);
 
   useEffect(() => {
     loadGrupos();
@@ -397,39 +442,89 @@ export default function GruposPage() {
     }
   };
 
-  const filteredGrupos = grupos.filter((grupo) => {
-    const matchSearch = grupo.nome.toLowerCase().includes(search.toLowerCase());
-    const matchAtivo = mostrarInativos ? true : grupo.ativo !== false;
-    return matchSearch && matchAtivo;
-  });
+  const filteredGrupos = useMemo(() => {
+    return grupos.filter((grupo) => {
+      const matchSearch = grupo.nome
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      const matchAtivo = mostrarInativos ? true : grupo.ativo !== false;
+      if (!matchSearch || !matchAtivo) return false;
+      if (quickFilter === "has_spots") {
+        if (grupo.ativo === false) return false;
+        const m = grupo.membros_count ?? 0;
+        const max = grupo.max_membros ?? 50;
+        if (!(max > m)) return false;
+      }
+      return true;
+    });
+  }, [grupos, search, mostrarInativos, quickFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredGrupos.length / GRUPOS_PER_PAGE));
-  const paginatedGrupos = filteredGrupos.slice(
+  const sortedFilteredGrupos = useMemo(() => {
+    const arr = [...filteredGrupos];
+    if (sortBy === "name") {
+      arr.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    } else if (sortBy === "members") {
+      arr.sort(
+        (a, b) => (b.membros_count ?? 0) - (a.membros_count ?? 0),
+      );
+    } else {
+      arr.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+    return arr;
+  }, [filteredGrupos, sortBy]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedFilteredGrupos.length / GRUPOS_PER_PAGE),
+  );
+  const paginatedGrupos = sortedFilteredGrupos.slice(
     (page - 1) * GRUPOS_PER_PAGE,
-    page * GRUPOS_PER_PAGE
+    page * GRUPOS_PER_PAGE,
   );
 
   useEffect(() => {
     setPage(1);
-  }, [search, mostrarInativos]);
+  }, [search, mostrarInativos, quickFilter, sortBy]);
 
   const isAdmin = (grupo: Grupo) => currentUserId !== null && grupo.criador_id === currentUserId;
 
   return (
-    <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Grupos de estudo
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Colabore e estude junto com seus colegas
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <main className="mx-auto w-full max-w-[min(100%,1920px)] px-2 py-6 sm:px-4 lg:px-6 xl:px-8">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8 xl:gap-10">
+        <div className="min-w-0 flex-1 space-y-8">
+      <div
+        className="overflow-hidden rounded-3xl text-white shadow-xl"
+        style={hubHeroStyle}
+      >
+        <div className="relative p-6 sm:p-8">
+          <div
+            className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl"
+            aria-hidden
+          />
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="flex items-center gap-2 text-sm font-medium text-white/85">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                Colaboração em estudo
+              </p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+                Grupos de estudo
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-white/85">
+                Chat em tempo real, convites e materiais — num painel fluido,
+                inspirado em dashboards modernos de produtividade.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
           <Dialog open={showEntrarDialog} onOpenChange={setShowEntrarDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="rounded-full border-border/80">
+              <Button
+                variant="outline"
+                className="rounded-full border-white/35 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 hover:text-white"
+              >
                 <LogIn className="mr-2 h-4 w-4" />
                 Entrar em grupo
               </Button>
@@ -525,7 +620,7 @@ export default function GruposPage() {
           </Dialog>
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button className="rounded-full px-5 font-semibold shadow-sm">
+              <Button className="rounded-full border border-white/30 bg-white px-5 font-semibold text-emerald-800 shadow-sm hover:bg-white/95 dark:text-emerald-900">
                 <Plus className="mr-2 h-4 w-4" />
                 Criar grupo
               </Button>
@@ -634,37 +729,120 @@ export default function GruposPage() {
               </div>
             </DialogContent>
           </Dialog>
+            </div>
+          </div>
+          <div className="relative mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "Grupos", value: hubStats.total, sub: "no hub" },
+              { label: "Ativos", value: hubStats.ativos, sub: "em curso" },
+              { label: "Membros", value: hubStats.totalMembros, sub: "soma" },
+              { label: "Arquivados", value: hubStats.arquivados, sub: "histórico" },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm"
+              >
+                <p className="text-[11px] font-medium uppercase tracking-wide text-white/70">
+                  {s.label}
+                </p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{s.value}</p>
+                <p className="text-[11px] text-white/65">{s.sub}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar grupos..."
-            className="h-12 rounded-full border-border/80 bg-muted/40 pl-11 shadow-none focus-visible:ring-2 focus-visible:ring-primary/30"
-          />
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar grupos..."
+              className="h-12 rounded-full border-border/80 bg-muted/40 pl-11 shadow-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-full border border-border/80 bg-muted/30 p-1">
+              <Button
+                type="button"
+                variant={quickFilter === "all" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-9 rounded-full px-4 text-xs"
+                onClick={() => setQuickFilter("all")}
+              >
+                Todos
+              </Button>
+              <Button
+                type="button"
+                variant={quickFilter === "has_spots" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-9 rounded-full px-4 text-xs"
+                onClick={() => setQuickFilter("has_spots")}
+              >
+                Com vaga
+              </Button>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-background px-2 py-1">
+              <ArrowDownWideNarrow className="ml-1 h-3.5 w-3.5 text-muted-foreground" />
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  setSortBy(e.target.value as "recent" | "name" | "members")
+                }
+                className="h-9 max-w-[11rem] cursor-pointer border-0 bg-transparent py-0 pr-8 text-sm font-medium focus:outline-none focus:ring-0"
+                aria-label="Ordenar grupos"
+              >
+                <option value="recent">Mais recentes</option>
+                <option value="name">Nome (A–Z)</option>
+                <option value="members">Mais membros</option>
+              </select>
+            </div>
+            <div className="flex rounded-full border border-border/80 p-1">
+              <Button
+                type="button"
+                variant={density === "comfortable" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-9 w-9 rounded-full"
+                onClick={() => setDensity("comfortable")}
+                aria-label="Vista confortável"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant={density === "compact" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-9 w-9 rounded-full"
+                onClick={() => setDensity("compact")}
+                aria-label="Vista compacta"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant={mostrarInativos ? "default" : "outline"}
+              size="sm"
+              className="h-11 shrink-0 rounded-full border-border/80 px-4"
+              onClick={() => setMostrarInativos(!mostrarInativos)}
+            >
+              {mostrarInativos ? (
+                <>
+                  <EyeOff className="mr-2 h-4 w-4" />
+                  Ocultar arquivados
+                </>
+              ) : (
+                <>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Arquivados
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-        <Button
-          type="button"
-          variant={mostrarInativos ? "default" : "outline"}
-          size="sm"
-          className="h-11 shrink-0 rounded-full border-border/80 px-4"
-          onClick={() => setMostrarInativos(!mostrarInativos)}
-        >
-          {mostrarInativos ? (
-            <>
-              <EyeOff className="mr-2 h-4 w-4" />
-              Ocultar arquivados
-            </>
-          ) : (
-            <>
-              <Eye className="mr-2 h-4 w-4" />
-              Mostrar arquivados
-            </>
-          )}
-        </Button>
       </div>
       {loading ? (
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -699,8 +877,15 @@ export default function GruposPage() {
           />
         </section>
       ) : (
-        <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 md:gap-6 xl:grid-cols-3 xl:gap-6">
-          {paginatedGrupos.map((grupo) => {
+        <div
+          className={cn(
+            "grid items-stretch gap-5",
+            density === "comfortable"
+              ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+              : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4",
+          )}
+        >
+          {paginatedGrupos.map((grupo, cardIndex) => {
             const membros = grupo.membros_count ?? 0;
             const maxM = grupo.max_membros ?? 50;
             const lotacaoPct =
@@ -719,10 +904,12 @@ export default function GruposPage() {
               <article
                 key={grupo.id}
                 className={cn(
-                  "group relative flex min-h-[400px] w-full min-w-0 flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-md ring-1 ring-black/[0.03] transition-all duration-300 dark:ring-white/[0.05]",
+                  "grupos-card-enter group relative flex w-full min-w-0 flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-md ring-1 ring-black/[0.03] transition-all duration-300 dark:ring-white/[0.05]",
+                  density === "comfortable" ? "min-h-[400px]" : "min-h-[340px]",
                   "hover:-translate-y-0.5 hover:shadow-xl",
                   grupo.ativo === false && "border-dashed opacity-65",
                 )}
+                style={{ animationDelay: `${Math.min(cardIndex, 11) * 50}ms` }}
               >
                 <div
                   className={cn(
@@ -1136,6 +1323,13 @@ export default function GruposPage() {
           </Button>
         </div>
       )}
+
+        </div>
+
+        <aside className="hidden w-full shrink-0 lg:block lg:w-[min(100%,280px)] lg:sticky lg:top-[4.5rem] xl:w-[min(100%,300px)]">
+          <GruposOnlineSidebar />
+        </aside>
+      </div>
 
       {/* Dialog de confirmação para arquivar */}
       <Dialog

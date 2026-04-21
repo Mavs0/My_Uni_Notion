@@ -1859,6 +1859,7 @@ export default function DashboardPage() {
         profileData={profileData}
         avaliacoes={avaliacoes}
         eventosSemana={eventosSemana}
+        disciplinas={disciplinas}
       />
 
       {/* Checklist de Onboarding */}
