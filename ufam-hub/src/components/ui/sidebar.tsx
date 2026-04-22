@@ -75,7 +75,7 @@ const navSections: NavSection[] = [
         icon: LayoutDashboard,
         i18n: "dashboard",
       },
-      { title: "Ajuda", href: "/ajuda", icon: HelpCircle },
+      // { title: "Ajuda", href: "/ajuda", icon: HelpCircle },
     ],
   },
   {

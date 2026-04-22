@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const nome = typeof body.nome === "string" ? body.nome.trim() : "";
     const email = typeof body.email === "string" ? body.email.trim() : "";
+    const mensagem =
+      typeof body.mensagem === "string"
+        ? body.mensagem.trim().slice(0, 200)
+        : "";
 
     if (!nome || nome.length < 2) {
       return NextResponse.json(
@@ -77,6 +81,7 @@ export async function POST(request: NextRequest) {
           full_name: nome,
           nome,
           senha_temporaria: senhaTemporaria,
+          ...(mensagem ? { mensagem_convite: mensagem } : {}),
         },
         redirectTo: cadastroConvidadoUrl,
       });

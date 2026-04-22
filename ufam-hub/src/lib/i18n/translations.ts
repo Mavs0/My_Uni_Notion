@@ -230,7 +230,8 @@ export const translations: Record<Locale, Translations> = {
       dadosArmazenados: "Dados Armazenados Localmente",
       limparDados: "Limpar Dados Locais",
       conviteUsuario: "Convidar usuário",
-      conviteUsuarioDesc: "Envie um convite por e-mail para alguém entrar na plataforma.",
+      conviteUsuarioDesc:
+        "Convide alguém para começar a usar o UFAM Hub.",
       emailPlaceholder: "email@exemplo.com",
       enviarConvite: "Enviar convite",
       conviteEnviado: "Convite enviado com sucesso.",
@@ -359,7 +360,7 @@ export const translations: Record<Locale, Translations> = {
       dadosArmazenados: "Locally Stored Data",
       limparDados: "Clear Local Data",
       conviteUsuario: "Invite user",
-      conviteUsuarioDesc: "Send an email invite for someone to join the platform.",
+      conviteUsuarioDesc: "Invite someone to start using UFAM Hub.",
       emailPlaceholder: "email@example.com",
       enviarConvite: "Send invite",
       conviteEnviado: "Invite sent successfully.",
