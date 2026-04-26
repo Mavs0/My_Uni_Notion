@@ -64,7 +64,11 @@ function ThemeSegment() {
   const options: { value: string; label: string; icon: React.ReactNode }[] = [
     { value: "dark", label: "Escuro", icon: <Moon className="h-3.5 w-3.5" /> },
     { value: "light", label: "Claro", icon: <Sun className="h-3.5 w-3.5" /> },
-    { value: "system", label: "Sistema", icon: <Monitor className="h-3.5 w-3.5" /> },
+    {
+      value: "system",
+      label: "Sistema",
+      icon: <Monitor className="h-3.5 w-3.5" />,
+    },
   ];
   return (
     <>
@@ -80,7 +84,7 @@ function ThemeSegment() {
             "flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-md transition-colors",
             current === opt.value
               ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           {opt.icon}
@@ -221,9 +225,16 @@ function TopBar() {
             </Button>
             <Link
               href="/dashboard"
-              className="shrink-0 transition-opacity hover:opacity-80 flex items-center"
+              className="shrink-0 transition-opacity hover:opacity-80 flex items-center gap-2"
             >
-              <Logo size="sm" showText={true} variant="minimal" />
+              <Logo
+                size="md"
+                showText={true}
+                variant="minimal"
+                priority
+                pairedWithTitle
+              />
+              <span className="font-semibold text-base truncate">UFAM Hub</span>
             </Link>
           </div>
 

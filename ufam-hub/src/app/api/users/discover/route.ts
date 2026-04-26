@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const curso = searchParams.get("curso") || "";
     const periodo = searchParams.get("periodo") || "";
+    const tipoPerfil = (searchParams.get("tipo_perfil") || "").trim();
+    const campus = (searchParams.get("campus") || "").trim();
     const sort = searchParams.get("sort") || "seguidores"; // seguidores | nome | recent
 
     const allUserIds = new Set<string>();
@@ -114,11 +116,46 @@ export async function GET(request: NextRequest) {
           userData.user.email?.split("@")[0] ||
           "Usuário";
 
+        const emailLocal = userData.user.email?.split("@")[0] || "";
+        const username =
+          (typeof userMetadata.username === "string" &&
+            userMetadata.username.trim()) ||
+          emailLocal.replace(/[^a-zA-Z0-9_.]/g, "") ||
+          "usuario";
+
+        const metaTipo = String(userMetadata.tipo_perfil || "").toLowerCase();
+        const metaCampus = String(userMetadata.campus || "").toLowerCase();
+
+        if (tipoPerfil) {
+          const f = tipoPerfil.toLowerCase();
+          if (f === "outro") {
+            if (["estudante", "professor", "servidor"].includes(metaTipo)) {
+              continue;
+            }
+          } else if (metaTipo !== f) {
+            continue;
+          }
+        }
+
+        if (
+          campus &&
+          !metaCampus.includes(campus.toLowerCase())
+        ) {
+          continue;
+        }
+
+        const searchL = search.toLowerCase();
         if (
           search &&
-          !nome.toLowerCase().includes(search.toLowerCase()) &&
-          !userMetadata.curso?.toLowerCase().includes(search.toLowerCase()) &&
-          !userMetadata.bio?.toLowerCase().includes(search.toLowerCase())
+          !nome.toLowerCase().includes(searchL) &&
+          !username.toLowerCase().includes(searchL) &&
+          !String(userMetadata.curso || "")
+            .toLowerCase()
+            .includes(searchL) &&
+          !String(userMetadata.bio || "")
+            .toLowerCase()
+            .includes(searchL) &&
+          !emailLocal.toLowerCase().includes(searchL)
         ) {
           continue;
         }
@@ -139,14 +176,33 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        let tags: string[] = [];
+        if (Array.isArray(userMetadata.interesses)) {
+          tags = userMetadata.interesses
+            .map((x: unknown) => String(x).trim())
+            .filter(Boolean)
+            .slice(0, 6);
+        } else if (typeof userMetadata.interesses === "string") {
+          tags = userMetadata.interesses
+            .split(/[,;|]/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .slice(0, 6);
+        }
+
         usersArray.push({
           id: userData.user.id,
           email: userData.user.email,
           nome: nome,
+          username,
           avatar_url: userMetadata.avatar_url || "",
           bio: userMetadata.bio || "",
           curso: userMetadata.curso || "",
           periodo: userMetadata.periodo || "",
+          tipo_perfil: userMetadata.tipo_perfil || "",
+          campus: userMetadata.campus || "",
+          tags,
+          created_at: userData.user.created_at || "",
         });
 
         if (usersArray.length >= 200) break;
@@ -198,7 +254,6 @@ export async function GET(request: NextRequest) {
 
     const paginatedUsers = usersArray.slice(offset, offset + limit);
 
-    console.log(`✅ Retornando ${paginatedUsers.length} de ${total} usuários`);
     return NextResponse.json({
       users: paginatedUsers,
       total,

@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { generateText } from "ai";
 import { getAIModel } from "@/lib/ai/config";
+import {
+  getAiHttpError,
+  shouldTryGeminiModelFallback,
+} from "@/lib/ai/errors";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { parseQuizFromModelText } from "@/lib/ai/parse-quiz-json";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,15 +31,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: anotacoes } = await supabase
-      .from("anotacoes")
-      .select("titulo, conteudo")
+    const { data: notasCtx } = await supabase
+      .from("notas")
+      .select("titulo, content_md")
       .eq("disciplina_id", disciplinaId)
       .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
       .limit(10);
 
-    const contexto = anotacoes
-      ?.map((a) => `${a.titulo}:\n${a.conteudo}`)
+    const contexto = notasCtx
+      ?.map((a) => `${a.titulo || "Nota"}:\n${a.content_md || ""}`)
       .join("\n\n");
 
     const { data: disciplina } = await supabase
@@ -92,7 +98,10 @@ REGRAS:
 - Apenas UMA resposta correta
 - Explicação educativa para cada resposta
 - Baseie-se no material do aluno quando disponível
-- Responda APENAS com o JSON, sem texto adicional`;
+- CRÍTICO: responda somente UM objeto JSON válido, sem markdown, sem \`\`\`, sem texto antes ou depois
+- O JSON deve começar com { e terminar com }
+- Use aspas duplas para todas as chaves e strings
+- Não inclua comentários dentro do JSON`;
 
     let model;
     let result;
@@ -107,11 +116,10 @@ REGRAS:
       text = result.text;
     } catch (modelError: any) {
       console.error("Erro ao usar modelo padrão:", modelError);
-      if (
-        modelError.message?.includes("not found") ||
-        modelError.message?.includes("404")
-      ) {
-        console.log("Tentando usar @google/generative-ai diretamente...");
+      if (shouldTryGeminiModelFallback(modelError)) {
+        console.log(
+          "Tentando fallback com outros modelos Gemini (@google/generative-ai)…",
+        );
         try {
           const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
           if (!apiKey) {
@@ -187,24 +195,25 @@ REGRAS:
       }
     }
 
-    let quiz;
-    try {
-      const jsonStr = text.replace(/```json\n?|\n?```/g, "").trim();
-      quiz = JSON.parse(jsonStr);
-    } catch {
-      return NextResponse.json({
-        quiz: null,
-        rawResponse: text,
-        error: "Não foi possível parsear o quiz",
-      });
+    const parsed = parseQuizFromModelText(text);
+    if (!parsed?.quiz?.perguntas?.length) {
+      console.warn(
+        "[quiz] Parse falhou ou quiz vazio. Primeiros 400 chars:",
+        text?.slice(0, 400),
+      );
+      return NextResponse.json(
+        {
+          error:
+            "A IA devolveu um formato que não conseguimos ler. Tente de novo, reduza o número de perguntas ou encurte o tema/material.",
+        },
+        { status: 422 },
+      );
     }
 
-    return NextResponse.json(quiz);
-  } catch (error: any) {
+    return NextResponse.json(parsed);
+  } catch (error: unknown) {
     console.error("Erro ao gerar quiz:", error);
-    return NextResponse.json(
-      { error: "Erro ao gerar quiz: " + error.message },
-      { status: 500 }
-    );
+    const { status, message } = getAiHttpError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

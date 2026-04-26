@@ -22,7 +22,6 @@ import {
   Network,
   CheckCircle2,
   XCircle,
-  ChevronRight,
   Archive,
   ArchiveRestore,
   RefreshCw,
@@ -31,12 +30,10 @@ import {
   FileText,
   Eye,
   FileDown,
-  FileUp,
   Zap,
   Tag,
   Save,
   Tags,
-  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +65,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageRenderer } from "@/components/chat/MessageRenderer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MindMapWorkspace } from "@/components/mind-map";
 
 type Msg = {
   id: string;
@@ -100,21 +98,6 @@ type QuizPergunta = {
 type QuizData = {
   titulo: string;
   perguntas: QuizPergunta[];
-};
-
-type MapaMentalRamo = {
-  id: string;
-  texto: string;
-  cor: string;
-  subramos?: { id: string; texto: string; detalhes?: string }[];
-};
-
-type MapaMentalData = {
-  titulo: string;
-  descricao: string;
-  nocentral: { texto: string; cor: string };
-  ramos: MapaMentalRamo[];
-  resumo: string;
 };
 
 const storeKey = "chatThreads:v1";
@@ -157,14 +140,8 @@ export default function ChatPage() {
     {}
   );
   const [quizMostrarResultado, setQuizMostrarResultado] = useState(false);
-  const [mapaMentalData, setMapaMentalData] = useState<MapaMentalData | null>(
-    null
-  );
   const [quizLoading, setQuizLoading] = useState(false);
   const [explicacaoLoading, setExplicacaoLoading] = useState(false);
-  const [mapaLoading, setMapaLoading] = useState(false);
-  const [pdfExtractLoading, setPdfExtractLoading] = useState(false);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [quizConfig, setQuizConfig] = useState({
     tema: "",
     quantidade: 5,
@@ -174,7 +151,6 @@ export default function ChatPage() {
     conceito: "",
     nivel: "intermediario",
   });
-  const [mapaConfig, setMapaConfig] = useState({ texto: "", titulo: "" });
   const [explicacaoTexto, setExplicacaoTexto] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -193,24 +169,21 @@ export default function ChatPage() {
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [msgAsstId, setMsgAsstId] = useState<string | null>(null);
-  const [showSaveMapaDialog, setShowSaveMapaDialog] = useState(false);
-  const [showLoadMapaDialog, setShowLoadMapaDialog] = useState(false);
-  const [mapasSalvos, setMapasSalvos] = useState<any[]>([]);
-  const [loadingMapasSalvos, setLoadingMapasSalvos] = useState(false);
-  const [mapaTitleToSave, setMapaTitleToSave] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [storageHydrated, setStorageHydrated] = useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storeKey);
       if (raw) {
         const data: Thread[] = JSON.parse(raw);
-        console.log("📂 Threads carregadas do localStorage:", data.length);
         setThreads(data);
         if (data[0]) setCurrentId(data[0].id);
       }
     } catch (error) {
-      console.error("❌ Erro ao carregar threads do localStorage:", error);
+      console.error("Erro ao carregar threads do localStorage:", error);
+    } finally {
+      setStorageHydrated(true);
     }
   }, []);
   useEffect(() => {
@@ -221,11 +194,11 @@ export default function ChatPage() {
     }
   }, [disciplinasAtivas, disciplinaId]);
   useEffect(() => {
+    if (!storageHydrated) return;
     try {
       localStorage.setItem(storeKey, JSON.stringify(threads));
-      console.log("💾 Threads salvas no localStorage:", threads.length);
     } catch (error) {
-      console.error("❌ Erro ao salvar threads no localStorage:", error);
+      console.error("Erro ao salvar threads no localStorage:", error);
     }
     const allTags = new Set<string>();
     threads.forEach((t) => {
@@ -234,7 +207,7 @@ export default function ChatPage() {
       }
     });
     setAvailableTags(Array.from(allTags).sort());
-  }, [threads]);
+  }, [threads, storageHydrated]);
   const current = useMemo(
     () => threads.find((t) => t.id === currentId) || null,
     [threads, currentId]
@@ -342,8 +315,9 @@ export default function ChatPage() {
     });
     return filtered;
   }, [threads, filterFavorites, searchQuery, sortBy, filterTag]);
-  async function send() {
-    if (!input.trim()) return;
+  async function send(overrideText?: string) {
+    const textToSend = (overrideText ?? input).trim();
+    if (!textToSend) return;
     if (!disciplinasAtivas || disciplinasAtivas.length === 0) {
       setStreamErr(
         "Você precisa cadastrar pelo menos uma disciplina para usar o chat de IA."
@@ -372,53 +346,43 @@ export default function ChatPage() {
     const msgUser: Msg = {
       id: `m_${Date.now()}_u`,
       role: "user",
-      text: input,
+      text: textToSend,
       ts: Date.now(),
     };
-    setInput("");
+    const msgAsstId = `m_${Date.now() + 1}_a`;
+    setMsgAsstId(msgAsstId);
+    if (!overrideText) setInput("");
     setThreads((prev) =>
       prev.map((t) => {
-        if (t.id === tId) {
-          const newMsgs = [...t.msgs, msgUser];
-          const newTitle = t.msgs.length === 0 
-            ? msgUser.text.length > 50 
+        if (t.id !== tId) return t;
+        const newMsgs = [
+          ...t.msgs,
+          msgUser,
+          { id: msgAsstId, role: "assistant" as const, text: "", ts: Date.now() },
+        ];
+        const newTitle =
+          t.msgs.length === 0
+            ? msgUser.text.length > 50
               ? msgUser.text.substring(0, 50) + "..."
               : msgUser.text
             : t.title;
-          return { 
-            ...t, 
-            msgs: newMsgs, 
-            title: newTitle,
-            updatedAt: Date.now() 
-          };
-        }
-        return t;
+        return {
+          ...t,
+          msgs: newMsgs,
+          title: newTitle,
+          updatedAt: Date.now(),
+        };
       })
     );
-    const msgAsstId = `m_${Date.now()}_a`;
-    setMsgAsstId(msgAsstId);
-    setThreads((prev) =>
-      prev.map((t) =>
-        t.id === tId
-          ? {
-              ...t,
-              msgs: [
-                ...t.msgs,
-                { id: msgAsstId, role: "assistant", text: "", ts: Date.now() },
-              ],
-              updatedAt: Date.now(),
-            }
-          : t
-      )
-    );
     setLoading(true);
+    const disciplinaParaApi = disciplinaId;
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          disciplinaId: current?.disciplinaId ?? disciplinaId,
+          disciplinaId: disciplinaParaApi,
           question: msgUser.text,
         }),
       });
@@ -433,77 +397,50 @@ export default function ChatPage() {
         }
         throw new Error(errorMessage);
       }
-      console.log("📊 Response status:", res.status);
-      console.log("📊 Response ok:", res.ok);
-      console.log(
-        "📊 Response headers:",
-        Object.fromEntries(res.headers.entries())
-      );
-      console.log("📊 Response body:", res.body ? "presente" : "ausente");
       if (!res.body) {
-        console.error("❌ Response não tem body!");
         const errorText = await res
           .text()
           .catch(() => "Não foi possível ler o erro");
-        console.error("❌ Response text:", errorText);
-        throw new Error("Resposta da API não contém dados");
+        throw new Error(errorText || "Resposta da API não contém dados");
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let acc = "";
-      let chunkCount = 0;
-      let hasReceivedData = false;
-      console.log("📡 Iniciando leitura do stream...");
       const timeout = setTimeout(() => {
-        console.error("⏱️ Timeout: nenhum dado recebido após 30 segundos");
         reader.cancel();
       }, 30000);
       try {
         while (true) {
           const { value, done } = await reader.read();
+          if (value && value.length > 0) {
+            clearTimeout(timeout);
+            const chunk = decoder.decode(value, { stream: true });
+            if (chunk && chunk.length > 0) {
+              acc += chunk;
+              setIsTyping(true);
+              setThreads((prev) =>
+                prev.map((t) =>
+                  t.id === tId
+                    ? {
+                        ...t,
+                        msgs: t.msgs.map((m) =>
+                          m.id === msgAsstId ? { ...m, text: acc } : m
+                        ),
+                        updatedAt: Date.now(),
+                      }
+                    : t
+                )
+              );
+              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+            }
+          }
           if (done) {
             clearTimeout(timeout);
-            console.log(
-              `✅ Stream finalizado. Total de chunks: ${chunkCount}, Texto acumulado: ${acc.length} caracteres, Dados recebidos: ${hasReceivedData}`
-            );
             break;
-          }
-          if (value && value.length > 0) {
-            hasReceivedData = true;
-            clearTimeout(timeout);
-          }
-          chunkCount++;
-          const chunk = decoder.decode(value, { stream: true });
-          if (chunkCount <= 5 || chunkCount % 10 === 0) {
-            console.log(
-              `📦 Chunk ${chunkCount} recebido (${chunk.length} chars, ${value.length} bytes raw):`,
-              chunk.substring(0, 200).replace(/\n/g, "\\n")
-            );
-          }
-          if (chunk && chunk.length > 0) {
-            acc += chunk;
-            setIsTyping(true);
-            setThreads((prev) =>
-              prev.map((t) =>
-                t.id === tId
-                  ? {
-                      ...t,
-                      msgs: t.msgs.map((m) =>
-                        m.id === msgAsstId ? { ...m, text: acc } : m
-                      ),
-                      updatedAt: Date.now(),
-                    }
-                  : t
-              )
-            );
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
           }
         }
         if (!acc.trim()) {
           clearTimeout(timeout);
-          console.error("❌ Stream vazio recebido após processamento");
-          console.error("Chunks recebidos:", chunkCount);
-          console.error("Dados recebidos:", hasReceivedData);
           throw new Error(
             "Resposta vazia da API - verifique se a API de IA está configurada corretamente"
           );
@@ -522,10 +459,6 @@ export default function ChatPage() {
                 }
               : t
           )
-        );
-        console.log(
-          "✅ Stream processado com sucesso. Texto final:",
-          acc.substring(0, 100) + "..."
         );
       } catch (streamError) {
         clearTimeout(timeout);
@@ -789,6 +722,7 @@ export default function ChatPage() {
       const res = await fetch("/api/ai/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           disciplinaId,
           tema: quizConfig.tema,
@@ -796,8 +730,14 @@ export default function ChatPage() {
           dificuldade: quizConfig.dificuldade,
         }),
       });
-      if (!res.ok) throw new Error("Erro ao gerar quiz");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof data.error === "string"
+            ? data.error
+            : `Erro ao gerar quiz (${res.status})`;
+        throw new Error(msg);
+      }
       if (data.quiz) {
         setQuizData(data.quiz);
       } else {
@@ -805,6 +745,9 @@ export default function ChatPage() {
       }
     } catch (error: any) {
       setStreamErr(error.message);
+      if (error.message?.includes("Cota") || error.message?.includes("quota")) {
+        toast.error(error.message);
+      }
     } finally {
       setQuizLoading(false);
     }
@@ -836,13 +779,21 @@ export default function ChatPage() {
       const res = await fetch("/api/ai/explicar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           conceito: explicacaoConfig.conceito,
           disciplinaId,
           nivel: explicacaoConfig.nivel,
         }),
       });
-      if (!res.ok) throw new Error("Erro ao explicar conceito");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : `Erro ao explicar conceito (${res.status})`,
+        );
+      }
       if (!res.body) throw new Error("Resposta sem conteúdo");
 
       const reader = res.body.getReader();
@@ -863,136 +814,6 @@ export default function ChatPage() {
     }
   };
 
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || file.type !== "application/pdf") {
-      toast.error("Selecione um arquivo PDF válido");
-      return;
-    }
-    setPdfExtractLoading(true);
-    setStreamErr(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/ai/pdf-extract", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Erro ao processar PDF");
-      }
-      const { texto } = await res.json();
-      if (texto) {
-        setMapaConfig((prev) => ({ ...prev, texto }));
-        toast.success(`Texto extraído do PDF (${file.name})`);
-      } else {
-        toast.error("Nenhum texto encontrado no PDF. Tente outro arquivo.");
-      }
-    } catch (err: any) {
-      setStreamErr(err.message);
-      toast.error(err.message);
-    } finally {
-      setPdfExtractLoading(false);
-      e.target.value = "";
-      if (pdfInputRef.current) pdfInputRef.current.value = "";
-    }
-  };
-
-  const gerarMapaMental = async () => {
-    if (!mapaConfig.texto.trim()) {
-      setStreamErr("Cole o texto ou envie um PDF para transformar em mapa mental");
-      return;
-    }
-    setMapaLoading(true);
-    setMapaMentalData(null);
-    try {
-      const res = await fetch("/api/ai/mapa-mental", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          texto: mapaConfig.texto,
-          titulo: mapaConfig.titulo,
-          disciplinaId,
-        }),
-      });
-      if (!res.ok) throw new Error("Erro ao gerar mapa mental");
-      const data = await res.json();
-      if (data.mapaMental) {
-        setMapaMentalData(data.mapaMental);
-      } else {
-        throw new Error(data.error || "Erro ao processar mapa mental");
-      }
-    } catch (error: any) {
-      setStreamErr(error.message);
-    } finally {
-      setMapaLoading(false);
-    }
-  };
-
-  const carregarMapasSalvos = async () => {
-    setLoadingMapasSalvos(true);
-    try {
-      const res = await fetch("/api/colaboracao/biblioteca?tipo=mapa_mental");
-      if (!res.ok) throw new Error("Erro ao carregar mapas mentais");
-      const data = await res.json();
-      setMapasSalvos(data.materiais || []);
-    } catch (error: any) {
-      toast.error("Erro ao carregar mapas mentais salvos");
-      console.error(error);
-    } finally {
-      setLoadingMapasSalvos(false);
-    }
-  };
-
-  const salvarMapaMental = async () => {
-    if (!mapaMentalData) {
-      toast.error("Nenhum mapa mental para salvar");
-      return;
-    }
-    if (!mapaTitleToSave.trim()) {
-      toast.error("Digite um título para o mapa mental");
-      return;
-    }
-    try {
-      const res = await fetch("/api/colaboracao/biblioteca", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo: mapaTitleToSave.trim(),
-          descricao: mapaMentalData.descricao || mapaMentalData.resumo,
-          tipo: "mapa_mental",
-          categoria: "estudo",
-          tags: ["mapa-mental", "ia"],
-          visibilidade: "privado",
-          arquivo_url: JSON.stringify(mapaMentalData),
-          arquivo_tipo: "application/json",
-        }),
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Erro ao salvar mapa mental");
-      }
-      toast.success("Mapa mental salvo com sucesso!");
-      setShowSaveMapaDialog(false);
-      setMapaTitleToSave("");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao salvar mapa mental");
-      console.error(error);
-    }
-  };
-
-  const carregarMapaMental = async (material: any) => {
-    try {
-      const mapaData = JSON.parse(material.arquivo_url || "{}");
-      setMapaMentalData(mapaData);
-      setShowLoadMapaDialog(false);
-      toast.success("Mapa mental carregado!");
-    } catch (error: any) {
-      toast.error("Erro ao carregar mapa mental");
-      console.error(error);
-    }
-  };
   if (loadingDisc) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -1041,7 +862,11 @@ export default function ChatPage() {
           </div>
           <div className="flex gap-2">
             <Select
-              value={disciplinaId || undefined}
+              value={
+                disciplinaId ||
+                disciplinasAtivas[0]?.id ||
+                undefined
+              }
               onValueChange={setDisciplinaId}
               disabled={!disciplinasAtivas || disciplinasAtivas.length === 0}
             >
@@ -1624,8 +1449,7 @@ export default function ChatPage() {
                             key={idx}
                             type="button"
                             onClick={() => {
-                              setInput(sugestao);
-                              inputRef.current?.focus();
+                              void send(sugestao);
                             }}
                             className="rounded-full border border-border/70 bg-background/90 px-3 py-2 text-left text-xs font-medium leading-snug text-foreground shadow-sm transition hover:border-primary/40 hover:bg-muted/50 sm:text-sm"
                             style={{ borderColor: `${corDisciplina}33` }}
@@ -1862,8 +1686,7 @@ export default function ChatPage() {
                             key={idx}
                             type="button"
                             onClick={() => {
-                              setInput(sugestao);
-                              inputRef.current?.focus();
+                              void send(sugestao);
                             }}
                             className="rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-left text-xs font-medium text-foreground shadow-sm transition hover:bg-muted/60"
                             style={{ borderColor: `${corDisciplina}40` }}
@@ -2234,265 +2057,10 @@ export default function ChatPage() {
               )}
             </div>
           ) : modoAtual === "mapa_mental" ? (
-            <div className="mx-auto max-w-4xl space-y-6">
-              {!mapaMentalData ? (
-                <Card
-                  className={cn(
-                    "rounded-2xl border border-violet-500/25 bg-gradient-to-b from-violet-500/[0.09] via-card/90 to-card/70 p-6 shadow-xl backdrop-blur-sm",
-                    "dark:from-violet-500/12 dark:via-card/50",
-                  )}
-                >
-                  <div className="space-y-6">
-                    <div className="text-center">
-                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/15 ring-2 ring-violet-500/25">
-                        <Network className="h-8 w-8 text-violet-600 dark:text-violet-400" />
-                      </div>
-                      <h3 className="mb-2 text-xl font-semibold tracking-tight">
-                        Mapa mental
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Cole um texto, envie um PDF ou resuma um documento para
-                        criar um mapa mental estruturado
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">
-                          Título do mapa (opcional)
-                        </label>
-                        <Input
-                          value={mapaConfig.titulo}
-                          onChange={(e) =>
-                            setMapaConfig({
-                              ...mapaConfig,
-                              titulo: e.target.value,
-                            })
-                          }
-                          placeholder="Ex: Estruturas de Dados"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">
-                          Texto para transformar
-                        </label>
-                        <textarea
-                          value={mapaConfig.texto}
-                          onChange={(e) =>
-                            setMapaConfig({
-                              ...mapaConfig,
-                              texto: e.target.value,
-                            })
-                          }
-                          placeholder="Cole aqui o texto das suas anotações, resumos ou envie um PDF abaixo..."
-                          className="w-full min-h-[200px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
-                        <div className="mt-2 flex items-center gap-2">
-                          <input
-                            ref={pdfInputRef}
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={handlePdfUpload}
-                            className="hidden"
-                            id="mapa-pdf-upload"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => pdfInputRef.current?.click()}
-                            disabled={pdfExtractLoading}
-                          >
-                            {pdfExtractLoading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Extraindo texto...
-                              </>
-                            ) : (
-                              <>
-                                <FileUp className="h-4 w-4 mr-2" />
-                                Enviar PDF (.pdf)
-                              </>
-                            )}
-                          </Button>
-                          <span className="text-xs text-muted-foreground">
-                            ou cole o texto acima
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={gerarMapaMental}
-                        disabled={mapaLoading || !mapaConfig.texto.trim()}
-                        className="flex-1 rounded-xl shadow-md"
-                        size="lg"
-                      >
-                        {mapaLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Gerando mapa mental...
-                          </>
-                        ) : (
-                          <>
-                            <Network className="h-4 w-4 mr-2" />
-                            Gerar Mapa Mental
-                          </>
-                        )}
-                      </Button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="lg"
-                              onClick={() => {
-                                carregarMapasSalvos();
-                                setShowLoadMapaDialog(true);
-                              }}
-                            >
-                              <FolderOpen className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Carregar mapa mental salvo</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </div>
-                </Card>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xl font-semibold">
-                        {mapaMentalData.titulo}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {mapaMentalData.descricao}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                setMapaTitleToSave(mapaMentalData.titulo);
-                                setShowSaveMapaDialog(true);
-                              }}
-                            >
-                              <Save className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Salvar mapa mental</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                carregarMapasSalvos();
-                                setShowLoadMapaDialog(true);
-                              }}
-                            >
-                              <FolderOpen className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Carregar mapa mental salvo</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <Button
-                        variant="outline"
-                        onClick={() => setMapaMentalData(null)}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Novo Mapa
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Visualização do Mapa Mental */}
-                  <Card className="p-6 overflow-x-auto">
-                    <div className="min-w-[600px]">
-                      {/* Nó Central */}
-                      <div className="flex justify-center mb-8">
-                        <div
-                          className="px-6 py-4 rounded-xl font-bold text-lg text-white shadow-lg"
-                          style={{
-                            backgroundColor: mapaMentalData.nocentral.cor,
-                          }}
-                        >
-                          {mapaMentalData.nocentral.texto}
-                        </div>
-                      </div>
-
-                      {/* Ramos */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {mapaMentalData.ramos.map((ramo) => (
-                          <Card
-                            key={ramo.id}
-                            className="p-4 border-l-4"
-                            style={{ borderLeftColor: ramo.cor }}
-                          >
-                            <div className="space-y-3">
-                              <h4
-                                className="font-semibold text-base"
-                                style={{ color: ramo.cor }}
-                              >
-                                {ramo.texto}
-                              </h4>
-                              {ramo.subramos && ramo.subramos.length > 0 && (
-                                <ul className="space-y-2">
-                                  {ramo.subramos.map((sub) => (
-                                    <li
-                                      key={sub.id}
-                                      className="flex items-start gap-2 text-sm"
-                                    >
-                                      <ChevronRight
-                                        className="h-4 w-4 mt-0.5 shrink-0"
-                                        style={{ color: ramo.cor }}
-                                      />
-                                      <div>
-                                        <span className="font-medium">
-                                          {sub.texto}
-                                        </span>
-                                        {sub.detalhes && (
-                                          <p className="text-xs text-muted-foreground mt-0.5">
-                                            {sub.detalhes}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Resumo */}
-                  <Card className="p-4 bg-muted/50">
-                    <div className="flex items-start gap-3">
-                      <Sparkles className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
-                        <h5 className="font-medium mb-1">Resumo</h5>
-                        <p className="text-sm text-muted-foreground">
-                          {mapaMentalData.resumo}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-              )}
-            </div>
+            <MindMapWorkspace
+              disciplinaId={disciplinaId}
+              disciplinaNome={disciplinaAtual?.nome ?? null}
+            />
           ) : null}
         </div>
         {/* Input de chat - só aparece no modo chat */}
@@ -3026,137 +2594,6 @@ export default function ChatPage() {
             <Button onClick={saveTags}>
               <Tag className="h-4 w-4 mr-2" />
               Salvar Tags
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* Dialog de Salvar Mapa Mental */}
-      <Dialog open={showSaveMapaDialog} onOpenChange={setShowSaveMapaDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Salvar Mapa Mental</DialogTitle>
-            <DialogDescription>
-              Salve este mapa mental como material para acessá-lo facilmente depois.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Título do Mapa Mental
-              </label>
-              <Input
-                value={mapaTitleToSave}
-                onChange={(e) => setMapaTitleToSave(e.target.value)}
-                placeholder="Ex: Estruturas de Dados - Mapa Mental"
-              />
-            </div>
-            {mapaMentalData && (
-              <div className="text-sm text-muted-foreground">
-                <p>
-                  <strong>Descrição:</strong> {mapaMentalData.descricao || mapaMentalData.resumo}
-                </p>
-                <p>
-                  <strong>Ramos:</strong> {mapaMentalData.ramos.length}
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowSaveMapaDialog(false);
-                setMapaTitleToSave("");
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={salvarMapaMental}
-              disabled={!mapaTitleToSave.trim()}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* Dialog de Carregar Mapa Mental */}
-      <Dialog open={showLoadMapaDialog} onOpenChange={setShowLoadMapaDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Carregar Mapa Mental Salvo</DialogTitle>
-            <DialogDescription>
-              Selecione um mapa mental salvo para carregar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {loadingMapasSalvos ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : mapasSalvos.length === 0 ? (
-              <div className="text-center py-8">
-                <Network className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhum mapa mental salvo encontrado.
-                </p>
-              </div>
-            ) : (
-              <div className="max-h-[400px] overflow-y-auto space-y-2">
-                {mapasSalvos.map((material) => (
-                  <Card
-                    key={material.id}
-                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
-                    onClick={() => carregarMapaMental(material)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm mb-1">
-                          {material.titulo}
-                        </h4>
-                        {material.descricao && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {material.descricao}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                          <span>
-                            {new Date(material.created_at).toLocaleDateString("pt-BR")}
-                          </span>
-                          {material.tags && material.tags.length > 0 && (
-                            <>
-                              <span>•</span>
-                              <div className="flex flex-wrap gap-1">
-                                {material.tags.slice(0, 3).map((tag: string) => (
-                                  <Badge
-                                    key={tag}
-                                    variant="secondary"
-                                    className="text-xs px-1.5 py-0 h-4"
-                                  >
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="icon" className="shrink-0">
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowLoadMapaDialog(false)}
-            >
-              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

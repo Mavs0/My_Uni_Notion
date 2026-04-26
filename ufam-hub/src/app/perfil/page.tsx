@@ -29,8 +29,6 @@ import {
   Chrome,
   Github,
   UserPlus,
-  MapPin,
-  Sparkles,
 } from "lucide-react";
 import {
   Card,
@@ -64,8 +62,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { FriendRequestsManager } from "@/components/FriendRequestsManager";
+import { ChangePasswordCard } from "@/components/account/ChangePasswordCard";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { allPasswordRulesMet } from "@/lib/account/password-rules";
 interface ProfileData {
   id: string;
   email: string;
@@ -114,12 +115,13 @@ export default function PerfilPage() {
   const [mfaVerifying, setMfaVerifying] = useState(false);
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordSubmitError, setPasswordSubmitError] = useState<string | null>(
+    null,
+  );
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] =
     useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -151,14 +153,6 @@ export default function PerfilPage() {
     loadMfaStatus();
     loadStats();
   }, []);
-
-  useEffect(() => {
-    if (newPassword) {
-      calculatePasswordStrength(newPassword);
-    } else {
-      setPasswordStrength(0);
-    }
-  }, [newPassword]);
 
   const loadMfaStatus = async () => {
     try {
@@ -245,7 +239,7 @@ export default function PerfilPage() {
 
     if (
       !confirm(
-        "Tem certeza que deseja desativar a autenticação de dois fatores? Sua conta ficará menos segura."
+        "Tem certeza que deseja desativar a autenticação de dois fatores? Sua conta ficará menos segura.",
       )
     ) {
       return;
@@ -316,46 +310,27 @@ export default function PerfilPage() {
     }
   };
 
-  const calculatePasswordStrength = (password: string) => {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (password.length >= 12) strength++;
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[^a-zA-Z\d]/.test(password)) strength++;
-    setPasswordStrength(strength);
-  };
-
-  const getPasswordStrengthLabel = () => {
-    if (passwordStrength === 0) return { label: "", color: "" };
-    if (passwordStrength <= 2) return { label: "Fraca", color: "text-red-500" };
-    if (passwordStrength === 3)
-      return { label: "Média", color: "text-yellow-500" };
-    if (passwordStrength === 4)
-      return { label: "Forte", color: "text-green-500" };
-    return { label: "Muito Forte", color: "text-green-600" };
-  };
-
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("Preencha todos os campos");
+      setPasswordSubmitError("Preencha todos os campos.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError("As senhas não coincidem");
+      setPasswordSubmitError("As senhas não coincidem.");
       return;
     }
 
-    if (passwordStrength < 3) {
-      setError(
-        "A senha é muito fraca. Use pelo menos 8 caracteres com letras maiúsculas, minúsculas e números."
+    if (!allPasswordRulesMet(newPassword)) {
+      setPasswordSubmitError(
+        "A nova senha não atende aos requisitos mínimos.",
       );
       return;
     }
 
     try {
       setChangingPassword(true);
+      setPasswordSubmitError(null);
       setError(null);
       const supabase = createSupabaseBrowser();
 
@@ -365,7 +340,7 @@ export default function PerfilPage() {
       });
 
       if (signInError) {
-        setError("Senha atual incorreta");
+        setPasswordSubmitError("Senha atual incorreta.");
         return;
       }
 
@@ -374,18 +349,20 @@ export default function PerfilPage() {
       });
 
       if (updateError) {
-        setError(updateError.message || "Erro ao alterar senha");
+        setPasswordSubmitError(
+          updateError.message || "Erro ao alterar senha.",
+        );
         return;
       }
 
-      setSuccess(true);
+      toast.success("Senha atualizada com sucesso.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setShowChangePassword(false);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.message || "Erro ao alterar senha");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Erro ao alterar senha.";
+      setPasswordSubmitError(msg);
     } finally {
       setChangingPassword(false);
     }
@@ -430,7 +407,7 @@ export default function PerfilPage() {
     setPendingAction(null);
   };
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -491,28 +468,24 @@ export default function PerfilPage() {
   };
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+      <div className="mx-auto w-full max-w-[min(100%,1280px)] px-2 py-6 sm:px-4">
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
     );
   }
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 pb-10 pt-2 sm:px-6">
+    <div className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-[min(100%,1280px)] space-y-8 bg-[#F7F7F8] px-2 pb-16 pt-2 sm:px-4 dark:bg-[#050505]">
       <header className="animate-in fade-in slide-in-from-top-4 duration-500">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                 <User className="h-5 w-5" />
               </span>
-              Meu Perfil
+              Definições da conta
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              Visão geral da sua conta e configurações — estilo painel, com
-              destaque para métricas e segurança.
-            </p>
           </div>
         </div>
       </header>
@@ -531,897 +504,777 @@ export default function PerfilPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 xl:items-start">
-        <aside className="space-y-4 xl:col-span-4 xl:sticky xl:top-20 xl:self-start">
-          <div className="relative overflow-hidden rounded-2xl border border-violet-500/25 bg-gradient-to-b from-violet-500/[0.12] via-card to-card p-6 shadow-xl">
-            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-500/25 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-fuchsia-500/10 blur-2xl" />
-            <div className="relative flex flex-col items-center text-center">
-              <div className="relative mb-4">
-                <Avatar className="h-28 w-28 ring-4 ring-violet-500/35 ring-offset-2 ring-offset-background">
-                  <AvatarImage src={formData.avatar_url} alt={formData.nome} />
-                  <AvatarFallback className="text-lg">
-                    {getInitials(formData.nome, formData.email)}
-                  </AvatarFallback>
-                </Avatar>
-                <span
-                  className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-emerald-500 text-background shadow-md"
-                  title="Conta ativa"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                </span>
-              </div>
-              <h2 className="text-xl font-semibold tracking-tight">
-                {formData.nome?.trim() || "Seu nome"}
-              </h2>
-              <p className="mt-1 max-w-[260px] break-all text-sm text-muted-foreground">
-                {formData.email}
-              </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-300">
-                  Estudante
-                </span>
-                {formData.curso?.trim() ? (
-                  <span className="rounded-full border border-border/80 bg-muted/40 px-3 py-1 text-xs">
-                    {formData.curso}
-                  </span>
-                ) : null}
-                {formData.periodo?.trim() ? (
-                  <span className="rounded-full border border-border/80 bg-muted/40 px-3 py-1 text-xs">
-                    {formData.periodo}º período
-                  </span>
-                ) : null}
-              </div>
-              {(formData.matricula?.trim() || formData.telefone?.trim()) && (
-                <div className="mt-4 w-full space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 text-left text-xs">
-                  {formData.matricula?.trim() ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Hash className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-                      <span className="truncate">{formData.matricula}</span>
-                    </div>
-                  ) : null}
-                  {formData.telefone?.trim() ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-                      <span>{formData.telefone}</span>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-              <div className="mt-4 flex w-full items-center justify-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 text-violet-400" />
-                <span>UFAM Hub</span>
-              </div>
-              <Separator className="my-5 bg-border/60" />
-              <div className="flex w-full flex-col gap-2">
-                <Button
-                  className="w-full bg-violet-600 text-white hover:bg-violet-500"
-                  onClick={() => {
-                    setActiveTab("informacoes");
-                    setIsEditing(true);
-                  }}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Editar perfil
-                </Button>
-                <Button variant="outline" className="w-full" asChild>
-                  <Link href="/disciplinas">Ver disciplinas</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <div className="min-w-0 space-y-6 xl:col-span-8">
-          {stats && (
-            <div className="grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500 sm:grid-cols-3">
-              <div
-                className={cn(
-                  "rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/[0.08] to-transparent p-5",
-                  "transition-shadow hover:shadow-lg hover:shadow-blue-500/5"
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Total de Disciplinas
-                    </p>
-                    <p className="mt-1 text-3xl font-bold tabular-nums">
-                      {stats.totalDisciplinas}
-                    </p>
-                  </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/15">
-                    <BookOpen className="h-6 w-6 text-blue-400" />
-                  </div>
-                </div>
-              </div>
-              <div
-                className={cn(
-                  "rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/[0.08] to-transparent p-5",
-                  "transition-shadow hover:shadow-lg hover:shadow-orange-500/5"
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Próximas Avaliações
-                    </p>
-                    <p className="mt-1 text-3xl font-bold tabular-nums">
-                      {stats.totalProximas}
-                    </p>
-                    {stats.proximasAvaliacoes.length > 0 && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Próx.:{" "}
-                        {new Date(
-                          stats.proximasAvaliacoes[0].data_iso
-                        ).toLocaleDateString("pt-BR")}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-500/15">
-                    <Calendar className="h-6 w-6 text-orange-400" />
-                  </div>
-                </div>
-              </div>
-              <div
-                className={cn(
-                  "rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.08] to-transparent p-5",
-                  "transition-shadow hover:shadow-lg hover:shadow-emerald-500/5"
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Progresso Geral
-                    </p>
-                    <p className="mt-1 text-3xl font-bold tabular-nums">
-                      {stats.progressoGeral !== null
-                        ? stats.progressoGeral.toFixed(1)
-                        : "—"}
-                    </p>
-                    {stats.progressoGeral !== null && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Média ponderada
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15">
-                    <TrendingUp className="h-6 w-6 text-emerald-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) =>
+          handleActionWithUnsavedCheck(() => {
+            setError(null);
+            if (activeTab === "senha" && v !== "senha") {
+              setCurrentPassword("");
+              setNewPassword("");
+              setConfirmPassword("");
+              setPasswordSubmitError(null);
+            }
+            setActiveTab(v);
+          })
+        }
+        className="w-full"
+      >
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+          <TabsList
+            aria-label="Secções das definições"
+            className="flex h-auto w-full flex-col items-stretch gap-1 rounded-2xl border border-[#E5E7EB] bg-white p-2 dark:border-[#262626] dark:bg-[#101010] lg:sticky lg:top-20 lg:w-56 lg:shrink-0"
           >
-            <div className="rounded-2xl border border-border/80 bg-card/40 p-1.5 shadow-sm backdrop-blur-sm">
-              <TabsList className="flex h-auto min-h-10 w-full flex-wrap justify-start gap-1 bg-transparent p-0 md:grid md:grid-cols-5 md:justify-stretch [&>button]:shrink-0 [&>button]:rounded-xl [&>button]:px-2 sm:[&>button]:px-3">
-                <TabsTrigger
-                  value="informacoes"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Informações</span>
-                  <span className="sm:hidden">Info</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="senha"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <Lock className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Alterar Senha</span>
-                  <span className="sm:hidden">Senha</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="seguranca"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <Shield className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Segurança</span>
-                  <span className="sm:hidden">2FA</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="amizades"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <UserPlus className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Solicitações</span>
-                  <span className="sm:hidden">Amigos</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="logins"
-                  className="flex items-center gap-1.5 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-200 sm:gap-2"
-                >
-                  <Chrome className="h-4 w-4" />
-                  <span className="hidden sm:inline">Outros Logins</span>
-                  <span className="sm:hidden">Logins</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-        {/* Tab: Informações da Conta */}
-        <TabsContent value="informacoes" className="mt-4 space-y-6">
-          <Card className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <CardTitle>Informações Pessoais</CardTitle>
-              <CardDescription>
-                Suas informações de perfil e contato
-              </CardDescription>
-            </div>
-            {!isEditing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-                className="shrink-0 w-full sm:w-auto"
-              >
-                <Edit2 className="h-4 w-4 mr-2" />
-                Editar
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {}
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={formData.avatar_url} alt={formData.nome} />
-                <AvatarFallback>
-                  {getInitials(formData.nome, formData.email)}
-                </AvatarFallback>
-              </Avatar>
-              {isEditing && (
-                <div className="absolute bottom-0 right-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 rounded-full"
-                    onClick={() => {
-                      setShowAvatarModal(true);
-                      setAvatarMethod("upload");
-                      setAvatarFile(null);
-                      setAvatarUrl("");
-                      setAvatarPreview(null);
-                    }}
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-            <div className="flex-1">
-              {isEditing ? (
-                <Input
-                  name="nome"
-                  value={formData.nome}
-                  onChange={handleInputChange}
-                  placeholder="Seu nome completo"
-                  className="text-lg font-semibold"
-                />
-              ) : (
-                <h2 className="text-2xl font-semibold">
-                  {formData.nome || "Sem nome"}
-                </h2>
-              )}
-              <p className="text-sm text-zinc-500 mt-1 flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                {formData.email}
-              </p>
-            </div>
-          </div>
-          <Separator />
-          {}
-          <div>
-            <label className="text-sm font-medium mb-2 flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Sobre você
-            </label>
-            {isEditing ? (
-              <textarea
-                name="bio"
-                value={formData.bio}
-                onChange={handleInputChange}
-                placeholder="Conte um pouco sobre você..."
-                className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            ) : (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {formData.bio || "Nenhuma biografia adicionada ainda."}
-              </p>
-            )}
-          </div>
-          <Separator />
-          {}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 flex items-center gap-2">
-                <GraduationCap className="h-4 w-4" />
-                Curso
-              </label>
-              {isEditing ? (
-                <Input
-                  name="curso"
-                  value={formData.curso}
-                  onChange={handleInputChange}
-                  placeholder="Ex: Engenharia de Software"
-                />
-              ) : (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {formData.curso || "Não informado"}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Período
-              </label>
-              {isEditing ? (
-                <Input
-                  name="periodo"
-                  value={formData.periodo}
-                  onChange={handleInputChange}
-                  placeholder="Ex: 8"
-                  type="number"
-                  min="1"
-                  max="20"
-                />
-              ) : (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {formData.periodo
-                    ? `${formData.periodo}º período`
-                    : "Não informado"}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 flex items-center gap-2">
-                <Hash className="h-4 w-4" />
-                Matrícula
-              </label>
-              {isEditing ? (
-                <Input
-                  name="matricula"
-                  value={formData.matricula}
-                  onChange={handleInputChange}
-                  placeholder="Ex: 20201234567"
-                />
-              ) : (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {formData.matricula || "Não informado"}
-                </p>
-              )}
-            </div>
-          </div>
-          <Separator />
-          {}
-          <div>
-            <label className="text-sm font-medium mb-2 flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              Telefone
-            </label>
-            {isEditing ? (
-              <Input
-                name="telefone"
-                value={formData.telefone}
-                onChange={handleInputChange}
-                placeholder="Ex: (92) 99999-9999"
-                type="tel"
-              />
-            ) : (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {formData.telefone || "Não informado"}
-              </p>
-            )}
-          </div>
-          {}
-          {isEditing && (
-            <div className="flex flex-col gap-3 pt-4">
-              {hasUnsavedChanges() && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <AlertCircle className="h-4 w-4 text-yellow-500" />
-                  <span className="text-xs text-yellow-600 dark:text-yellow-400">
-                    Você tem alterações não salvas
-                  </span>
-                </div>
-              )}
-              <div className="flex gap-3">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Salvar Alterações
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                  onClick={() =>
-                    handleActionWithUnsavedCheck(() => {
-                  setFormData(profile);
-                  setIsEditing(false);
-                  setError(null);
-                  setSuccess(false);
-                    })
-                  }
-                disabled={saving}
-              >
-                Cancelar
-              </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-          {/* Informações da Conta */}
-          <Card className="animate-in fade-in slide-in-from-bottom-14 duration-700">
-            <CardHeader>
-              <CardTitle>Informações da Conta</CardTitle>
-              <CardDescription>Dados da sua conta</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div>
-                  <div className="text-sm font-medium">Email</div>
-                  <div className="text-sm text-zinc-500">{profile.email}</div>
-                </div>
-                <span className="text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-500 border border-blue-500/30">
-                  Verificado
-                </span>
-              </div>
-              {profile.created_at && (
-                <div className="flex items-center justify-between p-3 rounded-lg border">
-                  <div>
-                    <div className="text-sm font-medium">Membro desde</div>
-                    <div className="text-sm text-zinc-500">
-                      {new Date(profile.created_at).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-        </TabsContent>
-
-        {/* Tab: Alterar Senha */}
-        <TabsContent value="senha" className="mt-4 space-y-6">
-          <Card className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5" />
-            Alterar Senha
-          </CardTitle>
-          <CardDescription>
-            Atualize sua senha para manter sua conta segura
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!showChangePassword ? (
-            <Button
-              variant="outline"
-              onClick={() => setShowChangePassword(true)}
-              className="w-full"
+            <TabsTrigger
+              value="informacoes"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
             >
-              <Key className="h-4 w-4 mr-2" />
-              Alterar Senha
-            </Button>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Senha Atual <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Digite sua senha atual"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Nova Senha <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Digite sua nova senha"
-                />
-                {newPassword && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-300 ${
-                            passwordStrength <= 2
-                              ? "bg-red-500"
-                              : passwordStrength === 3
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                          }`}
-                          style={{ width: `${(passwordStrength / 5) * 100}%` }}
-                        />
-                      </div>
-                      <span
-                        className={`text-xs font-medium ${
-                          getPasswordStrengthLabel().color
-                        }`}
-                      >
-                        {getPasswordStrengthLabel().label}
-                      </span>
+              <User className="h-4 w-4 shrink-0 opacity-70" />
+              Informações
+            </TabsTrigger>
+            <TabsTrigger
+              value="senha"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <Lock className="h-4 w-4 shrink-0 opacity-70" />
+              Senha
+            </TabsTrigger>
+            <TabsTrigger
+              value="seguranca"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <Shield className="h-4 w-4 shrink-0 opacity-70" />
+              Segurança
+            </TabsTrigger>
+            <TabsTrigger
+              value="amizades"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <UserPlus className="h-4 w-4 shrink-0 opacity-70" />
+              Solicitações
+            </TabsTrigger>
+            <TabsTrigger
+              value="logins"
+              className="justify-start gap-2.5 rounded-xl px-3 py-2.5 text-left font-medium data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-800 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-300"
+            >
+              <Chrome className="h-4 w-4 shrink-0 opacity-70" />
+              Outros logins
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="min-w-0 flex-1 space-y-6">
+            {stats && (
+              <div className="grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500 sm:grid-cols-3">
+                <div
+                  className={cn(
+                    "rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/[0.08] to-transparent p-5",
+                    "transition-shadow hover:shadow-lg hover:shadow-blue-500/5",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Total de Disciplinas
+                      </p>
+                      <p className="mt-1 text-3xl font-bold tabular-nums">
+                        {stats.totalDisciplinas}
+                      </p>
                     </div>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <p
-                        className={
-                          newPassword.length >= 8 ? "text-green-600" : ""
-                        }
-                      >
-                        {newPassword.length >= 8 ? "✓" : "○"} Mínimo 8
-                        caracteres
-                      </p>
-                      <p
-                        className={
-                          /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword)
-                            ? "text-green-600"
-                            : ""
-                        }
-                      >
-                        {/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword)
-                          ? "✓"
-                          : "○"}{" "}
-                        Letras maiúsculas e minúsculas
-                      </p>
-                      <p
-                        className={
-                          /\d/.test(newPassword) ? "text-green-600" : ""
-                        }
-                      >
-                        {/\d/.test(newPassword) ? "✓" : "○"} Pelo menos um
-                        número
-                      </p>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/15">
+                      <BookOpen className="h-6 w-6 text-blue-400" />
                     </div>
                   </div>
-                )}
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Confirmar Nova Senha <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirme sua nova senha"
-                />
-                {confirmPassword && newPassword !== confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    As senhas não coincidem
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowChangePassword(false);
-                    setCurrentPassword("");
-                    setNewPassword("");
-                    setConfirmPassword("");
-                    setError(null);
-                  }}
-                  className="flex-1"
-                  disabled={changingPassword}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleChangePassword}
-                  disabled={
-                    changingPassword ||
-                    !currentPassword ||
-                    !newPassword ||
-                    !confirmPassword ||
-                    newPassword !== confirmPassword
-                  }
-                  className="flex-1"
-                >
-                  {changingPassword ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Alterando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Salvar Senha
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-        </TabsContent>
-
-        {/* Tab: Segurança da Conta */}
-        <TabsContent value="seguranca" className="mt-4 space-y-6">
-          <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Segurança da Conta
-              </CardTitle>
-              <CardDescription>
-                Autenticação de dois fatores (2FA) para maior segurança
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-            <div className="flex items-center gap-3">
-              {mfaEnabled ? (
-                <ShieldCheck className="h-5 w-5 text-green-500" />
-              ) : (
-                <ShieldOff className="h-5 w-5 text-muted-foreground" />
-              )}
-              <div>
-                <p className="font-medium">Autenticação de Dois Fatores</p>
-                <p className="text-sm text-muted-foreground">
-                  {mfaEnabled
-                    ? "2FA está ativado. Sua conta está mais segura."
-                    : "Adicione uma camada extra de segurança à sua conta."}
-                </p>
-              </div>
-            </div>
-            {mfaEnabled ? (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDisableMfa}
-                disabled={mfaLoading}
-              >
-                {mfaLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Desativando...
-                  </>
-                ) : (
-                  <>
-                    <ShieldOff className="h-4 w-4 mr-2" />
-                    Desativar 2FA
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleEnableMfa}
-                disabled={mfaLoading}
-              >
-                {mfaLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Carregando...
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="h-4 w-4 mr-2" />
-                    Ativar 2FA
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-
-          {showMfaSetup && mfaQrCode && (
-            <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
-              <div>
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <QrCode className="h-4 w-4" />
-                  Configure seu aplicativo autenticador
-                </h4>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Escaneie o QR code com um aplicativo autenticador como Google
-                  Authenticator, Authy ou Microsoft Authenticator.
-                </p>
-                <div className="flex justify-center p-4 bg-white rounded-lg border">
-                  <img
-                    src={mfaQrCode}
-                    alt="QR Code para 2FA"
-                    className="w-48 h-48"
-                  />
                 </div>
-                {mfaSecret && (
-                  <div className="mt-4 p-3 rounded-lg bg-muted border">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Ou digite manualmente:
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-sm font-mono bg-background px-3 py-2 rounded border">
-                        {mfaSecret}
-                      </code>
+                <div
+                  className={cn(
+                    "rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/[0.08] to-transparent p-5",
+                    "transition-shadow hover:shadow-lg hover:shadow-orange-500/5",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Próximas Avaliações
+                      </p>
+                      <p className="mt-1 text-3xl font-bold tabular-nums">
+                        {stats.totalProximas}
+                      </p>
+                      {stats.proximasAvaliacoes.length > 0 && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Próx.:{" "}
+                          {new Date(
+                            stats.proximasAvaliacoes[0].data_iso,
+                          ).toLocaleDateString("pt-BR")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-500/15">
+                      <Calendar className="h-6 w-6 text-orange-400" />
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.08] to-transparent p-5",
+                    "transition-shadow hover:shadow-lg hover:shadow-emerald-500/5",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Progresso Geral
+                      </p>
+                      <p className="mt-1 text-3xl font-bold tabular-nums">
+                        {stats.progressoGeral !== null
+                          ? stats.progressoGeral.toFixed(1)
+                          : "—"}
+                      </p>
+                      {stats.progressoGeral !== null && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Média ponderada
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15">
+                      <TrendingUp className="h-6 w-6 text-emerald-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab: Informações */}
+            <TabsContent
+              value="informacoes"
+              className="mt-0 space-y-6 focus-visible:outline-none"
+            >
+              <Card className="animate-in fade-in slide-in-from-bottom-6 duration-700 rounded-3xl border-border/80 shadow-sm">
+                <CardHeader className="space-y-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <CardTitle className="text-xl">
+                        Informações pessoais
+                      </CardTitle>
+                      <CardDescription>
+                        Nome, contacto e dados académicos
+                      </CardDescription>
+                    </div>
+                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href="/disciplinas">Ver disciplinas</Link>
+                      </Button>
+                      {!isEditing && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 text-white hover:bg-emerald-700"
+                          onClick={() => setIsEditing(true)}
+                        >
+                          <Edit2 className="mr-2 h-4 w-4" />
+                          Editar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                    <div className="relative shrink-0">
+                      <Avatar className="h-28 w-28 ring-4 ring-emerald-500/20 ring-offset-2 ring-offset-card">
+                        <AvatarImage
+                          src={formData.avatar_url}
+                          alt={formData.nome}
+                        />
+                        <AvatarFallback className="text-xl">
+                          {getInitials(formData.nome, formData.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {!isEditing ? (
+                        <span
+                          className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-emerald-500 text-background shadow-md"
+                          title="Conta ativa"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </span>
+                      ) : null}
+                      {isEditing && (
+                        <div className="absolute -bottom-0.5 -right-0.5">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-full border-2 border-card bg-background/95 shadow-md"
+                            onClick={() => {
+                              setShowAvatarModal(true);
+                              setAvatarMethod("upload");
+                              setAvatarFile(null);
+                              setAvatarUrl("");
+                              setAvatarPreview(null);
+                            }}
+                          >
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-3">
+                      {isEditing ? (
+                        <Input
+                          name="nome"
+                          value={formData.nome}
+                          onChange={handleInputChange}
+                          placeholder="Seu nome completo"
+                          className="text-lg font-semibold"
+                        />
+                      ) : (
+                        <h2 className="text-2xl font-semibold tracking-tight">
+                          {formData.nome || "Sem nome"}
+                        </h2>
+                      )}
+                      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4 shrink-0" />
+                        {formData.email}
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                          Estudante
+                        </span>
+                        {formData.curso?.trim() ? (
+                          <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs">
+                            {formData.curso}
+                          </span>
+                        ) : null}
+                        {formData.periodo?.trim() ? (
+                          <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs">
+                            {formData.periodo}º período
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  <Separator />
+                  {}
+                  <div>
+                    <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Sobre você
+                    </label>
+                    {isEditing ? (
+                      <textarea
+                        name="bio"
+                        value={formData.bio}
+                        onChange={handleInputChange}
+                        placeholder="Conte um pouco sobre você..."
+                        className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                    ) : (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {formData.bio || "Nenhuma biografia adicionada ainda."}
+                      </p>
+                    )}
+                  </div>
+                  <Separator />
+                  {}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4" />
+                        Curso
+                      </label>
+                      {isEditing ? (
+                        <Input
+                          name="curso"
+                          value={formData.curso}
+                          onChange={handleInputChange}
+                          placeholder="Ex: Engenharia de Software"
+                        />
+                      ) : (
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {formData.curso || "Não informado"}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Período
+                      </label>
+                      {isEditing ? (
+                        <Input
+                          name="periodo"
+                          value={formData.periodo}
+                          onChange={handleInputChange}
+                          placeholder="Ex: 8"
+                          type="number"
+                          min="1"
+                          max="20"
+                        />
+                      ) : (
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {formData.periodo
+                            ? `${formData.periodo}º período`
+                            : "Não informado"}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <Hash className="h-4 w-4" />
+                        Matrícula
+                      </label>
+                      {isEditing ? (
+                        <Input
+                          name="matricula"
+                          value={formData.matricula}
+                          onChange={handleInputChange}
+                          placeholder="Ex: 20201234567"
+                        />
+                      ) : (
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {formData.matricula || "Não informado"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Separator />
+                  {}
+                  <div>
+                    <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      Telefone
+                    </label>
+                    {isEditing ? (
+                      <Input
+                        name="telefone"
+                        value={formData.telefone}
+                        onChange={handleInputChange}
+                        placeholder="Ex: (92) 99999-9999"
+                        type="tel"
+                      />
+                    ) : (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {formData.telefone || "Não informado"}
+                      </p>
+                    )}
+                  </div>
+                  {}
+                  {isEditing && (
+                    <div className="flex flex-col gap-3 pt-4">
+                      {hasUnsavedChanges() && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                            Você tem alterações não salvas
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex gap-3">
+                        <Button onClick={handleSave} disabled={saving}>
+                          {saving ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Salvando...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4 mr-2" />
+                              Salvar Alterações
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            handleActionWithUnsavedCheck(() => {
+                              setFormData(profile);
+                              setIsEditing(false);
+                              setError(null);
+                              setSuccess(false);
+                            })
+                          }
+                          disabled={saving}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Informações da Conta */}
+              <Card className="animate-in fade-in slide-in-from-bottom-14 duration-700 rounded-3xl border-border/80 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Informações da conta</CardTitle>
+                  <CardDescription>Email e data de registo</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg border">
+                    <div>
+                      <div className="text-sm font-medium">Email</div>
+                      <div className="text-sm text-zinc-500">
+                        {profile.email}
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-500 border border-blue-500/30">
+                      Verificado
+                    </span>
+                  </div>
+                  {profile.created_at && (
+                    <div className="flex items-center justify-between p-3 rounded-lg border">
+                      <div>
+                        <div className="text-sm font-medium">Membro desde</div>
+                        <div className="text-sm text-zinc-500">
+                          {new Date(profile.created_at).toLocaleDateString(
+                            "pt-BR",
+                            {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            },
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab: Senha */}
+            <TabsContent
+              value="senha"
+              className="mt-0 space-y-6 focus-visible:outline-none"
+            >
+              <ChangePasswordCard
+                currentPassword={currentPassword}
+                newPassword={newPassword}
+                confirmPassword={confirmPassword}
+                onCurrentChange={setCurrentPassword}
+                onNewChange={setNewPassword}
+                onConfirmChange={setConfirmPassword}
+                onSubmit={handleChangePassword}
+                onCancel={() => {
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                  setPasswordSubmitError(null);
+                  setError(null);
+                }}
+                submitting={changingPassword}
+                serverError={passwordSubmitError}
+                onDismissServerError={() => setPasswordSubmitError(null)}
+                copy={{
+                  badge: "Segurança da conta",
+                  title: "Alterar senha",
+                  subtitle:
+                    "Atualize sua senha para manter sua conta segura.",
+                  currentLabel: "Senha atual",
+                  newLabel: "Nova senha",
+                  confirmLabel: "Confirmar nova senha",
+                  currentPh: "Digite sua senha atual",
+                  newPh: "Digite sua nova senha",
+                  confirmPh: "Confirme sua nova senha",
+                  requirementsTitle: "A senha deve conter:",
+                  reqMin: "Mínimo de 8 caracteres",
+                  reqNumber: "Pelo menos 1 número",
+                  reqSpecial: "Pelo menos 1 caractere especial",
+                  strengthLabel: "Força da senha",
+                  weak: "Fraca",
+                  medium: "Média",
+                  strong: "Forte",
+                  cancel: "Cancelar",
+                  submit: "Atualizar senha",
+                  submitting: "Atualizando...",
+                  securityTitle:
+                    "Sua senha é criptografada e armazenada com segurança.",
+                  securitySubtitle:
+                    "Nunca compartilhamos seus dados com terceiros.",
+                  errRequired: "Este campo é obrigatório.",
+                  errMismatch: "As senhas não coincidem.",
+                  errRules:
+                    "A nova senha não atende aos requisitos mínimos.",
+                }}
+              />
+            </TabsContent>
+
+            {/* Tab: Segurança da Conta */}
+            <TabsContent
+              value="seguranca"
+              className="mt-0 space-y-6 focus-visible:outline-none"
+            >
+              <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Shield className="h-5 w-5" />
+                        Segurança da Conta
+                      </CardTitle>
+                      <CardDescription>
+                        Autenticação de dois fatores (2FA) para maior segurança
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      {mfaEnabled ? (
+                        <ShieldCheck className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <ShieldOff className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="font-medium">
+                          Autenticação de Dois Fatores
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {mfaEnabled
+                            ? "2FA está ativado. Sua conta está mais segura."
+                            : "Adicione uma camada extra de segurança à sua conta."}
+                        </p>
+                      </div>
+                    </div>
+                    {mfaEnabled ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDisableMfa}
+                        disabled={mfaLoading}
+                      >
+                        {mfaLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Desativando...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldOff className="h-4 w-4 mr-2" />
+                            Desativar 2FA
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleEnableMfa}
+                        disabled={mfaLoading}
+                      >
+                        {mfaLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Carregando...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Ativar 2FA
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+
+                  {showMfaSetup && mfaQrCode && (
+                    <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
+                      <div>
+                        <h4 className="font-medium mb-2 flex items-center gap-2">
+                          <QrCode className="h-4 w-4" />
+                          Configure seu aplicativo autenticador
+                        </h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Escaneie o QR code com um aplicativo autenticador como
+                          Google Authenticator, Authy ou Microsoft
+                          Authenticator.
+                        </p>
+                        <div className="flex justify-center p-4 bg-white rounded-lg border">
+                          <img
+                            src={mfaQrCode}
+                            alt="QR Code para 2FA"
+                            className="w-48 h-48"
+                          />
+                        </div>
+                        {mfaSecret && (
+                          <div className="mt-4 p-3 rounded-lg bg-muted border">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Ou digite manualmente:
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <code className="flex-1 text-sm font-mono bg-background px-3 py-2 rounded border">
+                                {mfaSecret}
+                              </code>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(mfaSecret);
+                                  setSuccess(true);
+                                  setTimeout(() => setSuccess(false), 2000);
+                                }}
+                              >
+                                Copiar
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                          <Key className="h-4 w-4" />
+                          Digite o código de verificação
+                        </label>
+                        <Input
+                          type="text"
+                          placeholder="000000"
+                          value={mfaVerificationCode}
+                          onChange={(e) => {
+                            setMfaVerificationCode(
+                              e.target.value.replace(/\D/g, "").slice(0, 6),
+                            );
+                            setError(null);
+                          }}
+                          maxLength={6}
+                          className="text-center text-lg font-mono tracking-widest"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Digite o código de 6 dígitos do seu aplicativo
+                          autenticador
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setShowMfaSetup(false);
+                            setMfaQrCode(null);
+                            setMfaSecret(null);
+                            setMfaVerificationCode("");
+                            setMfaFactorId(null);
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          className="flex-1"
+                          onClick={handleVerifyMfa}
+                          disabled={
+                            mfaVerifying || mfaVerificationCode.length !== 6
+                          }
+                        >
+                          {mfaVerifying ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Verificando...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Verificar e Ativar
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab: Solicitações de Amizade */}
+            <TabsContent
+              value="amizades"
+              className="mt-0 space-y-6 focus-visible:outline-none"
+            >
+              <FriendRequestsManager />
+            </TabsContent>
+
+            {/* Tab: Outros Logins */}
+            <TabsContent
+              value="logins"
+              className="mt-0 space-y-6 focus-visible:outline-none"
+            >
+              <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Chrome className="h-5 w-5" />
+                    Outros Logins
+                  </CardTitle>
+                  <CardDescription>
+                    Conecte suas contas sociais para login rápido e seguro
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Login Social</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Conecte suas contas sociais para login rápido e seguro.
+                        Você pode usar qualquer um dos métodos conectados para
+                        fazer login.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <Button
                         variant="outline"
-                        size="sm"
+                        className="w-full justify-start h-auto py-4"
                         onClick={() => {
-                          navigator.clipboard.writeText(mfaSecret);
-                          setSuccess(true);
-                          setTimeout(() => setSuccess(false), 2000);
+                          window.location.href =
+                            "/api/auth/oauth?provider=google";
                         }}
                       >
-                        Copiar
+                        <div className="flex items-center gap-3">
+                          <Chrome className="h-5 w-5" />
+                          <div className="text-left">
+                            <div className="font-medium">Google</div>
+                            <div className="text-xs text-muted-foreground">
+                              Conectar com Google
+                            </div>
+                          </div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start h-auto py-4"
+                        onClick={() => {
+                          window.location.href =
+                            "/api/auth/oauth?provider=github";
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Github className="h-5 w-5" />
+                          <div className="text-left">
+                            <div className="font-medium">GitHub</div>
+                            <div className="text-xs text-muted-foreground">
+                              Conectar com GitHub
+                            </div>
+                          </div>
+                        </div>
                       </Button>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Digite o código de verificação
-                </label>
-                <Input
-                  type="text"
-                  placeholder="000000"
-                  value={mfaVerificationCode}
-                  onChange={(e) => {
-                    setMfaVerificationCode(
-                      e.target.value.replace(/\D/g, "").slice(0, 6)
-                    );
-                    setError(null);
-                  }}
-                  maxLength={6}
-                  className="text-center text-lg font-mono tracking-widest"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Digite o código de 6 dígitos do seu aplicativo autenticador
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowMfaSetup(false);
-                    setMfaQrCode(null);
-                    setMfaSecret(null);
-                    setMfaVerificationCode("");
-                    setMfaFactorId(null);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  className="flex-1"
-                  onClick={handleVerifyMfa}
-                  disabled={mfaVerifying || mfaVerificationCode.length !== 6}
-                >
-                  {mfaVerifying ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Verificando...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Verificar e Ativar
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-        </TabsContent>
-
-        {/* Tab: Solicitações de Amizade */}
-        <TabsContent value="amizades" className="mt-4 space-y-6">
-          <FriendRequestsManager />
-        </TabsContent>
-
-        {/* Tab: Outros Logins */}
-        <TabsContent value="logins" className="mt-4 space-y-6">
-          <Card className="animate-in fade-in slide-in-from-bottom-12 duration-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Chrome className="h-5 w-5" />
-                Outros Logins
-              </CardTitle>
-              <CardDescription>
-                Conecte suas contas sociais para login rápido e seguro
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Login Social</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Conecte suas contas sociais para login rápido e seguro. Você pode usar qualquer um dos métodos conectados para fazer login.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-auto py-4"
-                    onClick={() => {
-                      window.location.href = "/api/auth/oauth?provider=google";
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Chrome className="h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-medium">Google</div>
-                        <div className="text-xs text-muted-foreground">
-                          Conectar com Google
+                    <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            <strong>Dica:</strong> Conectar contas sociais
+                            permite fazer login mais rápido e aumenta a
+                            segurança da sua conta.
+                          </p>
                         </div>
                       </div>
                     </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-auto py-4"
-                    onClick={() => {
-                      window.location.href = "/api/auth/oauth?provider=github";
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Github className="h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-medium">GitHub</div>
-                        <div className="text-xs text-muted-foreground">
-                          Conectar com GitHub
-                        </div>
-                      </div>
-                    </div>
-                  </Button>
-                </div>
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm text-blue-700 dark:text-blue-300">
-                        <strong>Dica:</strong> Conectar contas sociais permite fazer login mais rápido e aumenta a segurança da sua conta.
-                      </p>
-                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </div>
         </div>
-      </div>
+      </Tabs>
 
       {/* Dialogs */}
       <Dialog open={showAvatarModal} onOpenChange={setShowAvatarModal}>
@@ -1585,7 +1438,7 @@ export default function PerfilPage() {
                       onError={() => {
                         setAvatarPreview(null);
                         setError(
-                          "Não foi possível carregar a imagem desta URL."
+                          "Não foi possível carregar a imagem desta URL.",
                         );
                       }}
                     />
@@ -1661,7 +1514,7 @@ export default function PerfilPage() {
                       setError(
                         avatarMethod === "upload"
                           ? "Selecione um arquivo"
-                          : "Digite uma URL"
+                          : "Digite uma URL",
                       );
                       setUploadingAvatar(false);
                       return;

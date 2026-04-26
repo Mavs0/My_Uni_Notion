@@ -11,6 +11,7 @@ import {
   Lightbulb,
   ThumbsUp,
   MessageCircle,
+  Bookmark,
   MoreVertical,
   Edit,
   Trash2,
@@ -160,6 +161,7 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
 
   useEffect(() => {
     checkOwnership();
@@ -360,7 +362,7 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
 
   return (
     <>
-      <Card className="group animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-zinc-200/90 bg-white shadow-sm transition-all duration-300 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-[#121212] dark:shadow-none dark:hover:border-zinc-700">
+      <Card className="group animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-[#E5E7EB] bg-white shadow-sm transition-all duration-300 hover:border-[#05865E]/25 hover:shadow-md dark:border-[#262626] dark:bg-[#101010] dark:shadow-none dark:hover:border-[#333]">
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
             <Link href={`/perfil/${activity.user.id}`}>
@@ -555,6 +557,21 @@ export function ActivityCard({ activity, onUpdate }: ActivityCardProps) {
                 >
                   <MessageCircle className="h-4 w-4 mr-1" />
                   {comments.length}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`ml-auto h-8 ${
+                    bookmarked
+                      ? "text-[#05865E] dark:text-emerald-400"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+                  }`}
+                  onClick={() => setBookmarked((b) => !b)}
+                  title={bookmarked ? "Remover dos salvos" : "Salvar publicação"}
+                >
+                  <Bookmark
+                    className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`}
+                  />
                 </Button>
               </div>
 

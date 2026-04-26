@@ -16,7 +16,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card } from "./ui/card";
 import { cn } from "@/lib/utils";
-import { VirtualAssistantOrb } from "@/components/VirtualAssistantOrb";
+import { AssistantRobotSvg } from "@/components/AssistantRobotSvg";
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -41,10 +41,12 @@ export function VirtualAssistant() {
     typeof pathname === "string" &&
     /\/disciplinas\/[^/]+\/notas\//.test(pathname);
   const isChatPage = pathname === "/chat";
+  const isChamada =
+    typeof pathname === "string" && pathname.includes("/chamada");
   const dockClass = cn(
     "fixed z-50 bottom-[max(1.5rem,env(safe-area-inset-bottom))]",
     isNotasEditor && "max-lg:hidden",
-    isChatPage && "hidden",
+    (isChatPage || isChamada) && "hidden",
     isNotasEditor
       ? "right-3 lg:right-[22rem]"
       : "right-[max(1.5rem,env(safe-area-inset-right))]",
@@ -315,16 +317,51 @@ export function VirtualAssistant() {
   };
   if (!isOpen) {
     return (
-      <div className={dockClass}>
-        <Button
-          onClick={() => setIsOpen(true)}
-          variant="ghost"
-          size="icon"
-          className="h-14 w-14 shrink-0 rounded-full p-0 shadow-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-primary/35"
-          aria-label="Abrir assistente virtual"
-        >
-          <VirtualAssistantOrb size="lg" />
-        </Button>
+      <div className={cn(dockClass, "pointer-events-none")}>
+        <div className="relative flex flex-col items-center pointer-events-auto">
+          <div className="absolute -top-1 right-6 h-1 w-1 rounded-full bg-teal-300/50 floating-assistant-particle" />
+          <div
+            className="absolute -top-0.5 right-10 h-1 w-1 rounded-full bg-cyan-200/40 floating-assistant-particle"
+            style={{ animationDelay: "0.45s" }}
+          />
+          <div
+            className="absolute top-0 right-12 h-0.5 w-0.5 rounded-full bg-emerald-300/45 floating-assistant-particle"
+            style={{ animationDelay: "0.9s" }}
+          />
+
+          <div
+            className="floating-assistant-glow pointer-events-none absolute inset-[-0.75rem] rounded-full bg-teal-400/25 blur-2xl dark:bg-teal-400/18"
+            aria-hidden
+          />
+
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            aria-label="Abrir assistente virtual"
+            className="relative cursor-pointer rounded-2xl border-0 bg-transparent p-1 shadow-none transition-[transform,box-shadow] duration-300 ease-out hover:scale-105 hover:shadow-[0_0_28px_rgba(45,212,191,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <span className="floating-assistant-y relative block origin-center">
+              <AssistantRobotSvg />
+            </span>
+          </button>
+
+          <div className="mt-0.5 flex flex-col items-center gap-px">
+            <div
+              className="floating-assistant-shadow h-1.5 w-12 rounded-full bg-black/35 dark:bg-black/50"
+              aria-hidden
+            />
+            <div
+              className="floating-assistant-shadow h-1 w-8 rounded-full bg-black/25 dark:bg-black/40"
+              style={{ animationDelay: "0.12s" }}
+              aria-hidden
+            />
+            <div
+              className="floating-assistant-shadow h-0.5 w-5 rounded-full bg-black/20 dark:bg-black/35"
+              style={{ animationDelay: "0.24s" }}
+              aria-hidden
+            />
+          </div>
+        </div>
       </div>
     );
   }
@@ -339,7 +376,7 @@ export function VirtualAssistant() {
         {}
         <div className="flex items-center justify-between p-4 border-b bg-muted/30">
           <div className="flex items-center gap-3">
-            <VirtualAssistantOrb size="sm" className="shrink-0 shadow-md" />
+            <AssistantRobotSvg className="h-9 w-auto shrink-0 drop-shadow-md sm:h-10" />
             <div>
               <h3 className="font-semibold text-sm text-foreground">
                 Assistente Virtual
@@ -378,7 +415,7 @@ export function VirtualAssistant() {
                 <div className="space-y-4">
                   <div className="text-center py-6">
                     <div className="mx-auto mb-3 flex justify-center">
-                      <VirtualAssistantOrb size="md" />
+                      <AssistantRobotSvg className="h-[3.25rem] w-auto sm:h-14" />
                     </div>
                     <p className="text-sm text-foreground font-medium mb-1">
                       Olá! Como posso ajudar?

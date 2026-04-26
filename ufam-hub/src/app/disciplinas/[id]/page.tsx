@@ -37,8 +37,12 @@ import {
   Check,
   Pencil,
   ChevronRight,
+  ChevronLeft,
   LayoutDashboard,
+  Search,
+  ExternalLink,
 } from "lucide-react";
+import { COLAB_WEB_LOGIN_URL } from "@/lib/external-links";
 import { EditDisciplinaDialog } from "@/components/EditDisciplinaDialog";
 import {
   Tooltip,
@@ -61,6 +65,16 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { FormStepper } from "@/components/forms/FormStepper";
 
 type TTipo = "obrigatoria" | "eletiva" | "optativa";
 type Disciplina = {
@@ -94,13 +108,24 @@ const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
-function badgeTipo(tipo: TTipo) {
-  const map: Record<TTipo, string> = {
-    obrigatoria: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-    eletiva: "bg-red-500/15 text-red-400 border-red-500/30",
-    optativa: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  };
-  return cn("rounded px-2 py-0.5 text-xs border capitalize", map[tipo]);
+
+function darkenHex(hex: string, amount: number): string {
+  const h = hex.replace(/^#/, "");
+  if (h.length !== 6) return hex;
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return hex;
+  const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * (1 - amount))));
+  const g = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * (1 - amount))));
+  const b = Math.max(0, Math.min(255, Math.round((n & 255) * (1 - amount))));
+  return `#${[r, g, b]
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function truncatePreview(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars).trimEnd()}…`;
 }
 function fmtDate(dt: string | Date | null | undefined) {
   if (dt == null) return "—";
@@ -113,6 +138,25 @@ function toLocalInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`;
+}
+
+const RESUMO_AVALIACAO_MAX_DISC = 500;
+
+function splitDateTimeLocalDisc(isoLocal: string) {
+  if (!isoLocal || !isoLocal.includes("T")) {
+    const t = new Date(Date.now() + 86400000);
+    const s = toLocalInputValue(t);
+    const [d, tm] = s.split("T");
+    return { date: d, time: (tm || "09:00").slice(0, 5) };
+  }
+  const [d, tm] = isoLocal.split("T");
+  return { date: d || "", time: (tm || "09:00").slice(0, 5) };
+}
+
+function joinDateTimeLocalDisc(date: string, time: string) {
+  if (!date) return "";
+  const t = time && time.length >= 4 ? time.slice(0, 5) : "09:00";
+  return `${date}T${t}`;
 }
 function daysUntil(dtISO: string | null | undefined) {
   if (dtISO == null) return NaN;
@@ -167,9 +211,9 @@ function Section({
   return (
     <section
       className={cn(
-        "rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition-shadow lg:p-7",
-        "dark:border-border dark:bg-card dark:shadow-none",
-        "hover:shadow-md",
+        "rounded-2xl border border-slate-200/90 bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-shadow lg:p-7",
+        "dark:border-zinc-800 dark:bg-zinc-900/55 dark:shadow-none",
+        "hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20",
         className,
       )}
       style={{
@@ -178,7 +222,7 @@ function Section({
       }}
     >
       <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-zinc-400">
           {icon && <span style={{ color: cor }}>{icon}</span>}
           {title}
         </h2>
@@ -317,6 +361,30 @@ export default function DisciplinaDetailPage() {
     localStorage.setItem(storeKey("blocks"), String(blocosAssistidos));
   }, [blocosAssistidos, id]);
 
+  const proximaAvaliacao = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return [...avaliacoes]
+      .filter((a) => {
+        if (!a.dataISO) return false;
+        return new Date(a.dataISO) >= start;
+      })
+      .sort((a, b) => {
+        const ta = a.dataISO ? new Date(a.dataISO).getTime() : 0;
+        const tb = b.dataISO ? new Date(b.dataISO).getTime() : 0;
+        return ta - tb;
+      })[0];
+  }, [avaliacoes]);
+
+  const heroSurfaceStyle = useMemo(() => {
+    const base = corDisciplina;
+    const deep = darkenHex(base, 0.32);
+    return {
+      background: `linear-gradient(135deg, ${base} 0%, ${deep} 100%)`,
+      boxShadow: `0 24px 48px -12px ${base}66`,
+    } as React.CSSProperties;
+  }, [corDisciplina]);
+
   if (disciplinaArquivada) {
     return (
       <main className="mx-auto max-w-6xl p-6">
@@ -405,7 +473,7 @@ export default function DisciplinaDetailPage() {
   );
   const progressoSemanalCard = (
     <div
-      className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:border-border dark:bg-card lg:p-6"
+      className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.06)] lg:p-6 dark:border-zinc-800 dark:bg-zinc-900/55"
       style={{
         borderLeftWidth: "3px",
         borderLeftColor: corDisciplina,
@@ -416,17 +484,17 @@ export default function DisciplinaDetailPage() {
           className="h-4 w-4 shrink-0"
           style={{ color: corDisciplina }}
         />
-        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
           Progresso semanal
         </h3>
       </div>
       <div className="mb-2 flex justify-between text-sm">
-        <span className="text-muted-foreground">Horas assistidas</span>
-        <span className="tabular-nums font-medium">
+        <span className="text-slate-500">Horas assistidas</span>
+        <span className="tabular-nums font-medium text-slate-900">
           {horasAssistidas}/{disciplina.horasSemana}h
         </span>
       </div>
-      <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+      <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-200">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{
@@ -448,7 +516,7 @@ export default function DisciplinaDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setBlocosAssistidos((v) => Math.max(0, v - 1))}
-                className="flex-1 rounded-lg"
+                className="flex-1 rounded-xl border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:bg-white dark:hover:bg-slate-50"
               >
                 − 1 bloco
               </Button>
@@ -463,7 +531,7 @@ export default function DisciplinaDetailPage() {
                 variant="default"
                 size="sm"
                 onClick={() => setBlocosAssistidos((v) => v + 1)}
-                className="flex-1 rounded-lg"
+                className="flex-1 rounded-xl text-white shadow-sm"
                 style={{
                   backgroundColor: corDisciplina,
                   borderColor: corDisciplina,
@@ -481,7 +549,7 @@ export default function DisciplinaDetailPage() {
           variant="ghost"
           size="sm"
           onClick={() => setBlocosAssistidos(0)}
-          className="mt-3 w-full rounded-lg text-xs text-muted-foreground hover:bg-muted"
+          className="mt-3 w-full rounded-xl text-xs text-slate-500 hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-slate-100"
         >
           Zerar progresso
         </Button>
@@ -489,137 +557,287 @@ export default function DisciplinaDetailPage() {
     </div>
   );
 
-  return (
-    <main className="mx-auto min-h-[calc(100dvh-5rem)] max-w-6xl space-y-6 bg-zinc-50/70 px-4 py-6 sm:px-6 lg:space-y-8 lg:px-8 dark:bg-transparent">
-      <header className="space-y-5">
-        <nav
-          className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
-          aria-label="Navegação"
-        >
-          <Link
-            href="/disciplinas"
-            className="inline-flex items-center gap-1.5 rounded-lg transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Disciplinas
-          </Link>
-          <ChevronRight className="h-4 w-4 shrink-0 opacity-40" aria-hidden />
-          <span className="max-w-[min(100%,32rem)] truncate font-medium text-foreground">
-            {disciplina.nome}
-          </span>
-        </nav>
+  const dataHojeLabel = new Date().toLocaleDateString("pt-BR", {
+    day: "numeric",
+    month: "short",
+  });
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 flex-1 items-start gap-4">
-              <div
-                className="hidden sm:flex h-14 w-14 items-center justify-center rounded-xl shrink-0 transition-all"
+  return (
+    <main className="mx-auto min-h-[calc(100dvh-5rem)] w-full max-w-[min(100%,1920px)] space-y-6 bg-slate-100 px-3 py-6 text-slate-900 sm:px-5 lg:space-y-8 lg:px-10 xl:px-14 dark:bg-zinc-950 dark:text-zinc-100">
+      <div
+        className="overflow-hidden rounded-3xl p-6 text-white sm:p-8"
+        style={heroSurfaceStyle}
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <nav
+              className="flex flex-wrap items-center gap-1.5 text-sm text-white/85"
+              aria-label="Navegação"
+            >
+              <Link
+                href="/disciplinas"
+                className="inline-flex items-center gap-1.5 rounded-lg transition-colors hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Disciplinas
+              </Link>
+              <ChevronRight className="h-4 w-4 shrink-0 opacity-50" aria-hidden />
+              <span className="max-w-[min(100%,20rem)] truncate font-medium text-white">
+                {disciplina.nome}
+              </span>
+            </nav>
+            <time
+              dateTime={new Date().toISOString()}
+              className="text-sm font-medium tabular-nums text-white/85"
+            >
+              {dataHojeLabel}
+            </time>
+          </div>
+
+          <div
+            className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/20 backdrop-blur-sm"
+            role="search"
+          >
+            <Search className="h-4 w-4 shrink-0 text-white/80" aria-hidden />
+            <p className="text-sm text-white/75">
+              Visão geral da disciplina — atalhos e métricas abaixo
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-2 ring-white/25">
+              <GraduationCap className="h-8 w-8 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-white/85">
+                Olá — hoje na disciplina
+              </p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                {disciplina.nome}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
+                {disciplina.horasSemana}h por semana
+                {disciplina.local ? ` · ${disciplina.local}` : ""}
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/30 bg-white/15 px-3 py-0.5 text-xs font-medium capitalize text-white">
+                  {disciplina.tipo}
+                </span>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ColorPicker
+                        value={corDisciplina}
+                        onChange={async (cor) => {
+                          const result = await updateCor(disciplina.id, cor);
+                          if (result.success) {
+                            toast.success("Cor atualizada!");
+                          } else {
+                            toast.error(
+                              result.error || "Erro ao atualizar cor"
+                            );
+                          }
+                        }}
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-white hover:bg-white/20"
+                          >
+                            <Palette className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Alterar cor da disciplina</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-white hover:bg-white/20"
+                        onClick={() => setEditDisciplinaOpen(true)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Editar disciplina</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {disciplina.horarios?.length ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {disciplina.horarios.map((h, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 py-1 text-xs text-white/90"
+                    >
+                      <span className="font-semibold text-white">
+                        {DIAS[h.dia]}
+                      </span>
+                      <span className="text-white/80">
+                        {h.inicio}–{h.fim}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {proximaAvaliacao?.dataISO ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-black/15 px-4 py-3 text-sm text-white/95 ring-1 ring-white/10">
+              <Calendar className="h-4 w-4 shrink-0 text-white/85" />
+              <span className="font-medium text-white">Lembrete:</span>
+              <span className="min-w-0">
+                Próxima avaliação em{" "}
+                {new Date(proximaAvaliacao.dataISO).toLocaleDateString(
+                  "pt-BR",
+                  { dateStyle: "medium" }
+                )}
+                {proximaAvaliacao.descricao
+                  ? ` — ${truncatePreview(proximaAvaliacao.descricao, 100)}`
+                  : ""}
+              </span>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-6 border-t border-white/15 pt-5">
+            <Link
+              href={`/disciplinas/${id}/notas/nova`}
+              className="flex flex-col items-center gap-2 transition-opacity hover:opacity-90"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/30">
+                <Plus className="h-5 w-5 text-white" />
+              </span>
+              <span className="text-xs font-medium text-white/85">
+                Nova anotação
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDisciplinaTab("materiais")}
+              className="flex flex-col items-center gap-2 transition-opacity hover:opacity-90"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/30">
+                <Folder className="h-5 w-5 text-white" />
+              </span>
+              <span className="text-xs font-medium text-white/85">
+                Materiais
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisciplinaTab("tarefas")}
+              className="flex flex-col items-center gap-2 transition-opacity hover:opacity-90"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/30">
+                <ClipboardList className="h-5 w-5 text-white" />
+              </span>
+              <span className="text-xs font-medium text-white/85">Tarefas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisciplinaTab("avaliacoes")}
+              className="flex flex-col items-center gap-2 transition-opacity hover:opacity-90"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/30">
+                <Calendar className="h-5 w-5 text-white" />
+              </span>
+              <span className="text-xs font-medium text-white/85">
+                Avaliações
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {[
+          {
+            tab: "anotacoes" as const,
+            label: "Anotações",
+            value: notas.length,
+            sub: "notas",
+            Icon: BookOpen,
+            isPct: false,
+          },
+          {
+            tab: "materiais" as const,
+            label: "Materiais",
+            value: materiais.length,
+            sub: "itens",
+            Icon: Folder,
+            isPct: false,
+          },
+          {
+            tab: "tarefas" as const,
+            label: "Tarefas",
+            value: tarefas.length,
+            sub: "abertas",
+            Icon: ClipboardList,
+            isPct: false,
+          },
+          {
+            tab: "avaliacoes" as const,
+            label: "Avaliações",
+            value: avaliacoes.length,
+            sub: "agendadas",
+            Icon: Calendar,
+            isPct: false,
+          },
+          {
+            tab: "visao" as const,
+            label: "Progresso",
+            value: pctSemana,
+            sub: "% semana",
+            Icon: Target,
+            isPct: true,
+          },
+        ].map(({ tab, label, value, sub, Icon, isPct }) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setDisciplinaTab(tab)}
+            className="group flex items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-all hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-zinc-600"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+                {label}
+              </p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-zinc-50">
+                {isPct ? `${value}%` : value}
+              </p>
+              <p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+                {sub}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{
-                  backgroundColor: `${corDisciplina}15`,
+                  backgroundColor: `${corDisciplina}22`,
                   color: corDisciplina,
-                  borderWidth: "2px",
-                  borderStyle: "solid",
-                  borderColor: `${corDisciplina}30`,
                 }}
               >
-                <GraduationCap className="h-7 w-7" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 flex-wrap mb-2">
-                  <h1 className="text-2xl font-bold">{disciplina.nome}</h1>
-                  <span className={badgeTipo(disciplina.tipo)}>
-                    {disciplina.tipo}
-                  </span>
-                  {/* Seletor de Cor e Editar */}
-                  <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <ColorPicker
-                          value={corDisciplina}
-                          onChange={async (cor) => {
-                            const result = await updateCor(disciplina.id, cor);
-                            if (result.success) {
-                              toast.success("Cor atualizada!");
-                            } else {
-                              toast.error(
-                                result.error || "Erro ao atualizar cor"
-                              );
-                            }
-                          }}
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <Palette className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Alterar cor da disciplina</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setEditDisciplinaOpen(true)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Editar disciplina</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4" />
-                    {disciplina.horasSemana}h/semana
-                  </span>
-                  {disciplina.local && (
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4" />
-                      {disciplina.local}
-                    </span>
-                  )}
-                </div>
-                {disciplina.horarios?.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {disciplina.horarios.map((h, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs transition-all"
-                        style={{
-                          backgroundColor: `${corDisciplina}10`,
-                          borderColor: `${corDisciplina}30`,
-                        }}
-                      >
-                        <span
-                          className="font-medium"
-                          style={{ color: corDisciplina }}
-                        >
-                          {DIAS[h.dia]}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {h.inicio}–{h.fim}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+                <Icon className="h-4 w-4" />
+              </span>
+              <ChevronRight
+                className="h-4 w-4 opacity-[0.35] transition-transform group-hover:translate-x-0.5 group-hover:opacity-100"
+                style={{ color: corDisciplina }}
+              />
             </div>
-        </div>
-      </header>
+          </button>
+        ))}
+      </div>
 
       <nav
-        className="-mx-1 flex gap-0 overflow-x-auto border-b border-zinc-200/90 dark:border-zinc-800"
+        className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70"
         aria-label="Secções da disciplina"
       >
         {(
@@ -663,24 +881,31 @@ export default function DisciplinaDetailPage() {
               type="button"
               onClick={() => setDisciplinaTab(id)}
               className={cn(
-                "flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                "flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors sm:px-4",
                 active
-                  ? "border-current bg-zinc-100/80 dark:bg-zinc-900/50"
-                  : "border-transparent text-muted-foreground hover:bg-zinc-50/80 hover:text-foreground dark:hover:bg-zinc-900/30",
+                  ? "text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
               )}
               style={
                 active
                   ? {
-                      borderBottomColor: corDisciplina,
-                      color: corDisciplina,
+                      backgroundColor: corDisciplina,
+                      boxShadow: `0 2px 8px ${corDisciplina}55`,
                     }
                   : undefined
               }
             >
-              <Icon className="h-4 w-4 shrink-0 opacity-90" />
+              <Icon className="h-4 w-4 shrink-0 opacity-95" />
               <span>{label}</span>
               {count != null && count > 0 && (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs tabular-nums",
+                    active
+                      ? "bg-white/25 text-white"
+                      : "bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300",
+                  )}
+                >
                   {count}
                 </span>
               )}
@@ -692,57 +917,57 @@ export default function DisciplinaDetailPage() {
       {disciplinaTab === "visao" && (
         <div className="grid animate-in fade-in gap-6 duration-200 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
-            <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:border-border dark:bg-card">
-              <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.06)] dark:border-zinc-800 dark:bg-zinc-900/55">
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-zinc-400">
                 Sobre a disciplina
               </h3>
               <dl className="space-y-4">
                 <div className="flex gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                    <GraduationCap className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-800">
+                    <GraduationCap className="h-5 w-5 text-slate-500 dark:text-zinc-400" />
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-xs font-medium text-muted-foreground">
+                    <dt className="text-xs font-medium text-slate-500 dark:text-zinc-400">
                       Modalidade
                     </dt>
-                    <dd className="text-sm font-medium capitalize text-foreground">
+                    <dd className="text-sm font-medium capitalize text-slate-900 dark:text-zinc-100">
                       {disciplina.tipo}
                     </dd>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-800">
+                    <Clock className="h-5 w-5 text-slate-500 dark:text-zinc-400" />
                   </div>
                   <div>
-                    <dt className="text-xs font-medium text-muted-foreground">
+                    <dt className="text-xs font-medium text-slate-500 dark:text-zinc-400">
                       Carga horária
                     </dt>
-                    <dd className="text-sm font-medium">
+                    <dd className="text-sm font-medium text-slate-900 dark:text-zinc-100">
                       {disciplina.horasSemana}h por semana
                     </dd>
                   </div>
                 </div>
                 {disciplina.local ? (
                   <div className="flex gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-800">
+                      <MapPin className="h-5 w-5 text-slate-500 dark:text-zinc-400" />
                     </div>
                     <div className="min-w-0">
-                      <dt className="text-xs font-medium text-muted-foreground">
+                      <dt className="text-xs font-medium text-slate-500 dark:text-zinc-400">
                         Local
                       </dt>
-                      <dd className="text-sm font-medium">{disciplina.local}</dd>
+                      <dd className="text-sm font-medium text-slate-900 dark:text-zinc-100">{disciplina.local}</dd>
                     </div>
                   </div>
                 ) : null}
                 {disciplina.horarios?.length ? (
                   <div className="flex gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                      <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-800">
+                      <Calendar className="h-5 w-5 text-slate-500 dark:text-zinc-400" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <dt className="mb-2 text-xs font-medium text-muted-foreground">
+                      <dt className="mb-2 text-xs font-medium text-slate-500 dark:text-zinc-400">
                         Horários
                       </dt>
                       <dd className="flex flex-wrap gap-2">
@@ -849,22 +1074,20 @@ export default function DisciplinaDetailPage() {
             </p>
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {materiais.map((m) => (
               <li
                 key={m.id}
-                className="group flex items-center justify-between rounded-lg border bg-background p-3 hover:border-primary/30 transition-colors"
+                className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-zinc-800 dark:from-zinc-900/80 dark:to-zinc-950/50 dark:hover:border-zinc-600"
+                style={{ borderLeftWidth: 4, borderLeftColor: corDisciplina }}
               >
                 <div className="min-w-0 flex-1 flex items-center gap-3">
                   <div
-                    className={cn(
-                      "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
-                      m.tipo === "url"
-                        ? "bg-blue-500/10 text-blue-500"
-                        : m.tipo === "pdf"
-                        ? "bg-red-500/10 text-red-500"
-                        : "bg-purple-500/10 text-purple-500"
-                    )}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                    style={{
+                      backgroundColor: `${corDisciplina}18`,
+                      color: corDisciplina,
+                    }}
                   >
                     {m.tipo === "url" ? (
                       <LinkIcon className="h-4 w-4" />
@@ -1007,6 +1230,7 @@ export default function DisciplinaDetailPage() {
                 <TarefaItem
                   key={t.id}
                   tarefa={t}
+                  accentColor={corDisciplina}
                   onToggle={async () => {
                     const result = await toggleConcluida(t.id, !t.concluida);
                     if (result.success) {
@@ -1048,20 +1272,7 @@ export default function DisciplinaDetailPage() {
         right={
           <NovaAvaliacaoButton
             disciplinaId={disciplina.id}
-            onCreate={async (a) => {
-              const result = await createAvaliacao({
-                disciplinaId: a.disciplinaId,
-                tipo: a.tipo,
-                dataISO: a.dataISO,
-                descricao: a.descricao,
-                resumo_assuntos: a.resumo_assuntos,
-              });
-              if (!result.success) {
-                toast.error(result.error || "Erro ao criar avaliação");
-              } else {
-                toast.success("Avaliação criada com sucesso!");
-              }
-            }}
+            createAvaliacao={createAvaliacao}
           />
         }
       >
@@ -1099,35 +1310,33 @@ export default function DisciplinaDetailPage() {
                   <li
                     key={a.id}
                     className={cn(
-                      "group rounded-xl border p-4 transition-all hover:shadow-sm",
-                      isPast
-                        ? "opacity-60 bg-muted/30"
-                        : isUrgent
-                        ? "border-amber-500/30 bg-amber-500/5"
-                        : "bg-background"
+                      "group overflow-hidden rounded-2xl border p-4 shadow-sm transition-all hover:shadow-md dark:hover:shadow-black/25",
+                      "border-slate-200/80 bg-gradient-to-br from-white to-slate-50/90 dark:border-zinc-800 dark:from-zinc-900/60 dark:to-zinc-950/40",
+                      isPast && "opacity-60",
+                      isUrgent &&
+                        !isPast &&
+                        "border-amber-500/35 ring-1 ring-amber-500/20"
                     )}
+                    style={{ borderLeftWidth: 4, borderLeftColor: corDisciplina }}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
                         <div
-                          className={cn(
-                            "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                            a.tipo === "prova"
-                              ? "bg-red-500/10 text-red-500"
-                              : a.tipo === "trabalho"
-                              ? "bg-blue-500/10 text-blue-500"
-                              : "bg-emerald-500/10 text-emerald-500"
-                          )}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                          style={{
+                            backgroundColor: `${corDisciplina}20`,
+                            color: corDisciplina,
+                          }}
                         >
                           <Calendar className="h-5 w-5" />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className={tipoBadgeMap[a.tipo]}>
                               {a.tipo}
                             </span>
                             {isUrgent && !isPast && (
-                              <span className="text-xs text-amber-500 font-medium">
+                              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
                                 {dias === 0
                                   ? "Hoje!"
                                   : dias === 1
@@ -1140,9 +1349,9 @@ export default function DisciplinaDetailPage() {
                             {fmtDate(a.dataISO)}
                           </div>
                           {a.descricao && (
-                            <div className="mt-1 text-sm text-foreground">
-                              {a.descricao}
-                            </div>
+                            <p className="mt-2 line-clamp-2 text-sm text-foreground">
+                              {truncatePreview(a.descricao, 160)}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -1174,15 +1383,20 @@ export default function DisciplinaDetailPage() {
                       </TooltipProvider>
                     </div>
                     {a.resumo_assuntos && (
-                      <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm">
-                        <div className="mb-2 text-xs font-medium text-muted-foreground flex items-center gap-1">
-                          {a.gerado_por_ia && <Sparkles className="h-3 w-3" />}
+                      <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/90 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/40">
+                        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          {a.gerado_por_ia && (
+                            <Sparkles
+                              className="h-3.5 w-3.5 shrink-0"
+                              style={{ color: corDisciplina }}
+                            />
+                          )}
                           Resumo dos assuntos{" "}
-                          {a.gerado_por_ia ? "(gerado por IA)" : ""}
+                          {a.gerado_por_ia ? "(IA)" : ""}
                         </div>
-                        <div className="whitespace-pre-wrap text-foreground">
-                          {a.resumo_assuntos}
-                        </div>
+                        <p className="line-clamp-3 text-sm leading-relaxed text-foreground">
+                          {truncatePreview(a.resumo_assuntos, 180)}
+                        </p>
                       </div>
                     )}
                   </li>
@@ -1251,7 +1465,7 @@ function NotaCard({
   return (
     <Link
       href={`/disciplinas/${disciplinaId}/notas/${nota.id}`}
-      className="group block rounded-xl border p-4 transition-all hover:shadow-sm bg-background text-foreground no-underline"
+      className="group block rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/90 p-4 text-foreground no-underline shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-zinc-800 dark:from-zinc-900/70 dark:to-zinc-950/50 dark:hover:border-zinc-600"
       style={{ borderLeftWidth: "4px", borderLeftColor: corDisciplina }}
     >
       <div className="space-y-2">
@@ -1653,26 +1867,45 @@ function AddMaterial({ onAdd }: { onAdd: (m: Material) => void }) {
 
 function NovaAvaliacaoButton({
   disciplinaId,
-  onCreate,
+  createAvaliacao,
 }: {
   disciplinaId: string;
-  onCreate: (a: Avaliacao) => void;
+  createAvaliacao: (a: {
+    disciplinaId: string;
+    tipo: AvaliacaoTipo;
+    dataISO: string;
+    descricao?: string;
+    resumo_assuntos?: string;
+    gerado_por_ia?: boolean;
+  }) => Promise<
+    | { success: true; id?: string }
+    | { success: false; error?: string }
+  >;
 }) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(1);
   const [tipo, setTipo] = useState<AvaliacaoTipo>("prova");
-  const [dataLocal, setDataLocal] = useState<string>(
-    toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000))
+  const defaultDt = () =>
+    splitDateTimeLocalDisc(
+      toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000)),
+    );
+  const [dataAval, setDataAval] = useState(() => defaultDt().date);
+  const [horaAval, setHoraAval] = useState(() => defaultDt().time);
+  const [localEntrega, setLocalEntrega] = useState<"plataforma" | "sala">(
+    "plataforma",
   );
-  const [descricao, setDescricao] = useState("");
+  const [lembreteAtivo, setLembreteAtivo] = useState(true);
   const [resumo, setResumo] = useState("");
   const [loadingResumo, setLoadingResumo] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function descricaoEntrega() {
+    return localEntrega === "plataforma"
+      ? "Entrega: plataforma"
+      : "Entrega: sala de aula";
+  }
 
   async function gerarResumoIA() {
-    if (!disciplinaId) {
-      toast.error("Selecione uma disciplina primeiro");
-      return;
-    }
-
     setLoadingResumo(true);
     try {
       const response = await fetch("/api/ai/resumo-estudo", {
@@ -1681,48 +1914,97 @@ function NovaAvaliacaoButton({
         body: JSON.stringify({
           disciplinaId,
           tipoAvaliacao: tipo,
-          descricao: descricao || undefined,
+          descricao: descricaoEntrega(),
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || "Erro ao gerar resumo");
       }
-
       const data = await response.json();
-      setResumo(data.resumo || "");
+      setResumo(String(data.resumo || "").slice(0, RESUMO_AVALIACAO_MAX_DISC));
       toast.success("Resumo gerado com sucesso!");
     } catch (err: any) {
-      console.error("Erro ao gerar resumo:", err);
       toast.error(err.message || "Erro ao gerar resumo com IA");
     } finally {
       setLoadingResumo(false);
     }
   }
 
-  function salvar() {
-    const iso = new Date(dataLocal).toISOString();
-    onCreate({
-      id: `a_${Date.now()}`,
+  function validateStep2() {
+    const e: Record<string, string> = {};
+    const joined = joinDateTimeLocalDisc(dataAval, horaAval);
+    if (!dataAval) e.dataAval = "Informe a data";
+    if (!horaAval) e.horaAval = "Informe a hora";
+    if (joined && Number.isNaN(new Date(joined).getTime())) {
+      e.dataAval = "Data ou hora inválida";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  async function salvar() {
+    if (!validateStep2()) {
+      toast.error("Corrija data e hora antes de salvar");
+      return;
+    }
+    const joined = joinDateTimeLocalDisc(dataAval, horaAval);
+    const iso = new Date(joined).toISOString();
+    const result = await createAvaliacao({
       disciplinaId,
       tipo,
       dataISO: iso,
-      descricao,
-      resumo_assuntos: resumo || undefined,
-      gerado_por_ia: !!resumo,
+      descricao: descricaoEntrega(),
+      resumo_assuntos: resumo.trim() || undefined,
+      gerado_por_ia: !!resumo.trim(),
     });
-    setDescricao("");
+    if (!result.success) {
+      toast.error(result.error || "Erro ao criar avaliação");
+      return;
+    }
+    let msg = "Avaliação criada com sucesso";
+    if (lembreteAtivo && result.id) {
+      try {
+        const r = await fetch("/api/reminders/auto-create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            tipo: "avaliacao",
+            referencia_id: result.id,
+          }),
+        });
+        if (r.ok) msg = "Avaliação criada. Lembretes agendados.";
+      } catch {
+        /* noop */
+      }
+    }
+    toast.success(msg);
+    setStep(1);
     setResumo("");
+    const d = defaultDt();
+    setDataAval(d.date);
+    setHoraAval(d.time);
+    setErrors({});
     setOpen(false);
   }
 
   function resetForm() {
+    setStep(1);
     setTipo("prova");
-    setDataLocal(toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000)));
-    setDescricao("");
+    const d = defaultDt();
+    setDataAval(d.date);
+    setHoraAval(d.time);
+    setLocalEntrega("plataforma");
+    setLembreteAtivo(true);
     setResumo("");
+    setErrors({});
   }
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (!v) resetForm();
+  };
 
   return (
     <>
@@ -1737,94 +2019,213 @@ function NovaAvaliacaoButton({
         <Plus className="h-4 w-4 mr-1" />
         Nova Avaliação
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Nova Avaliação
-            </DialogTitle>
-            <DialogDescription>
-              Adicione uma nova prova, trabalho ou seminário para esta
-              disciplina
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Tipo *</label>
-                <select
-                  value={tipo}
-                  onChange={(e) => setTipo(e.target.value as AvaliacaoTipo)}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="prova">Prova</option>
-                  <option value="trabalho">Trabalho</option>
-                  <option value="seminario">Seminário</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Data e hora *</label>
-                <Input
-                  type="datetime-local"
-                  value={dataLocal}
-                  onChange={(e) => setDataLocal(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Descrição (opcional)
-              </label>
-              <textarea
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Ex: Capítulos 1-5, todo o conteúdo de arrays..."
-                className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">
-                  Resumo de estudo (opcional)
-                </label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={gerarResumoIA}
-                  disabled={loadingResumo}
-                >
-                  {loadingResumo ? (
-                    <>
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      Gerar com IA
-                    </>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          <FormStepper
+            currentStep={step}
+            labels={["Info geral", "Resumo com IA"] as const}
+          />
+          <div className="px-6 pb-6 pt-4">
+            {step === 1 && (
+              <div className="grid gap-6">
+                <DialogHeader className="text-left space-y-2">
+                  <DialogTitle className="text-xl flex items-center gap-2">
+                    <ClipboardList className="h-6 w-6 text-primary shrink-0" />
+                    Nova Avaliação
+                  </DialogTitle>
+                  <DialogDescription>
+                    Preencha as informações gerais da avaliação nesta disciplina.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-3">
+                  <Label className="leading-snug">Tipo da avaliação</Label>
+                  <Select
+                    value={tipo}
+                    onValueChange={(v) => setTipo(v as AvaliacaoTipo)}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="prova">Prova</SelectItem>
+                      <SelectItem value="trabalho">Trabalho</SelectItem>
+                      <SelectItem value="seminario">Seminário</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <Label className="leading-snug">Local da entrega</Label>
+                  <Select
+                    value={localEntrega}
+                    onValueChange={(v) =>
+                      setLocalEntrega(v as "plataforma" | "sala")
+                    }
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="plataforma">Plataforma</SelectItem>
+                      <SelectItem value="sala">Sala de aula</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {localEntrega === "plataforma" && (
+                    <p className="text-xs text-muted-foreground leading-relaxed flex gap-2">
+                      <ExternalLink
+                        className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary"
+                        aria-hidden
+                      />
+                      <span>
+                        No IComp, muitas entregas são pelo{" "}
+                        <a
+                          href={COLAB_WEB_LOGIN_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-primary underline-offset-2 hover:underline"
+                        >
+                          ColabWeb
+                        </a>
+                        .
+                      </span>
+                    </p>
                   )}
-                </Button>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3.5">
+                  <div className="space-y-1 pr-3">
+                    <Label htmlFor="lem-disc" className="text-sm font-medium leading-snug">
+                      Ativar lembrete
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Lembrar no dia da avaliação
+                    </p>
+                  </div>
+                  <Switch
+                    id="lem-disc"
+                    checked={lembreteAtivo}
+                    onCheckedChange={setLembreteAtivo}
+                  />
+                </div>
               </div>
-              <textarea
-                value={resumo}
-                onChange={(e) => setResumo(e.target.value)}
-                placeholder="Tópicos e assuntos para estudar..."
-                className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
-              />
-            </div>
+            )}
+            {step === 2 && (
+              <div className="grid gap-6">
+                <DialogHeader className="text-left space-y-2">
+                  <DialogTitle className="text-xl flex items-center gap-2">
+                    <Sparkles className="h-6 w-6 text-primary shrink-0" />
+                    Nova Avaliação
+                  </DialogTitle>
+                  <DialogDescription>
+                    Data, hora e resumo da avaliação com IA.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-3">
+                    <Label className="leading-snug">Data da avaliação</Label>
+                    <Input
+                      type="date"
+                      value={dataAval}
+                      onChange={(e) => {
+                        setDataAval(e.target.value);
+                        setErrors((p) => ({ ...p, dataAval: "" }));
+                      }}
+                      className={cn(
+                        "h-10",
+                        errors.dataAval && "border-destructive",
+                      )}
+                    />
+                    {errors.dataAval && (
+                      <p className="text-xs text-destructive">{errors.dataAval}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <Label className="leading-snug">Hora da avaliação</Label>
+                    <Input
+                      type="time"
+                      value={horaAval}
+                      onChange={(e) => {
+                        setHoraAval(e.target.value);
+                        setErrors((p) => ({ ...p, horaAval: "" }));
+                      }}
+                      className={cn(
+                        "h-10",
+                        errors.horaAval && "border-destructive",
+                      )}
+                    />
+                    {errors.horaAval && (
+                      <p className="text-xs text-destructive">{errors.horaAval}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <Label htmlFor="resumo-disc" className="leading-snug">
+                      Resumo da avaliação
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      {resumo.length}/{RESUMO_AVALIACAO_MAX_DISC}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Você pode escrever ou gerar um resumo com IA.
+                  </p>
+                  <textarea
+                    id="resumo-disc"
+                    value={resumo}
+                    onChange={(e) =>
+                      setResumo(
+                        e.target.value.slice(0, RESUMO_AVALIACAO_MAX_DISC),
+                      )
+                    }
+                    placeholder="Descreva os principais tópicos..."
+                    rows={5}
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto border-dashed"
+                    onClick={gerarResumoIA}
+                    disabled={loadingResumo}
+                  >
+                    {loadingResumo ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Gerar resumo com IA
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={salvar}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Criar Avaliação
-            </Button>
+          <DialogFooter className="flex flex-row items-center justify-between gap-4 border-t bg-muted/20 p-4">
+            <div>
+              {step > 1 ? (
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Voltar
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+              )}
+            </div>
+            <div>
+              {step < 2 ? (
+                <Button onClick={() => setStep(2)}>
+                  Próximo
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={salvar}>Salvar avaliação</Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1945,11 +2346,13 @@ function AddTarefa({ disciplinaId }: { disciplinaId: string }) {
 
 function TarefaItem({
   tarefa,
+  accentColor,
   onToggle,
   onDelete,
   onEdit,
 }: {
   tarefa: Tarefa;
+  accentColor: string;
   onToggle: () => Promise<void>;
   onDelete: () => Promise<void>;
   onEdit: (updated: Partial<Tarefa>) => Promise<void>;
@@ -2042,16 +2445,25 @@ function TarefaItem({
     );
   }
 
+  const accentBar =
+    !isVencida && !isUrgente && !tarefa.concluida ? accentColor : undefined;
+
   return (
     <li
       className={cn(
-        "group rounded-xl border p-4 transition-all hover:shadow-sm",
-        tarefa.concluida && "opacity-60 bg-muted/30",
+        "group rounded-2xl border p-4 transition-all hover:shadow-md dark:hover:shadow-black/30",
+        "border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-900/50",
+        tarefa.concluida && "opacity-60 bg-muted/30 dark:bg-zinc-900/30",
         isVencida &&
           !tarefa.concluida &&
-          "border-destructive/50 bg-destructive/5",
-        isUrgente && !tarefa.concluida && "border-amber-500/30 bg-amber-500/5"
+          "border-destructive/50 bg-destructive/5 dark:bg-destructive/10",
+        isUrgente && !tarefa.concluida && "border-amber-500/40 bg-amber-500/5"
       )}
+      style={
+        accentBar
+          ? { borderLeftWidth: 4, borderLeftColor: accentBar }
+          : undefined
+      }
     >
       <div className="flex items-start gap-3">
         <TooltipProvider delayDuration={300}>

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { streamText } from "ai";
 import { getAIModel } from "@/lib/ai/config";
+import {
+  getAiHttpError,
+  shouldTryGeminiModelFallback,
+} from "@/lib/ai/errors";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(request: NextRequest) {
@@ -98,11 +102,10 @@ REGRAS:
       });
     } catch (modelError: any) {
       console.error("Erro ao usar modelo padrão:", modelError);
-      if (
-        modelError.message?.includes("not found") ||
-        modelError.message?.includes("404")
-      ) {
-        console.log("Tentando usar @google/generative-ai diretamente...");
+      if (shouldTryGeminiModelFallback(modelError)) {
+        console.log(
+          "Tentando fallback com outros modelos Gemini (@google/generative-ai)…",
+        );
         try {
           const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
           if (!apiKey) {
@@ -221,11 +224,9 @@ REGRAS:
     }
 
     return result.toTextStreamResponse();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao explicar conceito:", error);
-    return NextResponse.json(
-      { error: "Erro ao explicar: " + error.message },
-      { status: 500 }
-    );
+    const { status, message } = getAiHttpError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

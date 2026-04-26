@@ -1,5 +1,12 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  type CSSProperties,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +41,7 @@ import {
   X,
   Check,
   Video,
+  Sparkles,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -41,6 +49,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useGrupoMensagensRealtime } from "@/hooks/useGrupoMensagensRealtime";
 import { cn } from "@/lib/utils";
+import { accentColorFromId } from "@/lib/grupo-ui";
 import {
   Tooltip,
   TooltipContent,
@@ -95,6 +104,13 @@ export default function GrupoDetailPage() {
   const params = useParams();
   const router = useRouter();
   const grupoId = params.id as string;
+  const grupoAccent = useMemo(() => accentColorFromId(grupoId), [grupoId]);
+  const grupoHeroStyle = useMemo((): CSSProperties => {
+    return {
+      background: `linear-gradient(135deg, ${grupoAccent.from} 0%, ${grupoAccent.to} 100%)`,
+      boxShadow: "0 24px 48px -12px rgba(0,0,0,0.28)",
+    };
+  }, [grupoAccent]);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [membros, setMembros] = useState<Membro[]>([]);
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
@@ -489,34 +505,104 @@ export default function GrupoDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-4 md:p-6 space-y-4">
-      {/* Botão Voltar acima da coluna esquerda */}
-      <div className="lg:max-w-[calc(66.666%-0.75rem)]">
-        <Button variant="ghost" size="sm" asChild className="shrink-0 -ml-2">
-          <Link href="/grupos">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Link>
-        </Button>
+    <main className="mx-auto w-full max-w-[min(100%,1920px)] space-y-6 px-3 py-6 sm:px-5 lg:px-10 xl:px-12">
+      <div
+        className="overflow-hidden rounded-3xl text-white shadow-xl"
+        style={grupoHeroStyle}
+      >
+        <div className="relative p-6 sm:p-8">
+          <div
+            className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl"
+            aria-hidden
+          />
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="-ml-2 mb-4 text-white/90 hover:bg-white/15 hover:text-white"
+            >
+              <Link href="/grupos">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar aos grupos
+              </Link>
+            </Button>
+            <p className="flex items-center gap-2 text-sm font-medium text-white/85">
+              <Sparkles className="h-4 w-4 shrink-0" />
+              Sala de estudo colaborativa
+            </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+              {grupoInfo?.nome || "Grupo de Estudo"}
+            </h1>
+            {grupoInfo?.descricao ? (
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/85 line-clamp-2">
+                {grupoInfo.descricao}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-white/70">
+                Chat, chamada e materiais num só lugar.
+              </p>
+            )}
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                {
+                  label: "Membros",
+                  value: membros.length,
+                  sub: "no grupo",
+                },
+                {
+                  label: "Mensagens",
+                  value: mensagens.length,
+                  sub: "no chat",
+                },
+                {
+                  label: "Visibilidade",
+                  value:
+                    grupoInfo?.visibilidade === "privado"
+                      ? "Privado"
+                      : "Público",
+                  sub: grupoInfo?.requer_aprovacao ? "com aprovação" : "livre",
+                },
+                {
+                  label: "Status",
+                  value: grupoInfo?.ativo === false ? "Arquivado" : "Ativo",
+                  sub: "grupo",
+                },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm"
+                >
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-white/70">
+                    {s.label}
+                  </p>
+                  <p className="mt-1 truncate text-lg font-bold tabular-nums">
+                    {s.value}
+                  </p>
+                  <p className="text-[11px] text-white/65">{s.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
         {/* Coluna do Chat */}
         <div className="lg:col-span-2 space-y-3">
-          <header className="min-w-0 min-h-[3.5rem] flex flex-col justify-center">
-            <h1 className="text-xl md:text-2xl font-bold truncate">
-              {grupoInfo?.nome || "Grupo de Estudo"}
-            </h1>
-            {grupoInfo?.descricao && (
-              <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
-                {grupoInfo.descricao}
-              </p>
-            )}
-          </header>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3 border-b bg-muted/20">
+          <Card className="overflow-hidden border-border/80 shadow-sm">
+            <CardHeader
+              className="pb-3 border-b bg-muted/20"
+              style={{
+                borderLeftWidth: 4,
+                borderLeftColor: grupoAccent.from,
+              }}
+            >
               <CardTitle className="flex items-center gap-2 text-base">
-                <MessageSquare className="h-5 w-5 text-primary" />
+                <MessageSquare
+                  className="h-5 w-5"
+                  style={{ color: grupoAccent.from }}
+                />
                 Chat do Grupo
               </CardTitle>
             </CardHeader>
@@ -746,8 +832,7 @@ export default function GrupoDetailPage() {
           </Card>
         </div>
 
-        {/* Sidebar - alinhada ao topo do card do chat (altura do título + gap) */}
-        <div className="space-y-4 pt-[4.25rem] lg:pt-[4.25rem]">
+        <div className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">

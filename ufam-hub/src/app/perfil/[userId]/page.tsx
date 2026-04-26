@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   User,
@@ -22,13 +22,14 @@ import {
   Lightbulb,
   FileText,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface PublicProfile {
   id: string;
@@ -108,7 +109,7 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
       );
     return (
       <Link href={`/feed?activity=${item.id}`}>
-        <div className="flex items-start gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors">
+        <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4 transition-colors hover:bg-accent/50">
           <div className="mt-0.5">{icon}</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">{getActivityLabel(tipo)}</p>
@@ -133,7 +134,7 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
   if (item.tipo === "comment") {
     return (
       <Link href={`/feed?activity=${d.activity_id}`}>
-        <div className="flex items-start gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors">
+        <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4 transition-colors hover:bg-accent/50">
           <MessageCircle className="h-4 w-4 text-blue-500 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm">
@@ -160,7 +161,7 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
           : Heart;
     return (
       <Link href={`/feed?activity=${d.activity_id}`}>
-        <div className="flex items-start gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors">
+        <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4 transition-colors hover:bg-accent/50">
           <ReactionIcon className="h-4 w-4 text-pink-500 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm">
@@ -269,7 +270,7 @@ export default function PublicProfilePage() {
       toast.success(
         following
           ? "Você deixou de seguir este usuário"
-          : "Você está seguindo este usuário"
+          : "Você está seguindo este usuário",
       );
 
       loadProfile();
@@ -281,11 +282,20 @@ export default function PublicProfilePage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-4xl p-6">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <User className="h-12 w-12 animate-pulse mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Carregando perfil...</p>
+      <main className="mx-auto w-full max-w-[min(100%,1280px)] px-2 pb-12 pt-2 sm:px-4">
+        <div className="space-y-6">
+          <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+          <div className="overflow-hidden rounded-3xl border border-border">
+            <div className="h-44 animate-pulse bg-muted sm:h-52" />
+            <div className="flex flex-col gap-6 px-4 pb-8 pt-0 sm:px-8">
+              <div className="-mt-14 flex flex-col gap-4 sm:-mt-16 sm:flex-row sm:items-end">
+                <div className="h-28 w-28 shrink-0 animate-pulse rounded-[1.75rem] bg-muted sm:h-36 sm:w-36" />
+                <div className="flex-1 space-y-3">
+                  <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+                  <div className="h-4 w-full max-w-md animate-pulse rounded bg-muted" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -294,8 +304,8 @@ export default function PublicProfilePage() {
 
   if (!profile) {
     return (
-      <main className="mx-auto max-w-4xl p-6">
-        <Card>
+      <main className="mx-auto w-full max-w-[min(100%,1280px)] px-2 py-6 sm:px-4">
+        <Card className="rounded-3xl">
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">Perfil não encontrado</p>
           </CardContent>
@@ -311,163 +321,223 @@ export default function PublicProfilePage() {
     .toUpperCase()
     .slice(0, 2);
 
+  const statItem = (
+    value: number,
+    label: string,
+    icon: ReactNode,
+    className?: string,
+  ) => (
+    <div
+      className={cn("flex flex-col gap-1 text-center sm:text-right", className)}
+    >
+      <span className="text-2xl font-bold tabular-nums tracking-tight sm:text-3xl">
+        {value}
+      </span>
+      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground sm:justify-end sm:text-sm">
+        {icon}
+        {label}
+      </div>
+    </div>
+  );
+
   return (
-    <main className="mx-auto max-w-4xl p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
-        </Button>
+    <main className="mx-auto w-full max-w-[min(100%,1280px)] space-y-8 px-2 pb-16 pt-2 sm:px-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-2 gap-2 text-muted-foreground hover:text-foreground"
+        onClick={() => router.back()}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Voltar
+      </Button>
+
+      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+        <div
+          className="relative h-44 bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-950 sm:h-52"
+          aria-hidden
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_70%_-20%,rgba(255,255,255,0.12),transparent)]" />
+        </div>
+
+        <div className="relative px-4 pb-8 pt-0 sm:px-8">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-end sm:gap-6 lg:flex-1">
+              <Avatar className="-mt-14 h-28 w-28 shrink-0 rounded-[1.75rem] border-4 border-card shadow-xl ring-1 ring-border/60 sm:-mt-16 sm:h-36 sm:w-36">
+                <AvatarImage src={profile.avatar_url} alt={profile.nome} />
+                <AvatarFallback className="rounded-[1.75rem] text-2xl font-semibold sm:text-3xl">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1 space-y-3 pb-0.5">
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    {profile.nome}
+                  </h1>
+                  {profile.bio ? (
+                    <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                      {profile.bio}
+                    </p>
+                  ) : null}
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    {profile.curso ? (
+                      <span className="flex items-center gap-1.5">
+                        <GraduationCap className="h-4 w-4 shrink-0 opacity-80" />
+                        {profile.curso}
+                      </span>
+                    ) : null}
+                    {profile.periodo ? (
+                      <span className="flex items-center gap-1.5">
+                        <Hash className="h-4 w-4 shrink-0 opacity-80" />
+                        {profile.periodo}º período
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {profile.isOwnProfile ? (
+                    <Button asChild className="rounded-full">
+                      <Link href="/perfil">Editar perfil</Link>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={handleFollow}
+                        variant={following ? "outline" : "default"}
+                        className={cn(
+                          "rounded-full",
+                          !following &&
+                            "bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700",
+                        )}
+                      >
+                        {following ? (
+                          <>
+                            <UserMinus className="mr-2 h-4 w-4" />
+                            Deixar de seguir
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Seguir
+                          </>
+                        )}
+                      </Button>
+                      {profile.email ? (
+                        <Button
+                          variant="outline"
+                          className="rounded-full"
+                          asChild
+                        >
+                          <a href={`mailto:${profile.email}`}>Conectar</a>
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid w-full grid-cols-3 gap-3 sm:gap-6 lg:max-w-md lg:shrink-0">
+              {statItem(
+                profile.stats.totalDisciplinas,
+                "Disciplinas",
+                <BookOpen className="h-4 w-4 opacity-70" />,
+                "text-center sm:text-right",
+              )}
+              {statItem(
+                profile.stats.totalSeguidores,
+                "Seguidores",
+                <Users className="h-4 w-4 opacity-70" />,
+                "text-center sm:text-right",
+              )}
+              {statItem(
+                profile.stats.totalSeguindo,
+                "Seguindo",
+                <UserPlus className="h-4 w-4 opacity-70" />,
+                "text-center sm:text-right",
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Profile Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={profile.avatar_url} alt={profile.nome} />
-                <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-2xl">{profile.nome}</CardTitle>
-                {profile.bio && (
-                  <p className="text-muted-foreground mt-1">{profile.bio}</p>
-                )}
-                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                  {profile.curso && (
-                    <span className="flex items-center gap-1">
-                      <GraduationCap className="h-4 w-4" />
-                      {profile.curso}
-                    </span>
-                  )}
-                  {profile.periodo && (
-                    <span className="flex items-center gap-1">
-                      <Hash className="h-4 w-4" />
-                      {profile.periodo}º período
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            {!profile.isOwnProfile && (
-              <Button
-                onClick={handleFollow}
-                variant={following ? "outline" : "default"}
-              >
-                {following ? (
-                  <>
-                    <UserMinus className="h-4 w-4 mr-2" />
-                    Deixar de seguir
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Seguir
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="sobre" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="sobre">Sobre</TabsTrigger>
-              <TabsTrigger value="atividades">Últimas atividades</TabsTrigger>
-            </TabsList>
-            <TabsContent value="sobre" className="mt-4">
-              <Separator className="my-4" />
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">
-                    {profile.stats.totalDisciplinas}
-                  </div>
-                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                    <BookOpen className="h-4 w-4" />
-                    Disciplinas
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">
-                    {profile.stats.totalSeguidores}
-                  </div>
-                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                    <Users className="h-4 w-4" />
-                    Seguidores
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">
-                    {profile.stats.totalSeguindo}
-                  </div>
-                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                    <UserPlus className="h-4 w-4" />
-                    Seguindo
-                  </div>
-                </div>
-              </div>
-              {profile.email && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      {profile.email}
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      Membro desde{" "}
-                      {new Date(profile.created_at).toLocaleDateString("pt-BR", {
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </TabsContent>
-            <TabsContent value="atividades" className="mt-4">
-              {loadingActivities ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : activities.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">
-                  <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>Nenhuma atividade recente</p>
-                </div>
-              ) : (
-                <div className="space-y-3 mt-4">
-                  {activities.map((item) => (
-                    <ActivityItemRow key={item.id} item={item} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="sobre" className="w-full">
+        <TabsList
+          className="h-auto w-full justify-start gap-6 rounded-none border-b border-border bg-transparent p-0"
+          aria-label="Secções do perfil"
+        >
+          <TabsTrigger
+            value="sobre"
+            className="relative rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-1 text-base font-medium text-muted-foreground shadow-none data-[state=active]:border-emerald-500 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            Sobre
+          </TabsTrigger>
+          <TabsTrigger
+            value="atividades"
+            className="relative rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-1 text-base font-medium text-muted-foreground shadow-none data-[state=active]:border-emerald-500 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            Últimas atividades
+            {activities.length > 0 ? (
+              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                {activities.length}
+              </span>
+            ) : null}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Actions */}
-      {profile.isOwnProfile && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">Este é seu perfil</h3>
-                <p className="text-sm text-muted-foreground">
-                  Edite suas informações na página de perfil
-                </p>
+        <TabsContent value="sobre" className="mt-8 focus-visible:outline-none">
+          <div className="grid gap-6 rounded-3xl border border-border bg-card/30 p-6 sm:p-8">
+            {profile.email ? (
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="break-all text-foreground">
+                  {profile.email}
+                </span>
               </div>
-              <Button asChild>
-                <Link href="/perfil">Editar Perfil</Link>
-              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Este utilizador não partilhou o email publicamente.
+              </p>
+            )}
+            <Separator />
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4 shrink-0" />
+              <span>
+                Membro desde{" "}
+                {new Date(profile.created_at).toLocaleDateString("pt-BR", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="atividades"
+          className="mt-8 focus-visible:outline-none"
+        >
+          {loadingActivities ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-border bg-muted/20 py-16 text-center text-muted-foreground">
+              <Activity className="mx-auto mb-3 h-12 w-12 opacity-40" />
+              <p className="font-medium">Nenhuma atividade recente</p>
+              <p className="mt-1 text-sm opacity-80">
+                As interações no feed aparecem aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {activities.map((item) => (
+                <ActivityItemRow key={item.id} item={item} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }

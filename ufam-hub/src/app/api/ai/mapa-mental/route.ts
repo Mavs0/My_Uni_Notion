@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { generateText } from "ai";
 import { getAIModel } from "@/lib/ai/config";
+import {
+  getAiHttpError,
+  shouldTryGeminiModelFallback,
+} from "@/lib/ai/errors";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(request: NextRequest) {
@@ -118,10 +122,7 @@ REGRAS:
     } catch (modelError: any) {
       console.error("Erro ao usar modelo padrão:", modelError);
 
-      if (
-        modelError.message?.includes("not found") ||
-        modelError.message?.includes("404")
-      ) {
+      if (shouldTryGeminiModelFallback(modelError)) {
         try {
           const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
           if (!apiKey) {
@@ -210,11 +211,9 @@ REGRAS:
     }
 
     return NextResponse.json(mapaMental);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao gerar mapa mental:", error);
-    return NextResponse.json(
-      { error: "Erro ao gerar mapa mental: " + error.message },
-      { status: 500 }
-    );
+    const { status, message } = getAiHttpError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

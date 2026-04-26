@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  ClipboardList,
   Grid3x3,
   List,
   MoreVertical,
@@ -29,6 +30,7 @@ import {
   Copy,
   Bell,
   Settings,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,6 +68,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { FormStepper } from "@/components/forms/FormStepper";
+import { ColabWebCallout } from "@/components/ColabWebCallout";
+import { COLAB_WEB_LOGIN_URL } from "@/lib/external-links";
 import {
   useAvaliacoes,
   type Avaliacao as AvaliacaoType,
@@ -132,6 +138,23 @@ function toLocalInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`;
+}
+
+function splitDateTimeLocal(isoLocal: string) {
+  if (!isoLocal || !isoLocal.includes("T")) {
+    const t = new Date(Date.now() + 86400000);
+    const s = toLocalInputValue(t);
+    const [d, tm] = s.split("T");
+    return { date: d, time: (tm || "09:00").slice(0, 5) };
+  }
+  const [d, tm] = isoLocal.split("T");
+  return { date: d || "", time: (tm || "09:00").slice(0, 5) };
+}
+
+function joinDateTimeLocal(date: string, time: string) {
+  if (!date) return "";
+  const t = time && time.length >= 4 ? time.slice(0, 5) : "09:00";
+  return `${date}T${t}`;
 }
 
 /** API/DB podem devolver tipo inválido, null ou variação (ex.: "Seminário") */
@@ -644,7 +667,9 @@ export default function AvaliacoesPage() {
           </div>
         </div>
       </header>
-      {}
+
+      <ColabWebCallout />
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="hover:shadow-md transition-shadow border-primary/10">
           <CardContent className="pt-6">
@@ -1641,6 +1666,8 @@ function CalendarioView({
   );
 }
 
+const RESUMO_AVALIACAO_MAX = 500;
+
 function NovaAvaliacaoModal({
   open,
   onClose,
@@ -1658,13 +1685,30 @@ function NovaAvaliacaoModal({
     disciplinas[0]?.id ?? ""
   );
   const [tipo, setTipo] = useState<AvaliacaoTipo>("prova");
-  const [dataLocal, setDataLocal] = useState<string>(() =>
-    toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000))
+  const defaultDt = () =>
+    splitDateTimeLocal(toLocalInputValue(new Date(Date.now() + 24 * 3600 * 1000)));
+  const [dataAval, setDataAval] = useState(() => defaultDt().date);
+  const [horaAval, setHoraAval] = useState(() => defaultDt().time);
+  const [localEntrega, setLocalEntrega] = useState<"plataforma" | "sala">(
+    "plataforma"
   );
-  const [descricao, setDescricao] = useState("");
+  const [lembreteAtivo, setLembreteAtivo] = useState(true);
   const [resumo, setResumo] = useState("");
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (open && disciplinas.length && !disciplinas.some((d) => d.id === disciplinaId)) {
+      setDisciplinaId(disciplinas[0].id);
+    }
+  }, [open, disciplinas, disciplinaId]);
+
+  function descricaoEntrega() {
+    return localEntrega === "plataforma"
+      ? "Entrega: plataforma"
+      : "Entrega: sala de aula";
+  }
+
   async function gerarResumoIA() {
     if (!disciplinaId) {
       toast.error("Selecione uma disciplina primeiro");
@@ -1679,7 +1723,7 @@ function NovaAvaliacaoModal({
         body: JSON.stringify({
           disciplinaId,
           tipoAvaliacao: tipo,
-          descricao: descricao || undefined,
+          descricao: descricaoEntrega(),
         }),
       });
 
@@ -1689,7 +1733,8 @@ function NovaAvaliacaoModal({
       }
 
       const data = await response.json();
-      setResumo(data.resumo || "");
+      const text = String(data.resumo || "").slice(0, RESUMO_AVALIACAO_MAX);
+      setResumo(text);
       toast.success("Resumo gerado com sucesso!");
     } catch (err: any) {
       console.error("Erro ao gerar resumo:", err);
@@ -1698,156 +1743,208 @@ function NovaAvaliacaoModal({
       setLoadingResumo(false);
     }
   }
+
   function validateStep1() {
     const newErrors: Record<string, string> = {};
     if (!disciplinaId) newErrors.disciplinaId = "Selecione uma disciplina";
-    if (!dataLocal) newErrors.dataLocal = "Selecione uma data e hora";
-    else if (isNaN(new Date(dataLocal).getTime())) newErrors.dataLocal = "Data inválida";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
+
+  function validateStep2() {
+    const newErrors: Record<string, string> = {};
+    const joined = joinDateTimeLocal(dataAval, horaAval);
+    if (!dataAval) newErrors.dataAval = "Informe a data";
+    if (!horaAval) newErrors.horaAval = "Informe a hora";
+    if (joined && isNaN(new Date(joined).getTime())) {
+      newErrors.dataAval = "Data ou hora inválida";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
   async function salvar() {
-    if (!validateStep1()) {
-      toast.error("Por favor, corrija os erros no formulário");
+    if (!validateStep2()) {
+      toast.error("Corrija data e hora antes de salvar");
       return;
     }
-    const iso = new Date(dataLocal).toISOString();
+    const joined = joinDateTimeLocal(dataAval, horaAval);
+    const iso = new Date(joined).toISOString();
     const result = await createAvaliacao({
       disciplinaId,
       tipo,
       dataISO: iso,
-      descricao: descricao || undefined,
-      resumo_assuntos: resumo || undefined,
-      gerado_por_ia: !!resumo,
+      descricao: descricaoEntrega(),
+      resumo_assuntos: resumo.trim() || undefined,
+      gerado_por_ia: !!resumo.trim(),
     });
     if (result.success) {
-      onClose();
-      setDescricao("");
+      let msg = "Avaliação criada com sucesso";
+      if (lembreteAtivo && result.id) {
+        try {
+          const r = await fetch("/api/reminders/auto-create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              tipo: "avaliacao",
+              referencia_id: result.id,
+            }),
+          });
+          if (r.ok) msg = "Avaliação criada. Lembretes agendados.";
+        } catch {
+          /* mantém msg padrão */
+        }
+      }
+      toast.success(msg);
+      const d = defaultDt();
+      setDataAval(d.date);
+      setHoraAval(d.time);
       setResumo("");
       setStep(1);
       setErrors({});
-      toast.success("Avaliação criada com sucesso");
+      onClose();
       onCreate();
     } else {
       toast.error(result.error || "Erro ao criar avaliação");
     }
   }
-  const handleClose = (open: boolean) => {
-    if (!open) {
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setStep(1);
       setErrors({});
+      const d = defaultDt();
+      setDataAval(d.date);
+      setHoraAval(d.time);
+      setResumo("");
+      onClose();
     }
-    onClose();
   };
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-        {/* Stepper */}
-        <div className="flex items-center justify-center gap-1 px-6 pt-6 pb-2 border-b">
-          {[1, 2].map((s) => (
-            <div key={s} className="flex items-center">
-              <button
-                type="button"
-                onClick={() => setStep(s)}
-                className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-colors ${
-                  step === s
-                    ? "bg-primary text-primary-foreground"
-                    : step > s
-                      ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {s}
-              </button>
-              {s < 2 && <div className="w-8 h-0.5 bg-muted mx-0.5" />}
-            </div>
-          ))}
-        </div>
-        <div className="px-2 text-center text-xs text-muted-foreground mb-4 mt-2">
-          {step === 1 && "Informações gerais"}
-          {step === 2 && "Resumo para estudar"}
-        </div>
 
-        <div className="px-6 pb-6">
+  return (
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+        <FormStepper
+          currentStep={step}
+          labels={["Info geral", "Resumo com IA"] as const}
+        />
+
+        <div className="px-6 pb-6 pt-4">
           {step === 1 && (
             <div className="grid gap-6">
-              <DialogHeader>
+              <DialogHeader className="text-left space-y-2">
                 <DialogTitle className="text-xl flex items-center gap-2">
-                  <FileText className="h-6 w-6 text-primary" />
-                  Informações da avaliação
+                  <ClipboardList className="h-6 w-6 text-primary shrink-0" />
+                  Nova Avaliação
                 </DialogTitle>
                 <DialogDescription>
-                  Preencha os dados básicos. Campos marcados com * são obrigatórios.
+                  Preencha as informações gerais da avaliação.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
-                  <Label>
-                    Disciplina <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={disciplinaId}
-                    onValueChange={(v) => {
-                      setDisciplinaId(v);
-                      setErrors((prev) => ({ ...prev, disciplinaId: "" }));
-                    }}
-                  >
-                    <SelectTrigger className={cn("h-10", errors.disciplinaId && "border-destructive")}>
-                      <SelectValue placeholder="Selecione uma disciplina" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[100]">
-                      {disciplinas.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.disciplinaId && (
-                    <p className="text-xs text-destructive">{errors.disciplinaId}</p>
-                  )}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>
-                    Tipo <span className="text-destructive">*</span>
-                  </Label>
-                  <Select value={tipo} onValueChange={(v) => setTipo(v as AvaliacaoTipo)}>
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="z-[100]">
-                      <SelectItem value="prova">Prova</SelectItem>
-                      <SelectItem value="trabalho">Trabalho</SelectItem>
-                      <SelectItem value="seminario">Seminário</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label>
-                  Data e hora <span className="text-destructive">*</span>
+              <div className="flex flex-col gap-3">
+                <Label className="leading-snug">
+                  Disciplina <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  type="datetime-local"
-                  value={dataLocal}
-                  onChange={(e) => {
-                    setDataLocal(e.target.value);
-                    setErrors((prev) => ({ ...prev, dataLocal: "" }));
+                <Select
+                  value={disciplinaId}
+                  onValueChange={(v) => {
+                    setDisciplinaId(v);
+                    setErrors((prev) => ({ ...prev, disciplinaId: "" }));
                   }}
-                  className={cn(errors.dataLocal && "border-destructive")}
-                />
-                {errors.dataLocal && (
-                  <p className="text-xs text-destructive">{errors.dataLocal}</p>
+                >
+                  <SelectTrigger
+                    className={cn(
+                      "h-10",
+                      errors.disciplinaId && "border-destructive",
+                    )}
+                  >
+                    <SelectValue placeholder="Selecione uma disciplina" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    {disciplinas.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.disciplinaId && (
+                  <p className="text-xs text-destructive">{errors.disciplinaId}</p>
                 )}
               </div>
 
-              <div className="grid gap-1.5">
-                <Label>Descrição</Label>
-                <textarea
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  placeholder="Ex.: Cap. 1–3; lista 1 e 2; apresentação de tópicos..."
-                  className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <div className="flex flex-col gap-3">
+                <Label className="leading-snug">
+                  Tipo da avaliação <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={tipo}
+                  onValueChange={(v) => setTipo(v as AvaliacaoTipo)}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    <SelectItem value="prova">Prova</SelectItem>
+                    <SelectItem value="trabalho">Trabalho</SelectItem>
+                    <SelectItem value="seminario">Seminário</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Label className="leading-snug">Local da entrega</Label>
+                <Select
+                  value={localEntrega}
+                  onValueChange={(v) =>
+                    setLocalEntrega(v as "plataforma" | "sala")
+                  }
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    <SelectItem value="plataforma">Plataforma</SelectItem>
+                    <SelectItem value="sala">Sala de aula</SelectItem>
+                  </SelectContent>
+                </Select>
+                {localEntrega === "plataforma" && (
+                  <p className="text-xs text-muted-foreground leading-relaxed flex gap-2">
+                    <ExternalLink
+                      className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary"
+                      aria-hidden
+                    />
+                    <span>
+                      No IComp, muitas entregas são pelo{" "}
+                      <a
+                        href={COLAB_WEB_LOGIN_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary underline-offset-2 hover:underline"
+                      >
+                        ColabWeb
+                      </a>
+                      .
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3.5">
+                <div className="space-y-1 pr-3">
+                  <Label htmlFor="lembrete-av" className="text-sm font-medium leading-snug">
+                    Ativar lembrete
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Lembrar no dia da avaliação (e dias antes, quando disponível)
+                  </p>
+                </div>
+                <Switch
+                  id="lembrete-av"
+                  checked={lembreteAtivo}
+                  onCheckedChange={setLembreteAtivo}
                 />
               </div>
             </div>
@@ -1855,45 +1952,94 @@ function NovaAvaliacaoModal({
 
           {step === 2 && (
             <div className="grid gap-6">
-              <DialogHeader>
+              <DialogHeader className="text-left space-y-2">
                 <DialogTitle className="text-xl flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                  Resumo para estudar
+                  <Sparkles className="h-6 w-6 text-primary shrink-0" />
+                  Nova Avaliação
                 </DialogTitle>
                 <DialogDescription>
-                  Adicione um resumo dos assuntos ou gere com IA. Este passo é opcional.
+                  Data, hora e resumo da avaliação com IA.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-1.5">
-                <div className="flex items-center justify-between">
-                  <Label>Resumo dos assuntos (opcional)</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={gerarResumoIA}
-                    disabled={loadingResumo}
-                  >
-                    {loadingResumo ? (
-                      <>
-                        <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                        Gerando...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Gerar com IA
-                      </>
-                    )}
-                  </Button>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-3">
+                  <Label className="leading-snug">
+                    Data da avaliação <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={dataAval}
+                    onChange={(e) => {
+                      setDataAval(e.target.value);
+                      setErrors((prev) => ({ ...prev, dataAval: "" }));
+                    }}
+                    className={cn("h-10", errors.dataAval && "border-destructive")}
+                  />
+                  {errors.dataAval && (
+                    <p className="text-xs text-destructive">{errors.dataAval}</p>
+                  )}
                 </div>
+                <div className="flex flex-col gap-3">
+                  <Label className="leading-snug">
+                    Hora da avaliação <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="time"
+                    value={horaAval}
+                    onChange={(e) => {
+                      setHoraAval(e.target.value);
+                      setErrors((prev) => ({ ...prev, horaAval: "" }));
+                    }}
+                    className={cn("h-10", errors.horaAval && "border-destructive")}
+                  />
+                  {errors.horaAval && (
+                    <p className="text-xs text-destructive">{errors.horaAval}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <Label htmlFor="resumo-av" className="leading-snug">
+                    Resumo da avaliação
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {resumo.length}/{RESUMO_AVALIACAO_MAX}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Você pode escrever ou gerar um resumo com IA.
+                </p>
                 <textarea
+                  id="resumo-av"
                   value={resumo}
-                  onChange={(e) => setResumo(e.target.value)}
-                  placeholder="Resumo a estudar para esta avaliação..."
-                  className="w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm resize-none"
+                  onChange={(e) =>
+                    setResumo(e.target.value.slice(0, RESUMO_AVALIACAO_MAX))
+                  }
+                  placeholder="Descreva os principais tópicos..."
+                  rows={5}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto border-dashed"
+                  onClick={gerarResumoIA}
+                  disabled={loadingResumo}
+                >
+                  {loadingResumo ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Gerar resumo com IA
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           )}
@@ -1917,16 +2063,17 @@ function NovaAvaliacaoModal({
               <Button
                 onClick={() => {
                   if (validateStep1()) setStep(2);
-                  else toast.error("Preencha os campos obrigatórios antes de continuar");
+                  else
+                    toast.error(
+                      "Preencha os campos obrigatórios antes de continuar",
+                    );
                 }}
               >
                 Próximo
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={salvar}>
-                Criar Avaliação
-              </Button>
+              <Button onClick={salvar}>Salvar avaliação</Button>
             )}
           </div>
         </DialogFooter>

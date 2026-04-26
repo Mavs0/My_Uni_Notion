@@ -14,6 +14,23 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotasSearch, type NotaSearchResult } from "@/hooks/useNotasSearch";
@@ -98,8 +115,21 @@ export default function BuscaAnotacoesPage() {
     notas: allNotas,
     loading: allNotasLoading,
     error: allNotasError,
+    createNota,
   } = useNotas();
-  const { disciplinas } = useDisciplinas();
+  const { disciplinas, disciplinasAtivas } = useDisciplinas();
+
+  const [novaNotaOpen, setNovaNotaOpen] = useState(false);
+  const [tituloNova, setTituloNova] = useState("");
+  const [disciplinaNovaId, setDisciplinaNovaId] = useState("");
+  const [criandoNova, setCriandoNova] = useState(false);
+  const [erroNova, setErroNova] = useState<string | null>(null);
+
+  const disciplinasOrdenadas = useMemo(() => {
+    return [...disciplinasAtivas].sort((a, b) =>
+      a.nome.localeCompare(b.nome, "pt", { sensitivity: "base" }),
+    );
+  }, [disciplinasAtivas]);
 
   const [profile, setProfile] = useState<{
     nome: string;
@@ -177,6 +207,39 @@ export default function BuscaAnotacoesPage() {
   ) => {
     router.push(notaEditorPath(nota));
   };
+
+  function abrirModalNovaNota() {
+    setTituloNova("");
+    setErroNova(null);
+    setDisciplinaNovaId(disciplinasOrdenadas[0]?.id ?? "");
+    setNovaNotaOpen(true);
+  }
+
+  async function handleCriarNovaNota() {
+    const t = tituloNova.trim();
+    if (!t) {
+      setErroNova("Informe um título.");
+      return;
+    }
+    if (!disciplinaNovaId) {
+      setErroNova("Selecione uma disciplina.");
+      return;
+    }
+    setErroNova(null);
+    setCriandoNova(true);
+    const result = await createNota({
+      disciplinaId: disciplinaNovaId,
+      titulo: t,
+      content_md: "",
+    });
+    setCriandoNova(false);
+    if (result.success && result.nota) {
+      setNovaNotaOpen(false);
+      router.push(notaEditorPath(result.nota));
+    } else if (!result.success && "error" in result && result.error) {
+      setErroNova(result.error);
+    }
+  }
 
   const renderSnippet = (nota: { snippet: string }) => (
     <div className="line-clamp-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -265,10 +328,11 @@ export default function BuscaAnotacoesPage() {
               </p>
             </div>
           </Link>
-          <Link
-            href="/disciplinas"
+          <button
+            type="button"
+            onClick={abrirModalNovaNota}
             className={cn(
-              "group flex flex-col gap-3 rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-all",
+              "group flex flex-col gap-3 rounded-2xl border border-zinc-200/90 bg-white p-4 text-left shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-all",
               "hover:border-emerald-200 hover:shadow-md",
               "dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-emerald-900/50",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30",
@@ -282,10 +346,10 @@ export default function BuscaAnotacoesPage() {
                 Nova anotação
               </p>
               <p className="mt-0.5 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
-                Criar a partir de uma disciplina
+                Título e disciplina — abre o editor
               </p>
             </div>
-          </Link>
+          </button>
           <Link
             href="/revisao"
             className={cn(
@@ -638,6 +702,113 @@ export default function BuscaAnotacoesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={novaNotaOpen} onOpenChange={setNovaNotaOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova anotação</DialogTitle>
+            <DialogDescription>
+              Escolha a disciplina e um título. Você será levado ao editor para
+              escrever o conteúdo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            {disciplinasOrdenadas.length === 0 ? (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Cadastre pelo menos uma disciplina para criar anotações.{" "}
+                <Link
+                  href="/disciplinas"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                  onClick={() => setNovaNotaOpen(false)}
+                >
+                  Ir para Disciplinas
+                </Link>
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="nova-nota-titulo" className="leading-snug">
+                    Título
+                  </Label>
+                  <Input
+                    id="nova-nota-titulo"
+                    value={tituloNova}
+                    onChange={(e) => {
+                      setTituloNova(e.target.value);
+                      setErroNova(null);
+                    }}
+                    placeholder="Ex.: Resumo — árvores AVL"
+                    className="h-10"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleCriarNovaNota();
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="nova-nota-disc" className="leading-snug">
+                    Disciplina
+                  </Label>
+                  <Select
+                    value={disciplinaNovaId}
+                    onValueChange={(v) => {
+                      setDisciplinaNovaId(v);
+                      setErroNova(null);
+                    }}
+                  >
+                    <SelectTrigger id="nova-nota-disc" className="h-10">
+                      <SelectValue placeholder="Selecione a disciplina" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      {disciplinasOrdenadas.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            {erroNova && (
+              <p className="text-sm text-destructive" role="alert">
+                {erroNova}
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setNovaNotaOpen(false)}
+              disabled={criandoNova}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleCriarNovaNota()}
+              disabled={
+                criandoNova ||
+                disciplinasOrdenadas.length === 0 ||
+                !tituloNova.trim()
+              }
+            >
+              {criandoNova ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Criando…
+                </>
+              ) : (
+                "Criar e abrir editor"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

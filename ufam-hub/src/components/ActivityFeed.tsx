@@ -22,6 +22,8 @@ interface Activity {
 interface ActivityFeedProps {
   type?: "all" | "following" | "public" | "personalized";
   limit?: number;
+  /** Incrementar para forçar recarregar o feed após nova publicação */
+  refreshKey?: number;
   filters?: {
     tipoAtividade?: string;
     disciplinaId?: string;
@@ -33,6 +35,7 @@ interface ActivityFeedProps {
 export function ActivityFeed({
   type = "personalized",
   limit = 20,
+  refreshKey = 0,
   filters = {},
 }: ActivityFeedProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -113,7 +116,7 @@ export function ActivityFeed({
 
   useEffect(() => {
     loadActivities(true);
-  }, [type]);
+  }, [type, refreshKey, loadActivities]);
 
   useEffect(() => {
     if (observerRef.current) {

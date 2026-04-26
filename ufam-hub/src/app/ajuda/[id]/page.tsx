@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, HelpCircle } from "lucide-react";
+import { COLAB_WEB_LOGIN_URL } from "@/lib/external-links";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -24,18 +25,37 @@ const helpContents: Record<string, HelpContent> = {
             Bem-vindo ao UFAM Hub!
           </h2>
           <p className="text-muted-foreground leading-relaxed mb-4">
-            O UFAM Hub é uma plataforma completa para organizar seus estudos
-            universitários. Este guia vai te ajudar a dar os primeiros passos.
+            O UFAM Hub é o teu espaço para disciplinas, avaliações, anotações,
+            calendário e ferramentas de IA. Este guia resume o essencial para
+            começares com segurança.
           </p>
         </section>
 
         <section>
-          <h3 className="text-xl font-semibold mb-3">1. Criar sua Conta</h3>
+          <h3 className="text-xl font-semibold mb-3">1. Criar conta e entrar</h3>
           <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-            <li>Acesse a página de login</li>
-            <li>Clique em "Criar conta" ou use OAuth (Google/GitHub)</li>
-            <li>Preencha seus dados ou faça login com sua conta social</li>
-            <li>Confirme seu email se necessário</li>
+            <li>
+              Acede à página de{" "}
+              <Link href="/login" className="text-primary hover:underline">
+                login
+              </Link>
+            </li>
+            <li>
+              Usa <strong>Criar conta</strong> com <strong>e-mail e palavra-passe</strong>{" "}
+              ou o link de convite que te foi enviado (
+              <Link
+                href="/cadastro-convidado"
+                className="text-primary hover:underline"
+              >
+                cadastro por convite
+              </Link>
+              )
+            </li>
+            <li>Confirma o e-mail se a plataforma pedir verificação</li>
+            <li>
+              Opcional: em Perfil ou Segurança podes associar serviços OAuth
+              (ex.: Google) quando essa opção estiver disponível na tua conta
+            </li>
           </ol>
         </section>
 
@@ -77,33 +97,79 @@ const helpContents: Record<string, HelpContent> = {
 
         <section>
           <h3 className="text-xl font-semibold mb-3">
-            4. Explorar o Dashboard
+            4. Navegação: barra superior e menu
           </h3>
-          <p className="text-muted-foreground mb-3">
-            O Dashboard é sua central de informações:
-          </p>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
             <li>
-              <strong>Estatísticas:</strong> Veja suas horas de estudo, XP
-              ganho, streak atual
+              <strong>Barra superior:</strong> logo e nome UFAM Hub (atalho ao
+              dashboard),{" "}
+              <strong>busca</strong> (atalho <kbd className="rounded border bg-muted px-1 text-xs">⌘K</kbd>{" "}
+              / <kbd className="rounded border bg-muted px-1 text-xs">Ctrl+K</kbd>
+              ), notificações, modo foco, tema e menu da conta
             </li>
             <li>
-              <strong>Próximas Avaliações:</strong> Avaliações dos próximos 7
-              dias
+              <strong>Menu lateral (desktop):</strong> acesso rápido a
+              Disciplinas, Calendário,{" "}
+              <Link href="/ajuda" className="text-primary hover:underline">
+                Ajuda
+              </Link>
+              , Configurações, etc.
             </li>
             <li>
-              <strong>Tarefas Pendentes:</strong> Tarefas que precisam de
-              atenção
-            </li>
-            <li>
-              <strong>Atividades Recentes:</strong> Últimas atividades
-              registradas
+              <strong>Telemóvel:</strong> abre o menu com o ícone de hambúrguer
+              na barra superior
             </li>
           </ul>
         </section>
 
         <section>
-          <h3 className="text-xl font-semibold mb-3">5. Fazer o Tour Guiado</h3>
+          <h3 className="text-xl font-semibold mb-3">
+            5. Assistente virtual (canto do ecrã)
+          </h3>
+          <p className="text-muted-foreground mb-3">
+            O ícone do <strong>robô</strong> no canto inferior direito abre o{" "}
+            <strong>assistente rápido</strong>: respostas curtas, perguntas
+            sugeridas e apoio imediato sem saíres da página.
+          </p>
+          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <li>Fica oculto na página de Chat IA, em salas de chamada e no modo foco</li>
+            <li>
+              Para conversas longas, contexto por disciplina e mais ferramentas
+              de IA, usa o{" "}
+              <Link href="/chat" className="text-primary hover:underline">
+                Chat IA
+              </Link>{" "}
+              (ver artigo &quot;Usando o Chat IA&quot;)
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h3 className="text-xl font-semibold mb-3">
+            6. Explorar o Dashboard
+          </h3>
+          <p className="text-muted-foreground mb-3">
+            O dashboard reúne widgets à tua medida: estatísticas, avaliações,
+            tarefas, metas e atividade recente (conforme o que tiveres ativo).
+          </p>
+          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <li>
+              <strong>Resumo:</strong> visão geral do teu percurso e próximos
+              passos
+            </li>
+            <li>
+              <strong>Avaliações e tarefas:</strong> o que está para breve ou
+              pendente
+            </li>
+            <li>
+              <strong>Personalização:</strong> podes ajustar widgets nas
+              definições do dashboard
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h3 className="text-xl font-semibold mb-3">7. Fazer o Tour Guiado</h3>
           <p className="text-muted-foreground mb-3">
             Se você é novo na plataforma, recomendamos fazer o tour guiado:
           </p>
@@ -151,7 +217,7 @@ const helpContents: Record<string, HelpContent> = {
                 href="/ajuda/chat-ia"
                 className="text-primary hover:underline"
               >
-                Experimentar o Chat IA
+                Assistente virtual e Chat IA
               </Link>
             </li>
           </ul>
@@ -307,6 +373,25 @@ const helpContents: Record<string, HelpContent> = {
           </p>
         </section>
 
+        <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
+          <h3 className="text-lg font-semibold mb-2">ColabWeb (IComp)</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Para entregar trabalhos e aceder a atividades no ambiente Moodle do
+            Instituto de Computação, usa o{" "}
+            <a
+              href={COLAB_WEB_LOGIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              ColabWeb
+            </a>
+            . O UFAM Hub não substitui esse portal: aqui registas prazos e
+            notas; a entrega oficial costuma ser no ColabWeb quando o professor
+            indica &quot;plataforma&quot;.
+          </p>
+        </section>
+
         <section>
           <h3 className="text-xl font-semibold mb-3">
             Adicionar uma Avaliação
@@ -438,9 +523,22 @@ const helpContents: Record<string, HelpContent> = {
 
         <section>
           <h3 className="text-xl font-semibold mb-3">Criar uma Anotação</h3>
+          <p className="text-muted-foreground mb-3">
+            Atalho: em{" "}
+            <Link href="/busca-anotacoes" className="text-primary hover:underline">
+              Anotações
+            </Link>
+            , use &quot;Nova anotação&quot;, informe título e disciplina e abra o
+            editor direto.
+          </p>
           <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-            <li>Vá para a página de uma disciplina</li>
-            <li>Na seção "Anotações", clique em "Nova Anotação"</li>
+            <li>
+              Ou abra uma{" "}
+              <Link href="/disciplinas" className="text-primary hover:underline">
+                disciplina
+              </Link>{" "}
+              e, na seção Anotações, clique em &quot;Nova anotação&quot;
+            </li>
             <li>Preencha o título</li>
             <li>Escreva seu conteúdo usando Markdown</li>
             <li>Salve a anotação</li>
@@ -528,38 +626,70 @@ const helpContents: Record<string, HelpContent> = {
       <div className="space-y-6">
         <section>
           <h2 className="text-2xl font-semibold mb-4">
-            Chat com Inteligência Artificial
+            IA no UFAM Hub: assistente rápido e Chat completo
           </h2>
           <p className="text-muted-foreground leading-relaxed mb-4">
-            Use a IA para tirar dúvidas, gerar quizzes, criar mapas mentais e
-            muito mais!
+            Tens <strong>dois pontos de entrada</strong>: o assistente virtual
+            (painel compacto no canto) para respostas rápidas, e o{" "}
+            <strong>Chat IA</strong> na página dedicada para conversas mais
+            longas, quizzes, mapas mentais e fluxo por disciplina.
           </p>
         </section>
 
         <section>
-          <h3 className="text-xl font-semibold mb-3">Acessar o Chat IA</h3>
+          <h3 className="text-xl font-semibold mb-3">
+            Assistente virtual (ícone do robô)
+          </h3>
           <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
             <li>
-              Vá para{" "}
-              <Link href="/chat" className="text-primary hover:underline">
-                Chat IA
-              </Link>
+              Clica no robô no <strong>canto inferior direito</strong> (quando
+              visível)
             </li>
-            <li>Selecione uma disciplina (opcional, mas recomendado)</li>
-            <li>Comece a conversar!</li>
+            <li>
+              Abre-se um painel com <strong>perguntas rápidas</strong> e campo
+              para escreveres — ideal para lembrar prazos, resumos curtos ou
+              dúvidas pontuais
+            </li>
+            <li>
+              O assistente <strong>não aparece</strong> na própria página{" "}
+              <Link href="/chat" className="text-primary hover:underline">
+                /chat
+              </Link>
+              , em salas de <strong>chamada</strong> nem com o{" "}
+              <strong>modo foco</strong> ativo
+            </li>
           </ol>
         </section>
 
         <section>
-          <h3 className="text-xl font-semibold mb-3">Como Funciona</h3>
+          <h3 className="text-xl font-semibold mb-3">Aceder ao Chat IA</h3>
+          <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+            <li>
+              Vai a{" "}
+              <Link href="/chat" className="text-primary hover:underline">
+                Chat IA
+              </Link>{" "}
+              pelo menu ou pelo atalho da barra lateral
+            </li>
+            <li>
+              Escolhe uma <strong>disciplina</strong> quando fizer sentido —
+              ajuda a IA a usar o teu contexto
+            </li>
+            <li>Escreve a mensagem ou cola texto / ficheiros conforme as opções da página</li>
+          </ol>
+        </section>
+
+        <section>
+          <h3 className="text-xl font-semibold mb-3">Como funciona o contexto</h3>
           <p className="text-muted-foreground mb-3">
-            A IA tem acesso ao contexto das suas disciplinas:
+            Consoante a funcionalidade, a IA pode usar dados da tua conta de
+            forma agregada, por exemplo:
           </p>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Nomes das disciplinas</li>
-            <li>Conteúdo das suas anotações</li>
-            <li>Informações sobre avaliações</li>
-            <li>Histórico de conversas anteriores</li>
+            <li>Disciplinas e horários que registaste</li>
+            <li>Anotações e materiais que partilhas com o chat</li>
+            <li>Avaliações e metas associadas ao estudo</li>
+            <li>Histórico da conversa atual (no Chat IA)</li>
           </ul>
         </section>
 
@@ -598,16 +728,16 @@ const helpContents: Record<string, HelpContent> = {
         </section>
 
         <section>
-          <h3 className="text-xl font-semibold mb-3">Histórico de Conversas</h3>
+          <h3 className="text-xl font-semibold mb-3">Histórico e threads</h3>
           <p className="text-muted-foreground mb-3">
-            Suas conversas são salvas por disciplina:
+            No <strong>Chat IA</strong>, as conversas costumam organizar-se por
+            disciplina ou tópico, com threads que podes retomar ou arquivar
+            conforme a interface mostrar.
           </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Cada disciplina tem seu próprio histórico</li>
-            <li>Você pode voltar a conversas anteriores</li>
-            <li>Organize por threads</li>
-            <li>Arquive conversas antigas</li>
-          </ul>
+          <p className="text-sm text-muted-foreground">
+            O painel do assistente virtual no canto é pensado para interações
+            curtas; o histórico detalhado mantém-se no fluxo do Chat IA.
+          </p>
         </section>
       </div>
     ),
@@ -1012,16 +1142,17 @@ const helpContents: Record<string, HelpContent> = {
         </section>
 
         <section>
-          <h3 className="text-xl font-semibold mb-3">OAuth (Login Social)</h3>
+          <h3 className="text-xl font-semibold mb-3">OAuth e ligações de conta</h3>
           <p className="text-muted-foreground mb-3">
-            Você pode fazer login com:
+            O acesso principal é com <strong>e-mail e palavra-passe</strong>.
+            Quando disponível na tua conta, podes associar{" "}
+            <strong>Google</strong> ou <strong>GitHub</strong> em Perfil /
+            Segurança (útil para integrações ou métodos adicionais definidos
+            pelo administrador).
           </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Google</li>
-            <li>GitHub</li>
-          </ul>
           <p className="text-sm text-muted-foreground mt-3">
-            OAuth é mais seguro que senhas tradicionais.
+            A ligação ao <strong>Google Calendar</strong> em Configurações é para
+            calendário e eventos — não substitui por si o registo com e-mail.
           </p>
         </section>
       </div>
@@ -1057,21 +1188,32 @@ const helpContents: Record<string, HelpContent> = {
         </section>
 
         <section>
-          <h3 className="text-xl font-semibold mb-3">Tema</h3>
-          <p className="text-muted-foreground mb-3">Escolha entre:</p>
+          <h3 className="text-xl font-semibold mb-3">Tema e marca</h3>
+          <p className="text-muted-foreground mb-3">Podes escolher:</p>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
             <li>
-              <strong>Claro:</strong> Tema claro padrão
+              <strong>Claro:</strong> interface com fundos claros
             </li>
             <li>
-              <strong>Escuro:</strong> Tema escuro para reduzir fadiga visual
+              <strong>Escuro:</strong> reduz brilho e fadiga visual à noite
             </li>
             <li>
-              <strong>Sistema:</strong> Segue as preferências do seu sistema
+              <strong>Sistema:</strong> segue o modo claro/escuro do
+              dispositivo
             </li>
           </ul>
           <p className="text-sm text-muted-foreground mt-3">
-            Use o botão de tema no topo da página para alternar rapidamente.
+            O botão de tema na <strong>barra superior</strong> alterna o modo; em{" "}
+            <Link href="/configuracoes" className="text-primary hover:underline">
+              Configurações
+            </Link>{" "}
+            a preferência pode ser guardada no teu <strong>perfil</strong>{" "}
+            (tema claro, escuro ou sistema).
+          </p>
+          <p className="text-sm text-muted-foreground mt-3">
+            A <strong>logo UFAM Hub</strong> na barra e no menu usa versões
+            otimizadas para tema claro e escuro e <strong>atualiza-se
+            automaticamente</strong> quando mudas de modo.
           </p>
         </section>
 

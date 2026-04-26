@@ -60,7 +60,6 @@ import {
   EyeOff,
   Save,
   AlertTriangle,
-  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AccessibilitySettingsStandalone } from "@/components/AccessibilitySettings";
@@ -81,6 +80,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  InviteUserPanel,
+  getCadastroConvidadoUrl,
+} from "@/components/auth/InviteUserPanel";
 export default function ConfiguracoesPage() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [previewTheme, setPreviewTheme] = useState<string | null>(null);
@@ -170,7 +173,12 @@ export default function ConfiguracoesPage() {
   const [confirmClearData, setConfirmClearData] = useState(false);
   const [inviteNome, setInviteNome] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteMensagem, setInviteMensagem] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
+  useEffect(() => {
+    setInviteLink(getCadastroConvidadoUrl());
+  }, []);
   useEffect(() => {
     setMounted(true);
     const savedNotifAval = localStorage.getItem(
@@ -621,7 +629,10 @@ export default function ConfiguracoesPage() {
     const email = inviteEmail.trim();
     if (!nome || nome.length < 2) {
       toast.error(t.configuracoes.conviteErro, {
-        description: locale === "pt-BR" ? "Informe o nome (mín. 2 caracteres)." : "Enter name (min. 2 characters).",
+        description:
+          locale === "pt-BR"
+            ? "Informe o nome de usuário (mín. 2 caracteres)."
+            : "Enter username (min. 2 characters).",
       });
       return;
     }
@@ -636,7 +647,11 @@ export default function ConfiguracoesPage() {
       const res = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email }),
+        body: JSON.stringify({
+          nome,
+          email,
+          mensagem: inviteMensagem.trim() || undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -660,6 +675,7 @@ export default function ConfiguracoesPage() {
       toast.success(t.configuracoes.conviteEnviado);
       setInviteNome("");
       setInviteEmail("");
+      setInviteMensagem("");
     } finally {
       setInviteLoading(false);
     }
@@ -932,59 +948,20 @@ export default function ConfiguracoesPage() {
               </CardContent>
             </Card>
           )}
-          <Card className="border-2 shadow-lg">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <div className="p-2 rounded-lg bg-emerald-500/10">
-                  <UserPlus className="h-5 w-5 text-emerald-500" />
-                </div>
-                {t.configuracoes.conviteUsuario}
-              </CardTitle>
-              <CardDescription className="text-base">
-                {t.configuracoes.conviteUsuarioDesc}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="config-invite-nome" className="text-sm font-medium">
-                  {locale === "pt-BR" ? "Nome" : "Name"}
-                </Label>
-                <Input
-                  id="config-invite-nome"
-                  type="text"
-                  placeholder={locale === "pt-BR" ? "Nome completo do convidado" : "Full name"}
-                  value={inviteNome}
-                  onChange={(e) => setInviteNome(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="config-invite-email" className="text-sm font-medium">
-                  E-mail
-                </Label>
-                <Input
-                  id="config-invite-email"
-                  type="email"
-                  placeholder={t.configuracoes.emailPlaceholder}
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
-                  className="w-full"
-                />
-              </div>
-              <Button
-                onClick={handleEnviarConvite}
-                disabled={inviteLoading}
-                className="w-full sm:w-auto"
-              >
-                {inviteLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                {t.configuracoes.enviarConvite}
-              </Button>
-            </CardContent>
-          </Card>
+          <InviteUserPanel
+            nomeUsuario={inviteNome}
+            onNomeUsuarioChange={setInviteNome}
+            email={inviteEmail}
+            onEmailChange={setInviteEmail}
+            mensagem={inviteMensagem}
+            onMensagemChange={setInviteMensagem}
+            inviteLink={inviteLink}
+            onSubmit={handleEnviarConvite}
+            loading={inviteLoading}
+            locale={locale}
+            title={t.configuracoes.conviteUsuario}
+            subtitle={t.configuracoes.conviteUsuarioDesc}
+          />
           <Card className="border-2 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-xl">

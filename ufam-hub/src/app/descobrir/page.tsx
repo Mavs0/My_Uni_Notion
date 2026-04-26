@@ -1,5 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   Search,
   UserPlus,
@@ -7,28 +14,18 @@ import {
   Users,
   GraduationCap,
   Hash,
-  Filter,
-  ChevronLeft,
   ChevronRight,
-  MoreVertical,
-  User,
-  Mail,
-  Loader2,
   X,
-  SquarePlus,
   Share2,
   Info,
+  User,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -37,42 +34,49 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
+import {
+  InviteUserPanel,
+  getCadastroConvidadoUrl,
+} from "@/components/auth/InviteUserPanel";
+import { cn } from "@/lib/utils";
 
-const ITEMS_PER_PAGE = 6;
+const INITIAL_FETCH_LIMIT = 36;
 
 interface DiscoverUser {
   id: string;
   nome: string;
+  username: string;
   avatar_url: string;
   bio: string;
   curso: string;
   periodo: string;
+  tipo_perfil?: string;
+  campus?: string;
+  tags?: string[];
+  created_at?: string;
   stats: {
     totalSeguidores: number;
     totalSeguindo: number;
   };
   isFollowing: boolean;
+}
+
+function initialsFromName(nome: string) {
+  return nome
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 export default function DiscoverPage() {
@@ -83,20 +87,46 @@ export default function DiscoverPage() {
   const [searchDebounced, setSearchDebounced] = useState("");
   const [curso, setCurso] = useState("");
   const [periodo, setPeriodo] = useState("");
-  const [sort, setSort] = useState<"seguidores" | "nome" | "recent">("seguidores");
-  const [page, setPage] = useState(0);
+  const [tipoPerfil, setTipoPerfil] = useState("");
+  const [campus, setCampus] = useState("");
+  const [fetchLimit, setFetchLimit] = useState(INITIAL_FETCH_LIMIT);
+  const [expandedSuggestions, setExpandedSuggestions] = useState(false);
   const [inviteNome, setInviteNome] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteMensagem, setInviteMensagem] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DiscoverUser | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { t, locale } = useI18n();
+  const pt = locale === "pt-BR";
 
   useEffect(() => {
-    const t = setTimeout(() => setSearchDebounced(search), 400);
-    return () => clearTimeout(t);
+    setInviteLink(getCadastroConvidadoUrl());
+  }, []);
+
+  useEffect(() => {
+    const id = setTimeout(() => setSearchDebounced(search), 400);
+    return () => clearTimeout(id);
   }, [search]);
+
+  useEffect(() => {
+    setFetchLimit(INITIAL_FETCH_LIMIT);
+    setExpandedSuggestions(false);
+  }, [searchDebounced, curso, periodo, tipoPerfil, campus]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -105,20 +135,25 @@ export default function DiscoverPage() {
       if (searchDebounced) params.append("search", searchDebounced);
       if (curso) params.append("curso", curso);
       if (periodo) params.append("periodo", periodo);
-      params.append("sort", sort);
-      params.append("limit", String(ITEMS_PER_PAGE));
-      params.append("offset", String(page * ITEMS_PER_PAGE));
+      if (tipoPerfil) params.append("tipo_perfil", tipoPerfil);
+      if (campus) params.append("campus", campus);
+      params.append("sort", "nome");
+      params.append("limit", String(fetchLimit));
+      params.append("offset", "0");
 
       const response = await fetch(`/api/users/discover?${params.toString()}`);
-
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         const message =
           data?.error ||
           (response.status === 401
-            ? "Faça login para ver a listagem de usuários."
-            : "Erro ao carregar usuários.");
+            ? pt
+              ? "Faça login para ver a listagem de usuários."
+              : "Sign in to browse users."
+            : pt
+              ? "Erro ao carregar usuários."
+              : "Failed to load users.");
         toast.error(message);
         setUsers([]);
         setTotal(0);
@@ -129,17 +164,47 @@ export default function DiscoverPage() {
       setTotal(data.total ?? 0);
     } catch (error) {
       console.error("Erro ao carregar usuários:", error);
-      toast.error("Erro ao carregar usuários. Tente novamente.");
+      toast.error(pt ? "Erro ao carregar usuários." : "Failed to load users.");
       setUsers([]);
       setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [searchDebounced, curso, periodo, sort, page]);
+  }, [searchDebounced, curso, periodo, tipoPerfil, campus, fetchLimit, pt]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  const { suggestions, featured } = useMemo(() => {
+    const created = (u: DiscoverUser) =>
+      new Date(u.created_at || 0).getTime();
+    const byRecent = [...users].sort((a, b) => created(b) - created(a));
+    const n = expandedSuggestions ? 8 : 4;
+    const sugg = byRecent.slice(0, n);
+    const ids = new Set(sugg.map((u) => u.id));
+    const feat = [...users]
+      .filter((u) => !ids.has(u.id))
+      .sort(
+        (a, b) =>
+          (b.stats?.totalSeguidores || 0) - (a.stats?.totalSeguidores || 0)
+      );
+    return { suggestions: sugg, featured: feat };
+  }, [users, expandedSuggestions]);
+
+  const resetFilters = () => {
+    setSearch("");
+    setSearchDebounced("");
+    setCurso("");
+    setPeriodo("");
+    setTipoPerfil("");
+    setCampus("");
+    setFetchLimit(INITIAL_FETCH_LIMIT);
+    setExpandedSuggestions(false);
+  };
+
+  const hasFilters =
+    !!searchDebounced || !!curso || !!periodo || !!tipoPerfil || !!campus;
 
   const handleFollow = async (userId: string, currentlyFollowing: boolean) => {
     try {
@@ -156,31 +221,35 @@ export default function DiscoverPage() {
 
       if (!response.ok) throw new Error("Erro ao atualizar seguimento");
 
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId
-            ? {
-                ...u,
-                isFollowing: !currentlyFollowing,
-                stats: {
-                  ...u.stats,
-                  totalSeguidores: currentlyFollowing
-                    ? u.stats.totalSeguidores - 1
-                    : u.stats.totalSeguidores + 1,
-                },
-              }
-            : u
-        )
-      );
+      const patch = (u: DiscoverUser) =>
+        u.id === userId
+          ? {
+              ...u,
+              isFollowing: !currentlyFollowing,
+              stats: {
+                ...u.stats,
+                totalSeguidores: currentlyFollowing
+                  ? u.stats.totalSeguidores - 1
+                  : u.stats.totalSeguidores + 1,
+              },
+            }
+          : u;
+
+      setUsers((prev) => prev.map(patch));
+      setSelectedUser((prev) => (prev && prev.id === userId ? patch(prev) : prev));
 
       toast.success(
         currentlyFollowing
-          ? "Você deixou de seguir este usuário"
-          : "Você está seguindo este usuário"
+          ? pt
+            ? "Você deixou de seguir este usuário"
+            : "You unfollowed this user"
+          : pt
+            ? "Você está seguindo este usuário"
+            : "You are now following this user"
       );
     } catch (error) {
       console.error("Erro ao seguir/deixar de seguir:", error);
-      toast.error("Erro ao atualizar seguimento");
+      toast.error(pt ? "Erro ao atualizar seguimento." : "Could not update follow.");
     }
   };
 
@@ -189,13 +258,15 @@ export default function DiscoverPage() {
     const email = inviteEmail.trim();
     if (!nome || nome.length < 2) {
       toast.error(t.configuracoes.conviteErro, {
-        description: locale === "pt-BR" ? "Informe o nome (mín. 2 caracteres)." : "Enter name (min. 2 characters).",
+        description: pt
+          ? "Informe o nome de usuário (mín. 2 caracteres)."
+          : "Enter username (min. 2 characters).",
       });
       return;
     }
     if (!email) {
       toast.error(t.configuracoes.conviteErro, {
-        description: locale === "pt-BR" ? "Informe um e-mail." : "Enter an email.",
+        description: pt ? "Informe um e-mail." : "Enter an email.",
       });
       return;
     }
@@ -204,7 +275,11 @@ export default function DiscoverPage() {
       const res = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email }),
+        body: JSON.stringify({
+          nome,
+          email,
+          mensagem: inviteMensagem.trim() || undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -220,7 +295,8 @@ export default function DiscoverPage() {
           });
         } else {
           toast.error(t.configuracoes.conviteErro, {
-            description: data.error || (locale === "pt-BR" ? "Tente novamente." : "Try again."),
+            description:
+              data.error || (pt ? "Tente novamente." : "Try again."),
           });
         }
         return;
@@ -228,524 +304,592 @@ export default function DiscoverPage() {
       toast.success(t.configuracoes.conviteEnviado);
       setInviteNome("");
       setInviteEmail("");
+      setInviteMensagem("");
       setInviteDialogOpen(false);
     } finally {
       setInviteLoading(false);
     }
   };
 
-  const hasFilters = !!searchDebounced || !!curso || !!periodo;
-  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+  const tagPillClass =
+    "rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground dark:border-[#333] dark:bg-[#1a1a1a] dark:text-[#A3A3A3]";
 
-  return (
-    <main className="mx-auto max-w-6xl p-4 md:p-6 space-y-4">
-      {/* Barra superior: título + filtros + busca + Convidar + ordenar (estilo anexo) */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6" />
-            Descobrir Usuários
-          </h1>
-          <p className="text-sm text-muted-foreground w-full sm:w-auto order-last sm:order-none -mt-2 sm:mt-0">
-            {loading
-              ? "Carregando..."
-              : total === 0
-                ? "Nenhum usuário encontrado"
-                : `${total} usuário${total !== 1 ? "s" : ""} encontrado${total !== 1 ? "s" : ""}`}
-          </p>
-        </div>
+  const cardShell =
+    "rounded-2xl border border-border/80 bg-card shadow-sm transition-shadow hover:shadow-md dark:border-[#262626] dark:bg-[#101010]";
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5">
-                <Filter className="h-4 w-4" />
-                {curso || periodo
-                  ? [curso, periodo].filter(Boolean).join(" · ")
-                  : locale === "pt-BR"
-                    ? "Curso / Período"
-                    : "Course / Period"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64" align="start">
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label>Curso</Label>
-                  <Input
-                    placeholder="Ex: Ciência da Computação"
-                    value={curso}
-                    onChange={(e) => {
-                      setCurso(e.target.value);
-                      setPage(0);
-                    }}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Período</Label>
-                  <Select
-                    value={periodo || "todos"}
-                    onValueChange={(v) => {
-                      setPeriodo(v === "todos" ? "" : v);
-                      setPage(0);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((p) => (
-                        <SelectItem key={p} value={String(p)}>
-                          {p}º período
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {hasFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setSearch("");
-                      setSearchDebounced("");
-                      setCurso("");
-                      setPeriodo("");
-                      setPage(0);
-                    }}
-                  >
-                    Limpar filtros
-                  </Button>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
+  const periodoLabel = (p: string) =>
+    p ? (pt ? `${p}º período` : `${p}th semester`) : "—";
 
-          <div className="relative flex-1 min-w-[180px] max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder={locale === "pt-BR" ? "Buscar por nome, curso ou bio..." : "Search by name, course or bio..."}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-              className="pl-8 h-9"
-            />
+  const renderLargeCard = (user: DiscoverUser) => {
+    const tags = user.tags?.length ? user.tags : [];
+    return (
+      <div
+        key={user.id}
+        className={cn(cardShell, "flex flex-col p-5")}
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedUser(user)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedUser(user);
+          }
+        }}
+      >
+        <div className="flex flex-col items-center text-center gap-3">
+          <Avatar className="h-24 w-24 ring-2 ring-[#05865E]/20">
+            <AvatarImage src={user.avatar_url} alt={user.nome} />
+            <AvatarFallback className="text-lg">
+              {initialsFromName(user.nome)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold text-foreground dark:text-[#FAFAFA]">
+              {user.nome}
+            </p>
+            <p className="text-sm text-muted-foreground dark:text-[#737373]">
+              @{user.username}
+            </p>
           </div>
-
+          <div className="text-xs text-muted-foreground dark:text-[#A3A3A3] space-y-0.5">
+            <p>{user.curso || (pt ? "Curso não informado" : "Course not set")}</p>
+            <p>{periodoLabel(String(user.periodo || ""))}</p>
+          </div>
+        </div>
+        {tags.length > 0 ? (
+          <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+            {tags.slice(0, 4).map((tag) => (
+              <span key={tag} className={tagPillClass}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 h-6" aria-hidden />
+        )}
+        <div
+          className="mt-5 flex gap-2"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           <Button
-            size="sm"
-            className="h-9 gap-1.5 shrink-0"
-            onClick={() => setInviteDialogOpen(true)}
+            asChild
+            className="h-10 flex-1 rounded-xl bg-[#05865E] text-white hover:bg-[#047a52]"
           >
-            <SquarePlus className="h-4 w-4" />
-            {t.configuracoes.conviteUsuario}
+            <Link href={`/perfil/${user.id}`}>
+              {pt ? "Ver perfil" : "View profile"}
+            </Link>
           </Button>
-
-          <Select
-            value={sort}
-            onValueChange={(v: "seguidores" | "nome" | "recent") => {
-              setSort(v);
-              setPage(0);
-            }}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-xl border-[#262626] dark:bg-[#151515] dark:hover:bg-[#1f1f1f]"
+            onClick={() => handleFollow(user.id, user.isFollowing)}
+            aria-label={
+              user.isFollowing
+                ? pt
+                  ? "Deixar de seguir"
+                  : "Unfollow"
+                : pt
+                  ? "Seguir"
+                  : "Follow"
+            }
           >
-            <SelectTrigger className="w-[180px] h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="seguidores">
-                {locale === "pt-BR" ? "Mais seguidores" : "Most followers"}
-              </SelectItem>
-              <SelectItem value="nome">Nome (A–Z)</SelectItem>
-              <SelectItem value="recent">
-                {locale === "pt-BR" ? "Mais recentes" : "Most recent"}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+            {user.isFollowing ? (
+              <UserMinus className="h-4 w-4" />
+            ) : (
+              <UserPlus className="h-4 w-4 text-[#05865E]" />
+            )}
+          </Button>
         </div>
       </div>
+    );
+  };
 
-      {/* Tabela de usuários */}
-      <Card className="overflow-hidden">
-        {loading ? (
-          <CardContent className="py-16">
-            <div className="flex flex-col items-center justify-center text-center">
-              <Users className="size-12 animate-pulse text-primary mb-4" />
-              <p className="text-muted-foreground">
-                {locale === "pt-BR" ? "Carregando usuários..." : "Loading users..."}
-              </p>
-            </div>
-          </CardContent>
-        ) : users.length === 0 ? (
-          <CardContent className="py-16 text-center">
-            <Users className="h-14 w-14 mx-auto mb-4 text-muted-foreground opacity-40" />
-            <p className="font-medium text-foreground">
-              {locale === "pt-BR" ? "Nenhum usuário encontrado" : "No users found"}
+  const renderCompactCard = (user: DiscoverUser) => {
+    const tags = user.tags?.length ? user.tags : [];
+    return (
+      <div
+        key={user.id}
+        className={cn(
+          cardShell,
+          "flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-start"
+        )}
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedUser(user)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedUser(user);
+          }
+        }}
+      >
+        <div className="flex min-w-0 flex-1 gap-3">
+          <Avatar className="h-12 w-12 shrink-0 ring-1 ring-border/60 dark:ring-[#333]">
+            <AvatarImage src={user.avatar_url} alt={user.nome} />
+            <AvatarFallback>{initialsFromName(user.nome)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold truncate dark:text-[#FAFAFA]">{user.nome}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              @{user.username}
             </p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-              {hasFilters
-                ? (locale === "pt-BR"
-                  ? "Tente ajustar os filtros ou a busca."
-                  : "Try adjusting filters or search.")
-                : (locale === "pt-BR"
-                  ? "Não há usuários disponíveis no momento."
-                  : "No users available at the moment.")}
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+              {user.curso || "—"} · {periodoLabel(String(user.periodo || ""))}
             </p>
-            {hasFilters && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => {
-                  setSearch("");
-                  setSearchDebounced("");
-                  setCurso("");
-                  setPeriodo("");
-                  setSort("seguidores");
-                  setPage(0);
-                }}
-              >
-                {locale === "pt-BR" ? "Limpar filtros" : "Clear filters"}
-              </Button>
+            {tags.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {tags.slice(0, 3).map((tag) => (
+                  <span key={tag} className={tagPillClass}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div
+          className="flex shrink-0 gap-2 sm:w-[min(100%,140px)] sm:flex-col"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Button
+            asChild
+            size="sm"
+            className="flex-1 rounded-xl bg-[#05865E] text-white hover:bg-[#047a52] sm:flex-none"
+          >
+            <Link href={`/perfil/${user.id}`}>
+              {pt ? "Ver perfil" : "Profile"}
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="rounded-xl border-[#262626] dark:bg-[#151515]"
+            onClick={() => handleFollow(user.id, user.isFollowing)}
+            aria-label={
+              user.isFollowing
+                ? pt
+                  ? "Deixar de seguir"
+                  : "Unfollow"
+                : pt
+                  ? "Seguir"
+                  : "Follow"
+            }
+          >
+            {user.isFollowing ? (
+              <UserMinus className="h-4 w-4" />
+            ) : (
+              <UserPlus className="h-4 w-4 text-[#05865E]" />
             )}
-          </CardContent>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left font-medium py-3 px-4">
-                      {locale === "pt-BR" ? "Usuário" : "User"}
-                    </th>
-                    <th className="text-left font-medium py-3 px-4 hidden sm:table-cell">
-                      {locale === "pt-BR" ? "Curso" : "Course"}
-                    </th>
-                    <th className="text-left font-medium py-3 px-4 hidden md:table-cell">
-                      {locale === "pt-BR" ? "Período" : "Period"}
-                    </th>
-                    <th className="text-left font-medium py-3 px-4">
-                      {locale === "pt-BR" ? "Seguidores" : "Followers"}
-                    </th>
-                    <th className="text-left font-medium py-3 px-4">
-                      {locale === "pt-BR" ? "Status" : "Status"}
-                    </th>
-                    <th className="w-10 py-3 px-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => {
-                    const initials = user.nome
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2);
-                    const isSelected = selectedUser?.id === user.id;
-                    return (
-                      <tr
-                        key={user.id}
-                        onClick={() => setSelectedUser(user)}
-                        className={`border-b cursor-pointer transition-colors hover:bg-muted/30 ${
-                          isSelected ? "bg-muted/50" : ""
-                        }`}
-                      >
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9 shrink-0">
-                              <AvatarImage src={user.avatar_url} alt={user.nome} />
-                              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium truncate max-w-[140px] sm:max-w-[200px]">
-                              {user.nome}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground hidden sm:table-cell truncate max-w-[160px]">
-                          {user.curso || "—"}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                          {user.periodo ? `${user.periodo}º` : "—"}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {user.stats.totalSeguidores}
-                        </td>
-                        <td className="py-3 px-4">
-                          {user.isFollowing ? (
-                            <span className="inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-2.5 py-0.5 text-xs font-medium border border-emerald-500/30">
-                              {locale === "pt-BR" ? "Seguindo" : "Following"}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-2" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => setSelectedUser(user)}
-                              >
-                                <User className="h-4 w-4 mr-2" />
-                                {locale === "pt-BR" ? "Ver detalhes" : "View details"}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/perfil/${user.id}`}>
-                                  <User className="h-4 w-4 mr-2" />
-                                  {locale === "pt-BR" ? "Ver perfil" : "View profile"}
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleFollow(user.id, user.isFollowing)}
-                              >
-                                {user.isFollowing ? (
-                                  <>
-                                    <UserMinus className="h-4 w-4 mr-2" />
-                                    {locale === "pt-BR" ? "Deixar de seguir" : "Unfollow"}
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserPlus className="h-4 w-4 mr-2" />
-                                    {locale === "pt-BR" ? "Seguir" : "Follow"}
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 py-4 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  disabled={page === 0}
+  return (
+    <main className="mx-auto max-w-6xl space-y-8 p-4 pb-16 md:p-6">
+      {/* Cabeçalho */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground dark:text-[#FAFAFA] md:text-3xl">
+            {pt ? "Descobrir usuários" : "Discover users"}
+          </h1>
+          <p className="text-sm leading-relaxed text-muted-foreground dark:text-[#A3A3A3] md:text-base">
+            {pt
+              ? "Encontre estudantes e pessoas da comunidade acadêmica dentro do UFAM Hub."
+              : "Find students and people from the academic community on UFAM Hub."}
+          </p>
+        </div>
+        <Button
+          onClick={() => setInviteDialogOpen(true)}
+          className={cn(
+            "h-10 shrink-0 gap-2 rounded-xl px-4 font-medium",
+            "border border-[#05865E] bg-background text-[#05865E] hover:bg-[#05865E]/10",
+            "dark:border-transparent dark:bg-[#05865E] dark:text-white dark:hover:bg-[#047a52]"
+          )}
+        >
+          <UserPlus className="h-4 w-4" />
+          {t.configuracoes.conviteUsuario}
+        </Button>
+      </div>
+
+      {/* Busca */}
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-[#737373]" />
+        <Input
+          ref={searchInputRef}
+          type="search"
+          placeholder={
+            pt
+              ? "Buscar por nome, @username ou curso..."
+              : "Search by name, @username or course..."
+          }
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-12 rounded-xl border-border/80 pl-10 pr-24 text-base dark:border-[#262626] dark:bg-[#101010] dark:text-[#FAFAFA]"
+        />
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 select-none items-center gap-0.5 rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex dark:border-[#333] dark:bg-[#1a1a1a]">
+          ⌘K
+        </kbd>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+        <div className="grid w-full gap-3 sm:grid-cols-2 lg:flex lg:flex-1 lg:flex-wrap lg:gap-3">
+          <div className="space-y-1.5 min-w-[140px] lg:w-44">
+            <Label className="text-xs text-muted-foreground">
+              {pt ? "Curso" : "Course"}
+            </Label>
+            <Input
+              placeholder={pt ? "Ex.: Eng. Software" : "e.g. CS"}
+              value={curso}
+              onChange={(e) => setCurso(e.target.value)}
+              className="h-10 rounded-xl dark:border-[#262626] dark:bg-[#101010]"
+            />
+          </div>
+          <div className="space-y-1.5 min-w-[140px] lg:w-44">
+            <Label className="text-xs text-muted-foreground">
+              {pt ? "Semestre" : "Semester"}
+            </Label>
+            <Select
+              value={periodo || "todos"}
+              onValueChange={(v) => setPeriodo(v === "todos" ? "" : v)}
+            >
+              <SelectTrigger className="h-10 rounded-xl dark:border-[#262626] dark:bg-[#101010]">
+                <SelectValue placeholder={pt ? "Todos" : "All"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">{pt ? "Todos" : "All"}</SelectItem>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((p) => (
+                  <SelectItem key={p} value={String(p)}>
+                    {p}º {pt ? "período" : "period"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 min-w-[140px] lg:w-48">
+            <Label className="text-xs text-muted-foreground">
+              {pt ? "Tipo de perfil" : "Profile type"}
+            </Label>
+            <Select
+              value={tipoPerfil || "todos"}
+              onValueChange={(v) => setTipoPerfil(v === "todos" ? "" : v)}
+            >
+              <SelectTrigger className="h-10 rounded-xl dark:border-[#262626] dark:bg-[#101010]">
+                <SelectValue placeholder={pt ? "Todos" : "All"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">{pt ? "Todos" : "All"}</SelectItem>
+                <SelectItem value="estudante">
+                  {pt ? "Estudante" : "Student"}
+                </SelectItem>
+                <SelectItem value="professor">
+                  {pt ? "Professor" : "Teacher"}
+                </SelectItem>
+                <SelectItem value="servidor">
+                  {pt ? "Servidor" : "Staff"}
+                </SelectItem>
+                <SelectItem value="outro">{pt ? "Outro" : "Other"}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 min-w-[140px] lg:w-44">
+            <Label className="text-xs text-muted-foreground">Campus</Label>
+            <Select
+              value={campus || "todos"}
+              onValueChange={(v) => setCampus(v === "todos" ? "" : v)}
+            >
+              <SelectTrigger className="h-10 rounded-xl dark:border-[#262626] dark:bg-[#101010]">
+                <SelectValue placeholder={pt ? "Todos" : "All"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">{pt ? "Todos" : "All"}</SelectItem>
+                <SelectItem value="sede">{pt ? "Sede" : "Main"}</SelectItem>
+                <SelectItem value="icet">ICET</SelectItem>
+                <SelectItem value="remoto">{pt ? "Remoto" : "Remote"}</SelectItem>
+                <SelectItem value="outro">{pt ? "Outro" : "Other"}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {hasFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-10 shrink-0 gap-1 text-muted-foreground hover:text-foreground"
+            onClick={resetFilters}
+          >
+            <X className="h-4 w-4" />
+            {pt ? "Limpar filtros" : "Clear filters"}
+          </Button>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 py-24 dark:border-[#333]">
+          <Users className="mb-4 h-12 w-12 animate-pulse text-[#05865E]" />
+          <p className="text-sm text-muted-foreground">
+            {pt ? "Carregando usuários…" : "Loading users…"}
+          </p>
+        </div>
+      ) : users.length === 0 ? (
+        <Card className={cn(cardShell, "border-dashed")}>
+          <CardContent className="py-16 text-center">
+            <Users className="mx-auto mb-4 h-14 w-14 text-muted-foreground opacity-40" />
+            <p className="font-medium">
+              {pt ? "Nenhum usuário encontrado" : "No users found"}
+            </p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              {hasFilters
+                ? pt
+                  ? "Tente ajustar filtros ou a busca."
+                  : "Try adjusting filters or search."
+                : pt
+                  ? "Não há usuários disponíveis no momento."
+                  : "No users available right now."}
+            </p>
+            {hasFilters ? (
+              <Button variant="outline" className="mt-4 rounded-xl" onClick={resetFilters}>
+                {pt ? "Limpar filtros" : "Clear filters"}
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-12">
+          <p className="text-xs text-muted-foreground dark:text-[#737373]">
+            {total}{" "}
+            {pt
+              ? total === 1
+                ? "pessoa encontrada"
+                : "pessoas encontradas"
+              : total === 1
+                ? "person found"
+                : "people found"}
+          </p>
+
+          {/* Sugestões */}
+          <section className="space-y-4" aria-labelledby="discover-suggestions-heading">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2
+                  id="discover-suggestions-heading"
+                  className="text-lg font-semibold dark:text-[#FAFAFA]"
                 >
-                  <ChevronLeft className="h-4 w-4" />
-                  {locale === "pt-BR" ? "Anterior" : "Previous"}
-                </Button>
-                <span className="text-sm text-muted-foreground px-4">
-                  {page + 1} / {totalPages}
-                </span>
+                  {pt ? "Sugestões para você" : "Suggestions for you"}
+                </h2>
+                <p className="text-sm text-muted-foreground dark:text-[#A3A3A3]">
+                  {pt
+                    ? "Pessoas que podem fazer parte da sua jornada acadêmica."
+                    : "People who could be part of your academic journey."}
+                </p>
+              </div>
+              {suggestions.length >= 4 && !expandedSuggestions ? (
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                  disabled={page >= totalPages - 1}
+                  type="button"
+                  variant="link"
+                  className="shrink-0 gap-1 text-[#05865E] no-underline hover:no-underline"
+                  onClick={() => setExpandedSuggestions(true)}
                 >
-                  {locale === "pt-BR" ? "Próximo" : "Next"}
+                  {pt ? "Ver todos" : "See all"}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-              </div>
-            )}
-          </>
-        )}
-      </Card>
+              ) : expandedSuggestions ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  className="shrink-0 text-muted-foreground"
+                  onClick={() => setExpandedSuggestions(false)}
+                >
+                  {pt ? "Mostrar menos" : "Show less"}
+                </Button>
+              ) : null}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {suggestions.map(renderLargeCard)}
+            </div>
+          </section>
 
-      {/* Painel lateral: detalhes do usuário selecionado */}
+          {/* Destaque */}
+          <section
+            id="usuarios-destaque"
+            className="space-y-4"
+            aria-labelledby="discover-featured-heading"
+          >
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2
+                  id="discover-featured-heading"
+                  className="text-lg font-semibold dark:text-[#FAFAFA]"
+                >
+                  {pt ? "Usuários em destaque" : "Featured users"}
+                </h2>
+                <p className="text-sm text-muted-foreground dark:text-[#A3A3A3]">
+                  {pt
+                    ? "Perfis ativos e com interesses parecidos com os seus."
+                    : "Active profiles with interests aligned to yours."}
+                </p>
+              </div>
+              {users.length < total ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  className="shrink-0 gap-1 text-[#05865E] no-underline hover:no-underline"
+                  onClick={() => setFetchLimit((n) => n + 24)}
+                >
+                  {pt ? "Ver todos" : "See all"}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {featured.map(renderCompactCard)}
+            </div>
+          </section>
+        </div>
+      )}
+
       <Sheet open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
-        <SheetContent className="w-full sm:max-w-md flex flex-col">
+        <SheetContent className="flex w-full flex-col sm:max-w-md">
           <SheetHeader className="sr-only">
-            <SheetTitle>
-              {selectedUser ? selectedUser.nome : ""}
-            </SheetTitle>
+            <SheetTitle>{selectedUser ? selectedUser.nome : ""}</SheetTitle>
           </SheetHeader>
           {selectedUser && (
             <div className="flex flex-col gap-5 pt-6">
               <div className="flex flex-col items-center text-center">
-                <Avatar className="h-20 w-20 mb-3">
+                <Avatar className="mb-3 h-20 w-20">
                   <AvatarImage src={selectedUser.avatar_url} alt={selectedUser.nome} />
                   <AvatarFallback className="text-lg">
-                    {selectedUser.nome
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)}
+                    {initialsFromName(selectedUser.nome)}
                   </AvatarFallback>
                 </Avatar>
-                <h2 className="font-semibold text-lg">{selectedUser.nome}</h2>
-                <div className="flex flex-wrap justify-center gap-2 mt-2">
+                <h2 className="text-lg font-semibold">{selectedUser.nome}</h2>
+                <p className="text-sm text-muted-foreground">@{selectedUser.username}</p>
+                <div className="mt-2 flex flex-wrap justify-center gap-2">
                   {selectedUser.curso && (
-                    <span className="inline-flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-0.5 text-xs">
+                    <Badge variant="outline" className="gap-1 font-normal">
                       <GraduationCap className="h-3 w-3" />
                       {selectedUser.curso}
-                    </span>
+                    </Badge>
                   )}
                   {selectedUser.periodo && (
-                    <span className="inline-flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-0.5 text-xs">
+                    <Badge variant="outline" className="gap-1 font-normal">
                       <Hash className="h-3 w-3" />
-                      {selectedUser.periodo}º período
-                    </span>
+                      {periodoLabel(String(selectedUser.periodo))}
+                    </Badge>
                   )}
                 </div>
-                <div className="flex gap-4 mt-3 text-sm">
+                <div className="mt-3 flex gap-4 text-sm">
                   <span className="text-muted-foreground">
-                    <strong className="text-foreground">{selectedUser.stats.totalSeguidores}</strong>{" "}
-                    {locale === "pt-BR" ? "seguidores" : "followers"}
+                    <strong className="text-foreground">
+                      {selectedUser.stats.totalSeguidores}
+                    </strong>{" "}
+                    {pt ? "seguidores" : "followers"}
                   </span>
                   <span className="text-muted-foreground">
-                    <strong className="text-foreground">{selectedUser.stats.totalSeguindo}</strong>{" "}
-                    {locale === "pt-BR" ? "seguindo" : "following"}
+                    <strong className="text-foreground">
+                      {selectedUser.stats.totalSeguindo}
+                    </strong>{" "}
+                    {pt ? "seguindo" : "following"}
                   </span>
                 </div>
               </div>
 
-              {/* Sobre */}
               <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Info className="h-3.5 w-3.5" />
-                  {locale === "pt-BR" ? "Sobre" : "About"}
+                  {pt ? "Sobre" : "About"}
                 </p>
                 {selectedUser.bio ? (
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {selectedUser.bio}
-                  </p>
+                  <p className="text-sm leading-relaxed">{selectedUser.bio}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    {locale === "pt-BR"
+                  <p className="text-sm italic text-muted-foreground">
+                    {pt
                       ? "Este usuário ainda não adicionou uma descrição."
-                      : "This user hasn't added a description yet."}
+                      : "No description yet."}
                   </p>
                 )}
               </div>
 
-              {/* Ações */}
               <div className="flex flex-col items-center gap-2">
-                <Button asChild variant="default" className="w-auto min-w-[160px] gap-2">
+                <Button asChild className="min-w-[160px] gap-2">
                   <Link href={`/perfil/${selectedUser.id}`}>
                     <User className="h-4 w-4" />
-                    {locale === "pt-BR" ? "Ver perfil" : "View profile"}
+                    {pt ? "Ver perfil" : "View profile"}
                   </Link>
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-auto min-w-[160px] gap-2"
+                  className="min-w-[160px] gap-2"
                   onClick={() => {
                     handleFollow(selectedUser.id, selectedUser.isFollowing);
-                    setUsers((prev) =>
-                      prev.map((u) =>
-                        u.id === selectedUser.id
-                          ? {
-                              ...u,
-                              isFollowing: !selectedUser.isFollowing,
-                              stats: {
-                                ...u.stats,
-                                totalSeguidores: selectedUser.isFollowing
-                                  ? u.stats.totalSeguidores - 1
-                                  : u.stats.totalSeguidores + 1,
-                              },
-                            }
-                          : u
-                      )
-                    );
-                    setSelectedUser((prev) =>
-                      prev ? { ...prev, isFollowing: !prev.isFollowing } : null
-                    );
                   }}
                 >
                   {selectedUser.isFollowing ? (
                     <>
                       <UserMinus className="h-4 w-4" />
-                      {locale === "pt-BR" ? "Deixar de seguir" : "Unfollow"}
+                      {pt ? "Deixar de seguir" : "Unfollow"}
                     </>
                   ) : (
                     <>
                       <UserPlus className="h-4 w-4" />
-                      {locale === "pt-BR" ? "Seguir" : "Follow"}
+                      {pt ? "Seguir" : "Follow"}
                     </>
                   )}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-auto gap-2 text-muted-foreground"
+                  className="gap-2 text-muted-foreground"
                   onClick={() => {
                     const url = `${typeof window !== "undefined" ? window.location.origin : ""}/perfil/${selectedUser.id}`;
-                    navigator.clipboard.writeText(url);
-                    toast.success(
-                      locale === "pt-BR" ? "Link copiado!" : "Link copied!"
-                    );
+                    void navigator.clipboard.writeText(url);
+                    toast.success(pt ? "Link copiado!" : "Link copied!");
                   }}
                 >
                   <Share2 className="h-4 w-4" />
-                  {locale === "pt-BR" ? "Compartilhar perfil" : "Share profile"}
+                  {pt ? "Compartilhar perfil" : "Share profile"}
                 </Button>
               </div>
 
-              <p className="text-xs text-center text-muted-foreground pt-2 border-t">
-                {locale === "pt-BR"
-                  ? "Ver o perfil completo para disciplinas, avaliações e atividades."
-                  : "View full profile for subjects, assessments and activity."}
+              <p className="border-t pt-2 text-center text-xs text-muted-foreground">
+                {pt
+                  ? "No perfil completo: disciplinas, avaliações e atividades."
+                  : "Full profile: subjects, grades and activity."}
               </p>
             </div>
           )}
         </SheetContent>
       </Sheet>
 
-      {/* Dialog: Convidar usuário */}
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t.configuracoes.conviteUsuario}</DialogTitle>
-            <DialogDescription>
-              {t.configuracoes.conviteUsuarioDesc}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="invite-nome" className="text-sm font-medium">
-                {locale === "pt-BR" ? "Nome" : "Name"}
-              </Label>
-              <Input
-                id="invite-nome"
-                type="text"
-                placeholder={locale === "pt-BR" ? "Nome completo do convidado" : "Full name"}
-                value={inviteNome}
-                onChange={(e) => setInviteNome(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="invite-email" className="text-sm font-medium">
-                E-mail
-              </Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder={t.configuracoes.emailPlaceholder}
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleEnviarConvite()}
-              />
-            </div>
-            <Button
-              onClick={handleEnviarConvite}
-              disabled={inviteLoading}
-              className="gap-2"
-            >
-              {inviteLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Mail className="h-4 w-4" />
-              )}
-              {t.configuracoes.enviarConvite}
-            </Button>
-          </div>
+        <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto border-0 bg-transparent p-0 shadow-none sm:max-w-lg sm:rounded-2xl">
+          <DialogTitle className="sr-only">
+            {t.configuracoes.conviteUsuario}
+          </DialogTitle>
+          <InviteUserPanel
+            nomeUsuario={inviteNome}
+            onNomeUsuarioChange={setInviteNome}
+            email={inviteEmail}
+            onEmailChange={setInviteEmail}
+            mensagem={inviteMensagem}
+            onMensagemChange={setInviteMensagem}
+            inviteLink={inviteLink}
+            onSubmit={handleEnviarConvite}
+            loading={inviteLoading}
+            locale={locale}
+            showCancel
+            onCancel={() => setInviteDialogOpen(false)}
+            title={t.configuracoes.conviteUsuario}
+            subtitle={t.configuracoes.conviteUsuarioDesc}
+            compactTop
+          />
         </DialogContent>
       </Dialog>
     </main>
