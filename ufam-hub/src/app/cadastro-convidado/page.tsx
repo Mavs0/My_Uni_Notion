@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
@@ -24,18 +24,22 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
-  XCircle,
 } from "lucide-react";
 import { AuthHeader } from "@/components/auth/AuthHeader";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { toast } from "sonner";
 
+type CadastroPhase = "loading" | "otp" | "ready";
+
 function CadastroConvidadoForm() {
   const router = useRouter();
-  const [initLoading, setInitLoading] = useState(true);
-  const [sessionOk, setSessionOk] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const [phase, setPhase] = useState<CadastroPhase>("loading");
   const [user, setUser] = useState<User | null>(null);
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [otpFormError, setOtpFormError] = useState<string | null>(null);
 
   const [nome, setNome] = useState("");
   const [password, setPassword] = useState("");
@@ -70,9 +74,8 @@ function CadastroConvidadoForm() {
         (meta.name as string) ||
         "",
     );
-    setSessionOk(true);
-    setInitError(null);
-    setInitLoading(false);
+    setPhase("ready");
+    setOtpFormError(null);
   }, []);
 
   const tryLoadSession = useCallback(async () => {
@@ -85,6 +88,9 @@ function CadastroConvidadoForm() {
       const { error } = await supabase.auth.exchangeCodeForSession(href);
       if (error) {
         console.error("exchangeCodeForSession:", error);
+        toast.error(
+          "Este link já não é válido. Usa o código enviado no e-mail de convite.",
+        );
       }
       window.history.replaceState({}, "", "/cadastro-convidado");
     }
@@ -106,13 +112,62 @@ function CadastroConvidadoForm() {
     }
 
     if (!sessionResolvedRef.current) {
-      setSessionOk(false);
-      setInitError(
-        "Não foi possível validar o convite. O link pode ter expirado ou já foi usado. Peça um novo convite ou faça login se já tiver conta.",
-      );
-      setInitLoading(false);
+      setPhase("otp");
     }
   }, [applyUser]);
+
+  useEffect(() => {
+    const q = searchParams.get("email");
+    if (q) {
+      try {
+        setOtpEmail(decodeURIComponent(q));
+      } catch {
+        setOtpEmail(q);
+      }
+    }
+  }, [searchParams]);
+
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    const email = otpEmail.trim().toLowerCase();
+    const token = otpCode.replace(/\s/g, "");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Indica o e-mail onde recebeste o convite.");
+      return;
+    }
+    if (token.length < 6) {
+      toast.error("Introduz o código completo enviado no e-mail.");
+      return;
+    }
+    setOtpSubmitting(true);
+    setOtpFormError(null);
+    const supabase = createSupabaseBrowser();
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: "invite",
+      });
+      if (error) {
+        const msg =
+          error.message ||
+          "Código inválido ou expirado. Pedes um novo convite em quem te convidou.";
+        setOtpFormError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (data.user) {
+        applyUser(data.user);
+        window.history.replaceState({}, "", "/cadastro-convidado");
+        toast.success("Convite confirmado. Completa os dados abaixo.");
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      toast.error("Erro ao validar o código. Tenta novamente.");
+    } finally {
+      setOtpSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     const supabase = createSupabaseBrowser();
@@ -183,7 +238,7 @@ function CadastroConvidadoForm() {
     }
   }
 
-  if (initLoading) {
+  if (phase === "loading") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -194,27 +249,74 @@ function CadastroConvidadoForm() {
     );
   }
 
-  if (!sessionOk) {
+  if (phase === "otp") {
     return (
       <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950">
         <div className="absolute right-4 top-4">
           <ThemeToggle syncThemeToServer={false} />
         </div>
         <AuthHeader />
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center py-8">
           <Card className="w-full max-w-md shadow-xl">
             <CardHeader className="text-center">
-              <XCircle className="mx-auto mb-2 h-12 w-12 text-destructive" />
-              <CardTitle>Convite inválido ou expirado</CardTitle>
-              <CardDescription>{initError}</CardDescription>
+              <Mail className="mx-auto mb-2 h-12 w-12 text-primary" />
+              <CardTitle>Código do convite</CardTitle>
+              <CardDescription>
+                Abre o e-mail de convite, copia o código de verificação e cola
+                abaixo com o mesmo e-mail onde recebeste o convite. Assim evitamos
+                tokens longos na barra de endereços.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <Button asChild>
-                <Link href="/login">Ir para login</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/">Início</Link>
-              </Button>
+            <CardContent>
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="otp-email">E-mail do convite</Label>
+                  <Input
+                    id="otp-email"
+                    type="email"
+                    autoComplete="email"
+                    value={otpEmail}
+                    onChange={(e) => setOtpEmail(e.target.value)}
+                    placeholder="nome@exemplo.com"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="otp-code">Código de verificação</Label>
+                  <Input
+                    id="otp-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) =>
+                      setOtpCode(e.target.value.replace(/\s/g, "").slice(0, 32))
+                    }
+                    placeholder="Código do e-mail"
+                    maxLength={32}
+                    required
+                  />
+                </div>
+                {otpFormError ? (
+                  <p className="text-sm text-destructive">{otpFormError}</p>
+                ) : null}
+                <Button type="submit" className="w-full" disabled={otpSubmitting}>
+                  {otpSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      A validar…
+                    </>
+                  ) : (
+                    "Continuar"
+                  )}
+                </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  Recebeste um link antigo com redirecionamento automático? Abre-o
+                  noutro separador ou pede um novo convite.
+                </p>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/login">Já tenho conta — login</Link>
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </div>

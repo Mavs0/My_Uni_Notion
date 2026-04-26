@@ -25,8 +25,17 @@ function gerarSenhaTemporaria(): string {
 
 /**
  * Convite 100% pelo Supabase: o e-mail é enviado pelo próprio Supabase Auth.
- * A senha temporária é passada em data e pode ser exibida no template do Dashboard
- * (Authentication → Email Templates → Invite user) usando: {{ .Data.senha_temporaria }}
+ *
+ * Template HTML (dark, mensagem opcional, convite por código): copiar
+ * `src/lib/email/supabase-invite-user.html` para Authentication → Email Templates → Invite user.
+ * O template usa {{ .Token }} + link só para {{ .RedirectTo }} (sem token longo na URL); o fluxo
+ * em /cadastro-convidado chama verifyOtp({ type: 'invite' }).
+ *
+ * Metadados disponíveis no template (Go template / `.Data`):
+ * - {{ .Data.senha_temporaria }}, {{ .Data.nome }}, {{ .Data.mensagem_convite }} (só se preenchida),
+ *   {{ .Data.convidador_nome }}, {{ .Data.convidador_email }}, {{ .Data.app_public_url }} (URL público da app)
+ * - {{ .ConfirmationURL }} — link de aceitação
+ *
  * Depois do invite, a senha temporária é definida na conta (útil como fallback).
  * O utilizador é redirecionado para /cadastro-convidado para definir senha definitiva e depois /login.
  * Em Supabase → Authentication → URL Configuration, inclua .../cadastro-convidado em Redirect URLs.
@@ -69,11 +78,20 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
       "https://my-uni-notion.vercel.app";
+    const appPublicUrl = appUrl.replace(/\/$/, "");
     /** Link do e-mail do Supabase → cadastro do convidado → depois login */
-    const cadastroConvidadoUrl = `${appUrl.replace(/\/$/, "")}/cadastro-convidado`;
+    const cadastroConvidadoUrl = `${appPublicUrl}/cadastro-convidado`;
 
     const admin = createSupabaseAdmin();
     const senhaTemporaria = gerarSenhaTemporaria();
+
+    const meta = user.user_metadata as Record<string, unknown> | undefined;
+    const convidadorNomeRaw =
+      (typeof meta?.full_name === "string" && meta.full_name.trim()) ||
+      (typeof meta?.nome === "string" && meta.nome.trim()) ||
+      "";
+    const emailLocal = user.email?.split("@")[0]?.trim() ?? "";
+    const convidadorNome = convidadorNomeRaw || emailLocal || "Alguém";
 
     const { data: inviteData, error: inviteError } =
       await admin.auth.admin.inviteUserByEmail(email, {
@@ -81,6 +99,10 @@ export async function POST(request: NextRequest) {
           full_name: nome,
           nome,
           senha_temporaria: senhaTemporaria,
+          convidador_nome: convidadorNome,
+          convidador_email: user.email ?? "",
+          /** Base pública da app (sem / final), ex.: links absolutos no template de e-mail */
+          app_public_url: appPublicUrl,
           ...(mensagem ? { mensagem_convite: mensagem } : {}),
         },
         redirectTo: cadastroConvidadoUrl,

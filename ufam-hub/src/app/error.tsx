@@ -1,9 +1,8 @@
 "use client";
+
 import { useEffect } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Home, RefreshCw, ArrowLeft } from "lucide-react";
+import { UfamErrorShell } from "@/components/errors/ufam-error-shell";
+
 export default function Error({
   error,
   reset,
@@ -14,52 +13,26 @@ export default function Error({
   useEffect(() => {
     console.error("Erro capturado:", error);
   }, [error]);
+
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="max-w-md w-full">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center">
-              <AlertCircle className="h-10 w-10 text-destructive" />
-            </div>
-          </div>
-          <CardTitle className="text-3xl font-bold mb-2">500</CardTitle>
-          <p className="text-muted-foreground">Erro interno do servidor</p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground text-center">
-            Ops! Algo deu errado. Nossa equipe foi notificada e está trabalhando
-            para resolver o problema.
-          </p>
-          {error.message && (
-            <div className="p-3 rounded-lg bg-muted/50 border border-border">
-              <p className="text-xs text-muted-foreground font-mono break-all">
-                {error.message}
-              </p>
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={reset} className="flex-1">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Tentar Novamente
-            </Button>
-            <Button variant="outline" asChild className="flex-1">
-              <Link href="/">
-                <Home className="h-4 w-4 mr-2" />
-                Ir para Home
-              </Link>
-            </Button>
-          </div>
-          <Button
-            variant="ghost"
-            onClick={() => window.history.back()}
-            className="w-full"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-        </CardContent>
-      </Card>
-    </main>
+    <UfamErrorShell
+      code="500"
+      title="Erro interno do servidor"
+      description="Estamos enfrentando instabilidades no momento. Nossa equipe já foi notificada e está trabalhando para resolver o problema."
+      onRetry={reset}
+      extra={
+        error.message ? (
+          <details className="mb-6 max-w-lg rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 text-left text-xs text-zinc-500 backdrop-blur-sm">
+            <summary className="cursor-pointer select-none font-medium text-zinc-400">
+              Detalhes técnicos
+            </summary>
+            <p className="mt-2 font-mono break-all text-zinc-500">{error.message}</p>
+            {error.digest ? (
+              <p className="mt-1 font-mono text-[10px] text-zinc-600">Digest: {error.digest}</p>
+            ) : null}
+          </details>
+        ) : null
+      }
+    />
   );
 }
