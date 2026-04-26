@@ -2,8 +2,20 @@ import { type NextRequest, NextResponse } from "next/server";
 import { emergencyCookieResponseIfNeeded } from "@/lib/supabase/cookie-emergency-middleware";
 import { updateSession } from "@/lib/supabase/middleware";
 
+/** Evita URL acidental igual ao título da app (marcador / Arc / link relativo partido). */
+function redirectIfBogusAppTitlePath(request: NextRequest) {
+  const raw = request.nextUrl.pathname;
+  const decoded = decodeURIComponent(raw).replace(/\/+$/, "") || "/";
+  if (decoded === "/UFAM Hub") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
   try {
+    const bogus = redirectIfBogusAppTitlePath(request);
+    if (bogus) return bogus;
     const emergency = emergencyCookieResponseIfNeeded(request);
     if (emergency) return emergency;
     return await updateSession(request);

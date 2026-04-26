@@ -1,9 +1,19 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Home, RefreshCw, ArrowLeft } from "lucide-react";
+
+function isChunkLoadFailure(message: string) {
+  return (
+    message.includes("Loading chunk") ||
+    message.includes("ChunkLoadError") ||
+    message.includes("Failed to fetch dynamically imported module") ||
+    message.includes("Importing a module script failed")
+  );
+}
+
 export default function Error({
   error,
   reset,
@@ -11,9 +21,15 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const chunkFailure = useMemo(
+    () => isChunkLoadFailure(error?.message ?? ""),
+    [error?.message],
+  );
+
   useEffect(() => {
     console.error("Erro capturado:", error);
   }, [error]);
+
   return (
     <main className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="max-w-md w-full">
@@ -23,13 +39,20 @@ export default function Error({
               <AlertCircle className="h-10 w-10 text-destructive" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold mb-2">500</CardTitle>
-          <p className="text-muted-foreground">Erro interno do servidor</p>
+          <CardTitle className="text-3xl font-bold mb-2">
+            {chunkFailure ? "Atualizar página" : "500"}
+          </CardTitle>
+          <p className="text-muted-foreground">
+            {chunkFailure
+              ? "Não foi possível carregar o código da página"
+              : "Erro interno do servidor"}
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground text-center">
-            Ops! Algo deu errado. Nossa equipe foi notificada e está trabalhando
-            para resolver o problema.
+            {chunkFailure
+              ? "Isso costuma acontecer após uma atualização do app ou ao reiniciar o servidor de desenvolvimento. Recarregue a página para baixar a versão mais recente."
+              : "Ops! Algo deu errado. Nossa equipe foi notificada e está trabalhando para resolver o problema."}
           </p>
           {error.message && (
             <div className="p-3 rounded-lg bg-muted/50 border border-border">
@@ -39,9 +62,18 @@ export default function Error({
             </div>
           )}
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={reset} className="flex-1">
+            <Button
+              onClick={() => {
+                if (chunkFailure) {
+                  window.location.reload();
+                  return;
+                }
+                reset();
+              }}
+              className="flex-1"
+            >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Tentar Novamente
+              {chunkFailure ? "Recarregar página" : "Tentar Novamente"}
             </Button>
             <Button variant="outline" asChild className="flex-1">
               <Link href="/">
