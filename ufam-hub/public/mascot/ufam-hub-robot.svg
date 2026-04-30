@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Mascote UFAM Hub  exportação estática.
+  IDs estáveis para animação (olhos, visor, antena, braços, corpo).
+  Paleta: #05865E (verde), visor #101010, corpo #f4f5f7.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" width="240" height="300" role="img" aria-label="Assistente virtual UFAM Hub">
+  <title>Assistente virtual UFAM Hub</title>
+  <defs>
+    <radialGradient id="ufam-mascot-eye-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0abf8c" stop-opacity="0.9"/>
+      <stop offset="70%" stop-color="#05865E" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#05865E" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="ufam-mascot-soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="ufam-mascot-antenna-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <ellipse cx="120" cy="276" rx="52" ry="9" fill="#05865E" opacity="0.22"/>
+  <ellipse cx="120" cy="275" rx="36" ry="5" fill="#05865E" opacity="0.35"/>
+
+  <g id="ufam-mascot-antenna" data-mascot-part="antenna">
+    <line x1="120" y1="56" x2="120" y2="24" stroke="#d1d5db" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="120" cy="18" r="7" fill="#05865E" filter="url(#ufam-mascot-antenna-glow)"/>
+    <circle cx="120" cy="18" r="3.5" fill="#0abf8c" opacity="0.85"/>
+  </g>
+
+  <g id="ufam-mascot-head-shell" data-mascot-part="head-shell">
+    <ellipse cx="120" cy="118" rx="78" ry="62" fill="#f4f5f7" stroke="#d1d5db" stroke-width="1.25"/>
+    <ellipse cx="120" cy="132" rx="56" ry="18" fill="#000" opacity="0.06"/>
+  </g>
+
+  <g id="ufam-mascot-body" data-mascot-part="body">
+    <ellipse cx="120" cy="208" rx="46" ry="40" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1.15"/>
+    <g opacity="0.9" transform="translate(120, 200)" data-mascot-part="chest-emblem">
+      <circle cx="0" cy="0" r="10" fill="none" stroke="#05865E" stroke-width="1.4"/>
+      <path d="M -5 -2 L 5 -2 M -5 2 L 5 2 M 0 -6 L 0 6" stroke="#05865E" stroke-width="1.2" stroke-linecap="round"/>
+      <circle cx="-6" cy="-6" r="1.8" fill="#05865E" opacity="0.8"/>
+      <circle cx="6" cy="6" r="1.8" fill="#05865E" opacity="0.6"/>
+    </g>
+  </g>
+
+  <g id="ufam-mascot-arm-left" data-mascot-part="arm-left">
+    <path d="M 52 128 C 28 148 18 188 24 218" fill="none" stroke="#f4f5f7" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 52 128 C 28 148 18 188 24 218" fill="none" stroke="#d1d5db" stroke-width="1.25" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="22" cy="224" r="12" fill="#f4f5f7" stroke="#d1d5db" stroke-width="1.1"/>
+  </g>
+
+  <g id="ufam-mascot-arm-right" data-mascot-part="arm-right">
+    <path d="M 188 128 C 212 148 222 188 216 218" fill="none" stroke="#f4f5f7" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 188 128 C 212 148 222 188 216 218" fill="none" stroke="#d1d5db" stroke-width="1.25" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="218" cy="224" r="12" fill="#f4f5f7" stroke="#d1d5db" stroke-width="1.1"/>
+  </g>
+
+  <g id="ufam-mascot-visor" data-mascot-part="visor">
+    <rect x="46" y="72" width="148" height="86" rx="34" ry="34" fill="#101010"/>
+    <rect x="58" y="80" width="124" height="28" rx="14" fill="#fff" opacity="0.06"/>
+  </g>
+
+  <g id="ufam-mascot-eyes" data-mascot-part="eyes">
+    <g id="ufam-mascot-eye-left" data-mascot-part="eye-left">
+      <circle cx="88" cy="118" r="14" fill="url(#ufam-mascot-eye-glow)" opacity="0.45"/>
+      <circle cx="88" cy="118" r="10.5" fill="#05865E" filter="url(#ufam-mascot-soft-glow)"/>
+      <circle cx="85" cy="114" r="3.2" fill="#fff" opacity="0.9"/>
+    </g>
+    <g id="ufam-mascot-eye-right" data-mascot-part="eye-right">
+      <circle cx="152" cy="118" r="14" fill="url(#ufam-mascot-eye-glow)" opacity="0.45"/>
+      <circle cx="152" cy="118" r="10.5" fill="#05865E" filter="url(#ufam-mascot-soft-glow)"/>
+      <circle cx="149" cy="114" r="3.2" fill="#fff" opacity="0.9"/>
+    </g>
+  </g>
+
+  <path id="ufam-mascot-mouth" data-mascot-part="mouth" d="M 92 142 Q 120 156 148 142" fill="none" stroke="#05865E" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
