@@ -21,6 +21,7 @@ import {
   Brain,
   Users,
   Library,
+  Table2,
   X,
   ArrowUp,
   ArrowDown,
@@ -29,6 +30,7 @@ import {
   Settings,
   ChevronDown,
   ArrowRight,
+  Network,
 } from "lucide-react";
 import { useNotasSearch } from "@/hooks/useNotasSearch";
 import {
@@ -232,9 +234,19 @@ export function CommandPalette({
       icon: GraduationCap,
       shortcut: "⌘⇧A",
     },
+    {
+      label: "Faltas e notas",
+      href: "/controle-academico",
+      icon: Table2,
+    },
     { label: "Revisão", href: "/revisao", icon: Brain, shortcut: "⌘⇧R" },
     { label: "Calendário", href: "/calendar", icon: Calendar },
     { label: "Chat IA", href: "/chat", icon: MessageSquare },
+    {
+      label: "Mapa mental (resumo manual)",
+      href: "/resumos-mapa-mental",
+      icon: Network,
+    },
     { label: "Grupos de Estudo", href: "/grupos", icon: Users },
     { label: "Biblioteca", href: "/biblioteca", icon: Library },
     { label: "Estatísticas", href: "/estatisticas", icon: BarChart3 },

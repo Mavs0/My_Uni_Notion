@@ -97,6 +97,31 @@ export function removeSubramo(
   };
 }
 
+/** Insere uma cópia do subitem logo a seguir ao original (novo id). */
+export function duplicateSubramo(
+  data: MapaMentalData,
+  ramoId: string,
+  subId: string
+): MapaMentalData {
+  return {
+    ...data,
+    ramos: data.ramos.map((r) => {
+      if (r.id !== ramoId) return r;
+      const subs = [...(r.subramos || [])];
+      const idx = subs.findIndex((s) => s.id === subId);
+      if (idx < 0) return r;
+      const orig = subs[idx]!;
+      const copy: MindMapSubRamo = {
+        ...orig,
+        id: mkMindMapId("s"),
+        texto: `${orig.texto} (cópia)`,
+      };
+      subs.splice(idx + 1, 0, copy);
+      return { ...r, subramos: subs };
+    }),
+  };
+}
+
 export function buildTopicoContext(ramo: MindMapRamo): string {
   const lines: string[] = [
     `Tópico: ${ramo.texto}`,
@@ -124,4 +149,15 @@ export function mapToPlainContext(data: MapaMentalData): string {
     }
   }
   return lines.join("\n");
+}
+
+/** Mapa vazio para construção manual (sem geração por IA). */
+export function createEmptyMapaMental(titulo = "Resumo em mapa mental"): MapaMentalData {
+  return {
+    titulo,
+    descricao: "",
+    nocentral: { texto: "Ideia central", cor: "#05865E" },
+    ramos: [],
+    resumo: "",
+  };
 }

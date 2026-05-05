@@ -3,6 +3,27 @@ import type { MapaMentalData } from "@/types/mind-map";
 
 export const MM_FLOW_ROOT_ID = "mm-root";
 
+/** Lado da caixa para handles (ligações React Flow). */
+export type MindMapCardinal = "top" | "right" | "bottom" | "left";
+
+/** Direção dominante do vetor (dx,dy) → lado de saída/entrada no nó. */
+function cardinalToward(dx: number, dy: number): MindMapCardinal {
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? "right" : "left";
+  }
+  return dy >= 0 ? "bottom" : "top";
+}
+
+function oppositeCardinal(c: MindMapCardinal): MindMapCardinal {
+  const m: Record<MindMapCardinal, MindMapCardinal> = {
+    top: "bottom",
+    bottom: "top",
+    left: "right",
+    right: "left",
+  };
+  return m[c];
+}
+
 export type MindMapFlowNodeData = {
   kind: "root" | "ramo" | "sub";
   label: string;
@@ -94,11 +115,14 @@ export function mapDataToMindMapFlow(
       },
     });
 
+    const rootOut = cardinalToward(rcx - CX, rcy - CY);
     edges.push({
       id: `e-root-${r.id}`,
       source: MM_FLOW_ROOT_ID,
       target: r.id,
-      type: "default",
+      sourceHandle: `out-${rootOut}`,
+      targetHandle: `in-${oppositeCardinal(rootOut)}`,
+      type: "smoothstep",
       style: { stroke: r.cor, strokeWidth: 2.6 },
     });
 
@@ -128,11 +152,14 @@ export function mapDataToMindMapFlow(
           selected: selectedRamoId === r.id,
         },
       });
+      const ramoToSub = cardinalToward(sx - rcx, sy - rcy);
       edges.push({
         id: `e-${r.id}-${nid}`,
         source: r.id,
         target: nid,
-        type: "default",
+        sourceHandle: `out-${ramoToSub}`,
+        targetHandle: `in-${oppositeCardinal(ramoToSub)}`,
+        type: "smoothstep",
         style: { stroke: r.cor, strokeWidth: 2.2 },
       });
       distFromCenter += subHalfAlong + CHAIN_GAP + subHalfAlong;

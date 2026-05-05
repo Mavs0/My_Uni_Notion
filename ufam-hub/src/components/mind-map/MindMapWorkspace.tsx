@@ -15,9 +15,11 @@ import { mkMindMapId } from "@/lib/mind-map/ids";
 import {
   addRamo,
   addSubramo,
+  createEmptyMapaMental,
   ensureMapShape,
   mapToPlainContext,
   buildTopicoContext,
+  duplicateSubramo,
   removeRamo,
   removeSubramo,
   updateRamo,
@@ -52,6 +54,8 @@ const RAMO_COLORS = ["#05865E", "#6366F1", "#F59E0B", "#EC4899", "#14B8A6", "#A8
 type Props = {
   disciplinaId: string;
   disciplinaNome?: string | null;
+  /** Só edição manual: sem gerar/regenerar mapa nem refinamento por IA. */
+  manualOnly?: boolean;
 };
 
 function parseTags(s: string): string[] {
@@ -61,7 +65,11 @@ function parseTags(s: string): string[] {
     .filter(Boolean);
 }
 
-export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
+export function MindMapWorkspace({
+  disciplinaId,
+  disciplinaNome,
+  manualOnly = false,
+}: Props) {
   const pdfRef = useRef<HTMLInputElement>(null);
 
   const [phase, setPhase] = useState<MindMapPhase>("input");
@@ -231,6 +239,9 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
           descricao: desc,
           tags,
           conteudo: { ...mapData, titulo: saveTitulo.trim() },
+          defaultTagsWhenEmpty: manualOnly
+            ? ["mapa-mental", "resumo-manual"]
+            : undefined,
         });
         setSavedId(id);
         toast.success("Mapa guardado na biblioteca.");
@@ -385,6 +396,22 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
     setTopicIaOut(null);
   };
 
+  const startManualEmptyMap = () => {
+    const t = inputTitulo.trim();
+    setErrorMsg(null);
+    setGlobalIaOut(null);
+    setTopicIaOut(null);
+    setMapData(
+      ensureMapShape(
+        createEmptyMapaMental(t || "Resumo em mapa mental")
+      )
+    );
+    setSourceText("");
+    setSavedId(null);
+    setPhase("result");
+    toast.success("Mapa vazio criado — adiciona tópicos à mão.");
+  };
+
   const updateMap = (patch: Partial<MapaMentalData>) => {
     setMapData((m) => (m ? { ...m, ...patch } : m));
   };
@@ -403,13 +430,15 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
 
   return (
     <div className={cn("mx-auto max-w-5xl space-y-6", MM.page)}>
-      <input
-        ref={pdfRef}
-        type="file"
-        accept=".pdf,application/pdf"
-        className="hidden"
-        onChange={(e) => void handlePdf(e.target.files?.[0] ?? null)}
-      />
+      {!manualOnly ? (
+        <input
+          ref={pdfRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          className="hidden"
+          onChange={(e) => void handlePdf(e.target.files?.[0] ?? null)}
+        />
+      ) : null}
 
       {(phase === "input" || phase === "loading" || phase === "error") && (
         <section
@@ -423,48 +452,87 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
               <Network className="h-8 w-8 text-violet-400" />
             </div>
             <h2 className="text-xl font-semibold tracking-tight text-[#F5F5F5]">
-              Mapa mental
+              {manualOnly ? "Resumo em mapa mental" : "Mapa mental"}
             </h2>
             <p className={cn("mx-auto mt-2 max-w-lg text-sm", MM.muted)}>
-              Cole um texto, envia um PDF ou resume um documento para criar um mapa
-              mental estruturado para estudo.
+              {manualOnly
+                ? "Cria um mapa vazio e organiza tópicos e resumo à mão, sem IA. Opcionalmente define um título antes de começar."
+                : "Cole um texto, envia um PDF ou resume um documento para criar um mapa mental estruturado para estudo."}
             </p>
           </header>
 
-          <MindMapInputSection
-            titulo={inputTitulo}
-            texto={inputTexto}
-            onTituloChange={setInputTitulo}
-            onTextoChange={setInputTexto}
-            disabled={disabledInput}
-            pdfExtractLoading={pdfLoading}
-            pdfFileName={pdfName}
-            onPickPdf={() => pdfRef.current?.click()}
-          />
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <MindMapGenerateButton
-              loading={phase === "loading"}
-              disabled={!inputTexto.trim()}
-              onClick={() => void runGenerate()}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="h-12 shrink-0 rounded-xl border-[#262626] bg-[#121212] px-5 text-[#E5E5E5] hover:bg-[#1a1a1a]"
-              onClick={openList}
-            >
-              <FolderOpen className="mr-2 h-4 w-4" />
-              Mapas guardados
-            </Button>
-          </div>
-
-          {phase === "loading" ? (
-            <div className="mt-8">
-              <MindMapLoadingState step={loadingStep} />
+          {manualOnly ? (
+            <div className="mx-auto max-w-md space-y-4">
+              <div className="text-left">
+                <label className={cn("mb-1.5 block text-xs", MM.muted)}>
+                  Título do resumo (opcional)
+                </label>
+                <Input
+                  value={inputTitulo}
+                  onChange={(e) => setInputTitulo(e.target.value)}
+                  placeholder="Ex.: Unidade 1 — Funções"
+                  className="border-[#262626] bg-[#151515] text-[#F5F5F5]"
+                />
+              </div>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-12 rounded-xl bg-[#05865E] px-6 text-white hover:bg-[#047a56]"
+                  onClick={startManualEmptyMap}
+                >
+                  Começar mapa vazio
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-12 shrink-0 rounded-xl border-[#262626] bg-[#121212] px-5 text-[#E5E5E5] hover:bg-[#1a1a1a]"
+                  onClick={openList}
+                >
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  Mapas guardados
+                </Button>
+              </div>
             </div>
-          ) : null}
+          ) : (
+            <>
+              <MindMapInputSection
+                titulo={inputTitulo}
+                texto={inputTexto}
+                onTituloChange={setInputTitulo}
+                onTextoChange={setInputTexto}
+                disabled={disabledInput}
+                pdfExtractLoading={pdfLoading}
+                pdfFileName={pdfName}
+                onPickPdf={() => pdfRef.current?.click()}
+              />
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <MindMapGenerateButton
+                  loading={phase === "loading"}
+                  disabled={!inputTexto.trim()}
+                  onClick={() => void runGenerate()}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-12 shrink-0 rounded-xl border-[#262626] bg-[#121212] px-5 text-[#E5E5E5] hover:bg-[#1a1a1a]"
+                  onClick={openList}
+                >
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  Mapas guardados
+                </Button>
+              </div>
+
+              {phase === "loading" ? (
+                <div className="mt-8">
+                  <MindMapLoadingState step={loadingStep} />
+                </div>
+              ) : null}
+            </>
+          )}
 
           {errorMsg ? (
             <div
@@ -511,9 +579,11 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
             onNewMap={newMap}
             onRegenerate={() => void runGenerate()}
             onGlobalIa={(a) => void runGlobalIa(a)}
+            showIaActions={!manualOnly}
+            heading={manualOnly ? "Resumo em mapa mental" : "Mapa mental"}
           />
 
-          {globalIaOut ? (
+          {!manualOnly && globalIaOut ? (
             <div className="rounded-2xl border border-[#262626] bg-[#101010] p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-[#F5F5F5]">
@@ -606,6 +676,7 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
             disabled={iaBusy}
             onRegenerateIa={() => void runResumoRegenerate()}
             regenerating={resumoIaBusy}
+            showIaRegenerate={!manualOnly}
           />
         </div>
       )}
@@ -636,6 +707,11 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
           if (!mapData || !selectedRamoId) return;
           setMapData(removeSubramo(mapData, selectedRamoId, subId));
         }}
+        onDuplicateSubramo={(subId) => {
+          if (!mapData || !selectedRamoId) return;
+          setMapData(duplicateSubramo(mapData, selectedRamoId, subId));
+          toast.success("Subitem duplicado.");
+        }}
         onRemoveRamo={() => {
           if (!mapData || !selectedRamoId) return;
           if (!confirm("Remover este tópico?")) return;
@@ -661,6 +737,7 @@ export function MindMapWorkspace({ disciplinaId, disciplinaNome }: Props) {
         }}
         onTopicIa={(a) => void runTopicIa(a)}
         onClearIaOutput={() => setTopicIaOut(null)}
+        showTopicIa={!manualOnly}
       />
 
       <SaveMindMapDialog

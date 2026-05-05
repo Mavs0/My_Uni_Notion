@@ -1,9 +1,25 @@
 "use client";
 
-import { memo } from "react";
-import { type Node, type NodeProps } from "@xyflow/react";
+import { memo, type CSSProperties } from "react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
-import type { MindMapFlowNodeData } from "@/lib/mind-map/flow-layout";
+import type { MindMapCardinal, MindMapFlowNodeData } from "@/lib/mind-map/flow-layout";
+
+/** Pontos de ligação invisíveis — sem isto, o React Flow não desenha edges em nós customizados. */
+const HANDLE_VISUAL: CSSProperties = {
+  width: 10,
+  height: 10,
+  border: "none",
+  background: "transparent",
+  opacity: 0,
+};
+
+const SIDES: { key: MindMapCardinal; position: Position }[] = [
+  { key: "top", position: Position.Top },
+  { key: "right", position: Position.Right },
+  { key: "bottom", position: Position.Bottom },
+  { key: "left", position: Position.Left },
+];
 
 function MindMapFlowNodeInner({
   data,
@@ -25,6 +41,26 @@ function MindMapFlowNodeInner({
         maxWidth: isRoot ? 280 : data.kind === "ramo" ? 280 : 240,
       }}
     >
+      {SIDES.map(({ key, position }) => (
+        <Handle
+          key={`in-${key}`}
+          type="target"
+          position={position}
+          id={`in-${key}`}
+          style={HANDLE_VISUAL}
+          isConnectable={false}
+        />
+      ))}
+      {SIDES.map(({ key, position }) => (
+        <Handle
+          key={`out-${key}`}
+          type="source"
+          position={position}
+          id={`out-${key}`}
+          style={HANDLE_VISUAL}
+          isConnectable={false}
+        />
+      ))}
       <div className="min-w-0">
         <p
           className={cn(

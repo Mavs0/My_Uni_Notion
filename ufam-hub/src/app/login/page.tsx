@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { shrinkJwtByStrippingInlineAvatarClient } from "@/lib/profile/avatar-metadata-client";
@@ -13,13 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Loader2,
   Mail,
   Lock,
@@ -29,20 +23,53 @@ import {
   Hash,
   Eye,
   EyeOff,
-  Sparkles,
   BookOpen,
   Users,
-  TrendingUp,
+  Brain,
+  CalendarDays,
+  BarChart3,
   Shield,
-  ShieldCheck,
   ChevronLeft,
-  ChevronRight,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import { AuthHeader } from "@/components/auth/AuthHeader";
 import { ErrorMessage } from "@/components/ui/error-message";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { TypewriterText } from "@/components/ui/typewriter-text";
+import {
+  AuthModernShell,
+  LoginModernShell,
+  LOGIN_GREEN,
+  LOGIN_GLOW,
+  LOGIN_MUTED,
+  LOGIN_TEXT,
+  LOGIN_ERROR,
+  type AuthModernFeature,
+  type MascotFocus,
+} from "@/components/auth/login-modern";
+import { cn } from "@/lib/utils";
+
+const SIGNUP_MARKETING_FEATURES: AuthModernFeature[] = [
+  {
+    Icon: Brain,
+    title: "Inteligência que acompanha você",
+    subtitle: "IA para simplificar seus estudos",
+  },
+  {
+    Icon: CalendarDays,
+    title: "Organize tudo em um só lugar",
+    subtitle: "Disciplinas, tarefas e prazos",
+  },
+  {
+    Icon: Users,
+    title: "Conecte-se e colabore",
+    subtitle: "Aprenda junto com outras pessoas",
+  },
+  {
+    Icon: BarChart3,
+    title: "Acompanhe seu progresso",
+    subtitle: "Metas e indicadores no seu ritmo",
+  },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -78,6 +105,44 @@ export default function LoginPage() {
   const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null);
   const [mfaVerifying, setMfaVerifying] = useState(false);
   const [signupStep, setSignupStep] = useState(1);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loginSuccessPulse, setLoginSuccessPulse] = useState(false);
+  const [signupFieldFocus, setSignupFieldFocus] = useState<MascotFocus>(null);
+
+  const signupMascotMode = useMemo(() => {
+    if (loading) return "loading" as const;
+    if (error) return "error" as const;
+    if (signupFieldFocus === "password") return "focus-password" as const;
+    if (signupFieldFocus === "email") return "focus-email" as const;
+    return "idle" as const;
+  }, [loading, error, signupFieldFocus]);
+
+  const signupFieldShell = useCallback((hasErr?: boolean) => {
+    return cn(
+      "flex items-center gap-3 rounded-xl border px-3 py-2 transition-[border-color,box-shadow] duration-200",
+      "border-white/[0.1] bg-white/[0.04] focus-within:border-[#05865E]",
+      "focus-within:shadow-[0_0_0_1px_rgba(5,134,94,0.45),0_0_28px_rgba(5,134,94,0.12)]",
+      hasErr && "!border-red-500/80 focus-within:!shadow-none",
+    );
+  }, []);
+
+  const signupNativeInputClass =
+    "min-h-[40px] w-full flex-1 border-0 bg-transparent py-1 text-[15px] outline-none ring-0 placeholder:text-neutral-500 focus-visible:ring-0";
+
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      if (localStorage.getItem("ufam-login-remember") === "1") {
+        setRememberMe(true);
+        const em = localStorage.getItem("ufam-login-email");
+        if (em && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+          setEmail(em);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     const signup = searchParams.get("signup");
@@ -164,9 +229,9 @@ export default function LoginPage() {
       errors.periodo = "Período deve ser um número entre 1 e 20";
     }
     if (!email.trim()) {
-      errors.email = "Email é obrigatório";
+      errors.email = "O e-mail é obrigatório";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = "Email inválido";
+      errors.email = "E-mail inválido";
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -188,9 +253,9 @@ export default function LoginPage() {
       }
     }
     if (!email.trim()) {
-      errors.email = "Email é obrigatório";
+      errors.email = "O e-mail é obrigatório";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = "Email inválido";
+      errors.email = "E-mail inválido";
     }
     if (!isLogin) {
       if (!password) {
@@ -260,7 +325,7 @@ export default function LoginPage() {
               serverJson.redirect.startsWith("/")
                 ? serverJson.redirect
                 : redirectTo;
-            window.location.assign(dest);
+            persistRememberAndRedirect(dest);
             return;
           }
 
@@ -338,7 +403,7 @@ export default function LoginPage() {
             errorMessage.includes("Request header fields too large")
           ) {
             errorMessage =
-              "Cookies da sessão excederam o limite (431). A limpar cookies Supabase…";
+              "Os cookies da sessão excederam o limite (431). Limpando cookies do Supabase…";
             try {
               sweepAllSupabaseCookiesFromDocument();
               await fetch("/api/auth/cleanup-cookies?reset=1", {
@@ -357,10 +422,10 @@ export default function LoginPage() {
             }
           } else if (errorMessage.includes("Invalid login credentials")) {
             errorMessage =
-              "Email ou senha incorretos. Verifique suas credenciais.";
+              "Não foi possível fazer login com esses dados. Confira o e-mail e a senha e tente novamente.";
           } else if (signInError.message.includes("Email not confirmed")) {
             errorMessage =
-              "Email não confirmado. Verifique sua caixa de entrada.";
+              "E-mail não confirmado. Verifique sua caixa de entrada.";
           } else if (signInError.message.includes("Too many requests")) {
             errorMessage =
               "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.";
@@ -386,7 +451,7 @@ export default function LoginPage() {
           // Navegação de seguida: não esperar mais trabalho async (evita erro visível
           // e reload estranho se o PUT a auth/v1/user falhar).
           markPostLoginNavigation();
-          window.location.assign(redirectTo);
+          persistRememberAndRedirect(redirectTo);
           return;
         } else {
           try {
@@ -463,7 +528,8 @@ export default function LoginPage() {
           ) {
             errorMessage = "A senha deve ter pelo menos 6 caracteres.";
           } else if (signUpError.message.includes("Invalid email")) {
-            errorMessage = "Email inválido. Verifique o formato do email.";
+            errorMessage =
+              "E-mail inválido. Verifique o formato do endereço.";
           } else if (
             signUpError.message.includes("Email rate limit exceeded")
           ) {
@@ -576,7 +642,7 @@ export default function LoginPage() {
             /* ignore */
           }
           markPostLoginNavigation();
-          window.location.assign(redirectTo);
+          persistRememberAndRedirect(redirectTo);
           return;
         } else {
           setError("Erro ao completar login. Tente novamente.");
@@ -595,398 +661,622 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen flex">
-      {/* Lado esquerdo - Ilustração/Info */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900/95 to-zinc-950 lg:flex lg:flex-1">
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: `radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)`,
-            backgroundSize: "24px 24px",
-          }}
-        />
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
-          <div className="space-y-8 animate-in fade-in slide-in-from-left duration-700">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-800/90 text-zinc-100 border border-zinc-700/60 shadow-sm">
-                <Sparkles className="h-4 w-4 text-amber-400/90" />
-                <span className="text-sm font-medium tracking-tight">
-                  Plataforma Acadêmica
-                </span>
-              </div>
-              <h1 className="text-4xl font-bold tracking-tight text-zinc-50 xl:text-5xl">
-                Organize seus estudos com{" "}
-                <TypewriterText
-                  text="inteligência"
-                  className="text-zinc-50"
-                  speed={120}
-                  pauseBeforeErase={2800}
-                  eraseSpeed={45}
-                />
-              </h1>
-              <p className="max-w-md text-lg text-zinc-400">
-                Gerencie disciplinas, avaliações, tarefas e muito mais em um só
-                lugar. Potencializado por IA.
-              </p>
-            </div>
+  const oauthHref = useMemo(
+    () =>
+      `/api/auth/oauth?provider=google&redirectTo=${encodeURIComponent(redirectTo)}`,
+    [redirectTo],
+  );
 
-            <div className="grid grid-cols-1 gap-8 pt-6">
-              {[
-                {
-                  Icon: BookOpen,
-                  title: "Gestão Completa",
-                  desc: "Organize disciplinas, horários e materiais de estudo",
-                },
-                {
-                  Icon: TrendingUp,
-                  title: "Acompanhe Progresso",
-                  desc: "Visualize estatísticas e métricas do seu desempenho",
-                },
-                {
-                  Icon: Users,
-                  title: "Comunidade",
-                  desc: "Conecte-se com outros estudantes e compartilhe conhecimento",
-                },
-              ].map(({ Icon, title, desc }) => (
-                <div
-                  key={title}
-                  className="group flex items-start gap-5 rounded-2xl border border-transparent p-1 transition-colors hover:border-zinc-700/40 hover:bg-zinc-900/30"
-                >
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-zinc-700/50 bg-zinc-800/90 shadow-inner ring-1 ring-white/5">
-                    <Icon
-                      className="h-7 w-7 text-zinc-100"
-                      strokeWidth={1.75}
-                    />
-                  </div>
-                  <div className="min-w-0 pt-0.5">
-                    <h3 className="mb-1 text-base font-bold tracking-tight text-zinc-50">
-                      {title}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-zinc-400">
-                      {desc}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+  const persistRememberAndRedirect = useCallback(
+    (url: string) => {
+      try {
+        if (rememberMe) {
+          localStorage.setItem("ufam-login-remember", "1");
+          localStorage.setItem("ufam-login-email", email.trim());
+        } else {
+          localStorage.removeItem("ufam-login-remember");
+          localStorage.removeItem("ufam-login-email");
+        }
+      } catch {
+        /* ignore */
+      }
+      setLoginSuccessPulse(true);
+      window.setTimeout(() => {
+        window.location.assign(url);
+      }, 420);
+    },
+    [rememberMe, email],
+  );
 
-      {/* Lado direito - Formulário */}
-      <div className="flex flex-1 items-center justify-center bg-background p-4 lg:p-8">
-        <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-right duration-700">
-          <AuthHeader />
-
-          {searchParams.get("cleared") === "1" && (
+  if (isLogin && !showMfaInput) {
+    return (
+      <LoginModernShell
+        successPulse={loginSuccessPulse}
+        clearedSlot={
+          searchParams.get("cleared") === "1" ? (
             <div
               role="status"
-              className="rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100"
+              className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
             >
-              Cookies deste site foram limpos. Usa email e senha para entrar de
-              novo.
+              Cookies deste site foram limpos. Use e-mail e senha para entrar
+              novamente.
             </div>
-          )}
+          ) : null
+        }
+        messageSlot={
+          message ? <ErrorMessage message={message} variant="success" /> : null
+        }
+        email={email}
+        setEmail={setEmail}
+        password={password}
+        setPassword={setPassword}
+        showPassword={showPassword}
+        setShowPassword={setShowPassword}
+        rememberMe={rememberMe}
+        setRememberMe={setRememberMe}
+        fieldErrors={fieldErrors}
+        loading={loading}
+        error={error}
+        onSubmit={handleSubmit}
+        googleHref={oauthHref}
+        institutionalHref={oauthHref}
+        onCreateAccount={() => {
+          setIsLogin(false);
+          setError(null);
+          setMessage(null);
+          setFieldErrors({});
+          setSignupStep(1);
+          setSignupFieldFocus(null);
+        }}
+      />
+    );
+  }
 
-          <Card className="rounded-2xl border border-border bg-card shadow-lg dark:border-zinc-800/80 dark:bg-zinc-950/70 dark:shadow-2xl dark:shadow-black/30 dark:backdrop-blur-sm">
-            <CardHeader className="space-y-2 pb-6">
-              <CardTitle className="text-center text-3xl font-bold tracking-tight text-foreground">
-                {isLogin ? "Bem-vindo de volta!" : "Criar conta"}
-              </CardTitle>
-              <CardDescription className="text-center text-base text-muted-foreground">
-                {isLogin
-                  ? "Entre para continuar organizando seus estudos"
-                  : "Comece sua jornada acadêmica hoje"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <ErrorMessage message={message} variant="success" />
-              <ErrorMessage message={error} variant="error" />
+  return (
+    <AuthModernShell
+      variant={isLogin && showMfaInput ? "formOnly" : "split"}
+      {...(!isLogin
+        ? {
+            title: (
+              <>
+                A sua jornada acadêmica{" "}
+                <span style={{ color: LOGIN_GREEN }} className="font-semibold">
+                  começa aqui.
+                </span>
+              </>
+            ),
+            description:
+              "Preencha seus dados para começar a usar a plataforma — é rápido e gratuito.",
+            features: SIGNUP_MARKETING_FEATURES,
+            speechBubble: {
+              default: "Vamos criar sua conta? É rápido e gratuito! 🚀",
+              password: "Prometo não olhar! 🙈",
+            },
+            mascotMode: signupMascotMode,
+            mascotFocus: signupFieldFocus,
+            mascotAttentionDisabled: loading || signupFieldFocus === "password",
+            leftFooter: (
+              <div
+                className="flex items-start gap-2.5 text-[11px] leading-relaxed sm:text-xs"
+                style={{ color: "rgba(250,250,250,0.5)" }}
+              >
+                <Shield
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                  style={{ color: LOGIN_GREEN }}
+                  aria-hidden
+                />
+                <span>
+                  Seus dados estão protegidos com segurança avançada.
+                </span>
+              </div>
+            ),
+          }
+        : {})}
+      topSlots={
+        <>
+          {searchParams.get("cleared") === "1" ? (
+            <div
+              role="status"
+              className="rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
+            >
+              Cookies deste site foram limpos. Use e-mail e senha para entrar
+              novamente.
+            </div>
+          ) : null}
+          {message ? (
+            <ErrorMessage message={message} variant="success" />
+          ) : null}
+        </>
+      }
+    >
+      <div
+        className={`mx-auto w-full space-y-6 ${isLogin && showMfaInput ? "max-w-md" : "max-w-[400px] lg:max-w-[380px]"}`}
+      >
+        {isLogin && showMfaInput ? <AuthHeader /> : null}
 
-              {!isLogin && (
-                <div className="rounded-lg bg-muted/50 border p-3">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2">
-                    <AlertCircle className="h-3 w-3" />
-                    Campos marcados com{" "}
-                    <span className="text-destructive font-semibold">
-                      *
-                    </span>{" "}
-                    são obrigatórios
-                  </p>
-                </div>
-              )}
-
-              {!isLogin && (
-                <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setSignupStep(1)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                      signupStep === 1
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    }`}
+        <motion.div
+          initial={{ opacity: 0, x: 28 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-2xl border p-6 shadow-xl backdrop-blur-xl sm:p-7"
+          style={{
+            backgroundColor: "rgba(18,18,18,0.55)",
+            borderColor: "rgba(255,255,255,0.08)",
+            boxShadow: `0 0 0 1px rgba(255,255,255,0.08), 0 16px 48px -12px rgba(0,0,0,0.4), 0 0 40px -24px ${LOGIN_GLOW}`,
+          }}
+        >
+          <div className="mb-6 space-y-2 text-center">
+            {!isLogin ? (
+              <>
+                <h1
+                  className="text-3xl font-bold tracking-tight sm:text-[1.75rem]"
+                  style={{ color: LOGIN_TEXT }}
+                >
+                  Criar sua{" "}
+                  <span
+                    style={{ color: LOGIN_GREEN }}
+                    className="font-semibold"
                   >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-current/20 text-xs">
-                      1
-                    </span>
-                    Dados e email
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      signupStep === 1 && validateStep1() && setSignupStep(2)
-                    }
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                      signupStep === 2
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    }`}
+                    conta
+                  </span>
+                </h1>
+                <p
+                  className="text-base leading-relaxed"
+                  style={{ color: LOGIN_MUTED }}
+                >
+                  Preencha seus dados para começar.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                  Bem-vindo de volta!
+                </h1>
+                <p className="text-base text-muted-foreground">
+                  Entre para continuar organizando seus estudos
+                </p>
+              </>
+            )}
+          </div>
+          <div className="space-y-6">
+            <ErrorMessage message={error} variant="error" />
+
+            {!isLogin && (
+              <div
+                className="flex items-start gap-2 rounded-xl border px-3 py-2.5"
+                style={{
+                  borderColor: "rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.04)",
+                }}
+              >
+                <AlertCircle
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                  style={{ color: LOGIN_GREEN }}
+                  aria-hidden
+                />
+                <p
+                  className="text-left text-xs leading-relaxed"
+                  style={{ color: LOGIN_MUTED }}
+                >
+                  Campos marcados com{" "}
+                  <span
+                    style={{ color: LOGIN_ERROR }}
+                    className="font-semibold"
                   >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-current/20 text-xs">
-                      2
-                    </span>
-                    Senha
-                  </button>
-                </div>
-              )}
+                    *
+                  </span>{" "}
+                  são obrigatórios
+                </p>
+              </div>
+            )}
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {!isLogin && signupStep === 1 && (
-                  <>
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="name"
-                        className="text-sm font-medium text-foreground"
-                      >
-                        Nome completo{" "}
-                        <span className="text-destructive">*</span>
-                      </label>
-                      <div className="relative">
-                        <Input
-                          id="name"
-                          type="text"
-                          placeholder="Seu nome completo"
-                          value={name}
-                          onChange={(e) => {
-                            setName(e.target.value);
-                            if (fieldErrors.name) {
-                              setFieldErrors((prev) => ({
-                                ...prev,
-                                name: undefined,
-                              }));
-                            }
-                          }}
-                          required={!isLogin}
-                          className={`pl-11 h-11 ${
-                            fieldErrors.name
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }`}
-                        />
-                        <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      </div>
-                      {fieldErrors.name && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {fieldErrors.name}
-                        </p>
-                      )}
-                    </div>
-
-                    {!isLogin && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label
-                            htmlFor="curso"
-                            className="text-sm font-medium"
-                          >
-                            Curso{" "}
-                            <span className="text-muted-foreground text-xs">
-                              (opcional)
-                            </span>
-                          </label>
-                          <div className="relative">
-                            <Input
-                              id="curso"
-                              type="text"
-                              placeholder="Ex: Engenharia"
-                              value={curso}
-                              onChange={(e) => {
-                                setCurso(e.target.value);
-                                if (fieldErrors.curso) {
-                                  setFieldErrors((prev) => ({
-                                    ...prev,
-                                    curso: undefined,
-                                  }));
-                                }
-                              }}
-                              className={`pl-11 h-11 ${
-                                fieldErrors.curso
-                                  ? "border-destructive focus-visible:ring-destructive"
-                                  : ""
-                              }`}
-                            />
-                            <BookOpen className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          </div>
-                          {fieldErrors.curso && (
-                            <p className="text-xs text-destructive flex items-center gap-1">
-                              <AlertCircle className="h-3 w-3" />
-                              {fieldErrors.curso}
-                            </p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <label
-                            htmlFor="periodo"
-                            className="text-sm font-medium"
-                          >
-                            Período{" "}
-                            <span className="text-muted-foreground text-xs">
-                              (opcional)
-                            </span>
-                          </label>
-                          <div className="relative">
-                            <Input
-                              id="periodo"
-                              type="number"
-                              placeholder="Ex: 8"
-                              value={periodo}
-                              onChange={(e) => {
-                                setPeriodo(e.target.value);
-                                if (fieldErrors.periodo) {
-                                  setFieldErrors((prev) => ({
-                                    ...prev,
-                                    periodo: undefined,
-                                  }));
-                                }
-                              }}
-                              min="1"
-                              max="20"
-                              className={`pl-11 h-11 ${
-                                fieldErrors.periodo
-                                  ? "border-destructive focus-visible:ring-destructive"
-                                  : ""
-                              }`}
-                            />
-                            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          </div>
-                          {fieldErrors.periodo && (
-                            <p className="text-xs text-destructive flex items-center gap-1">
-                              <AlertCircle className="h-3 w-3" />
-                              {fieldErrors.periodo}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+            {!isLogin && (
+              <div
+                className="flex gap-2 rounded-xl border p-1.5"
+                style={{
+                  borderColor: "rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.03)",
+                }}
+                role="tablist"
+                aria-label="Passos do cadastro"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={signupStep === 1}
+                  onClick={() => setSignupStep(1)}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors",
+                    signupStep === 1
+                      ? "text-white shadow-md"
+                      : "text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-200",
+                  )}
+                  style={
+                    signupStep === 1
+                      ? { backgroundColor: LOGIN_GREEN }
+                      : undefined
+                  }
+                >
+                  <span
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full text-xs",
+                      signupStep === 1 ? "bg-white/20" : "bg-white/10",
                     )}
+                  >
+                    1
+                  </span>
+                  Dados e email
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={signupStep === 2}
+                  onClick={() =>
+                    signupStep === 1 && validateStep1() && setSignupStep(2)
+                  }
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors",
+                    signupStep === 2
+                      ? "text-white shadow-md"
+                      : "text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-200",
+                  )}
+                  style={
+                    signupStep === 2
+                      ? { backgroundColor: LOGIN_GREEN }
+                      : undefined
+                  }
+                >
+                  <span
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full text-xs",
+                      signupStep === 2 ? "bg-white/20" : "bg-white/10",
+                    )}
+                  >
+                    2
+                  </span>
+                  Senha
+                </button>
+              </div>
+            )}
 
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="email"
-                        className="text-sm font-medium text-foreground"
-                      >
-                        Email <span className="text-destructive">*</span>
-                      </label>
-                      <div className="relative">
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="seu@email.com"
-                          value={email}
-                          onChange={(e) => {
-                            setEmail(e.target.value);
-                            if (fieldErrors.email) {
-                              setFieldErrors((prev) => ({
-                                ...prev,
-                                email: undefined,
-                              }));
-                            }
-                          }}
-                          required
-                          className={`pl-11 h-11 ${
-                            fieldErrors.email
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }`}
-                        />
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      </div>
-                      {fieldErrors.email && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {fieldErrors.email}
-                        </p>
-                      )}
-                    </div>
-
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        if (validateStep1()) setSignupStep(2);
-                      }}
-                      className="w-full h-11 text-base font-medium"
-                    >
-                      Próximo
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-
-                {isLogin && (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {!isLogin && signupStep === 1 && (
+                <>
                   <div className="space-y-2">
                     <label
-                      htmlFor="email"
-                      className="text-sm font-medium text-foreground"
+                      htmlFor="name"
+                      className="text-sm font-medium"
+                      style={{ color: LOGIN_MUTED }}
                     >
-                      Email <span className="text-destructive">*</span>
+                      Nome completo{" "}
+                      <span style={{ color: LOGIN_ERROR }}>*</span>
                     </label>
-                    <div className="relative">
-                      <Input
-                        id="email"
+                    <div
+                      className={signupFieldShell(Boolean(fieldErrors.name))}
+                    >
+                      <GraduationCap
+                        className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                        style={{ color: LOGIN_GREEN }}
+                        aria-hidden
+                      />
+                      <input
+                        id="name"
+                        type="text"
+                        placeholder="Seu nome completo"
+                        value={name}
+                        onChange={(e) => {
+                          setName(e.target.value);
+                          if (fieldErrors.name) {
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              name: undefined,
+                            }));
+                          }
+                        }}
+                        onFocus={() => setSignupFieldFocus("email")}
+                        onBlur={() => setSignupFieldFocus(null)}
+                        required
+                        className={signupNativeInputClass}
+                        style={{ color: LOGIN_TEXT }}
+                      />
+                    </div>
+                    {fieldErrors.name ? (
+                      <p className="text-xs" style={{ color: LOGIN_ERROR }}>
+                        {fieldErrors.name}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="curso"
+                        className="text-sm font-medium"
+                        style={{ color: LOGIN_MUTED }}
+                      >
+                        Curso{" "}
+                        <span className="text-xs opacity-80">(opcional)</span>
+                      </label>
+                      <div
+                        className={signupFieldShell(Boolean(fieldErrors.curso))}
+                      >
+                        <BookOpen
+                          className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                          style={{ color: LOGIN_GREEN }}
+                          aria-hidden
+                        />
+                        <input
+                          id="curso"
+                          type="text"
+                          placeholder="Ex.: Engenharia"
+                          value={curso}
+                          onChange={(e) => {
+                            setCurso(e.target.value);
+                            if (fieldErrors.curso) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                curso: undefined,
+                              }));
+                            }
+                          }}
+                          onFocus={() => setSignupFieldFocus("email")}
+                          onBlur={() => setSignupFieldFocus(null)}
+                          className={signupNativeInputClass}
+                          style={{ color: LOGIN_TEXT }}
+                        />
+                      </div>
+                      {fieldErrors.curso ? (
+                        <p className="text-xs" style={{ color: LOGIN_ERROR }}>
+                          {fieldErrors.curso}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="periodo"
+                        className="text-sm font-medium"
+                        style={{ color: LOGIN_MUTED }}
+                      >
+                        Período{" "}
+                        <span className="text-xs opacity-80">(opcional)</span>
+                      </label>
+                      <div
+                        className={signupFieldShell(
+                          Boolean(fieldErrors.periodo),
+                        )}
+                      >
+                        <Calendar
+                          className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                          style={{ color: LOGIN_GREEN }}
+                          aria-hidden
+                        />
+                        <input
+                          id="periodo"
+                          type="number"
+                          placeholder="Ex.: 8"
+                          value={periodo}
+                          onChange={(e) => {
+                            setPeriodo(e.target.value);
+                            if (fieldErrors.periodo) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                periodo: undefined,
+                              }));
+                            }
+                          }}
+                          onFocus={() => setSignupFieldFocus("email")}
+                          onBlur={() => setSignupFieldFocus(null)}
+                          min={1}
+                          max={20}
+                          className={cn(signupNativeInputClass, "pr-1")}
+                          style={{ color: LOGIN_TEXT }}
+                        />
+                      </div>
+                      {fieldErrors.periodo ? (
+                        <p className="text-xs" style={{ color: LOGIN_ERROR }}>
+                          {fieldErrors.periodo}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="signup-email"
+                      className="text-sm font-medium"
+                      style={{ color: LOGIN_MUTED }}
+                    >
+                      E-mail <span style={{ color: LOGIN_ERROR }}>*</span>
+                    </label>
+                    <div
+                      className={signupFieldShell(Boolean(fieldErrors.email))}
+                    >
+                      <Mail
+                        className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                        style={{ color: LOGIN_GREEN }}
+                        aria-hidden
+                      />
+                      <input
+                        id="signup-email"
                         type="email"
                         placeholder="seu@email.com"
                         value={email}
                         onChange={(e) => {
                           setEmail(e.target.value);
-                          if (fieldErrors.email)
+                          if (fieldErrors.email) {
                             setFieldErrors((prev) => ({
                               ...prev,
                               email: undefined,
                             }));
+                          }
                         }}
+                        onFocus={() => setSignupFieldFocus("email")}
+                        onBlur={() => setSignupFieldFocus(null)}
                         required
-                        className={`pl-11 h-11 ${
-                          fieldErrors.email
-                            ? "border-destructive focus-visible:ring-destructive"
-                            : "dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:focus-visible:border-zinc-500"
-                        }`}
+                        autoComplete="email"
+                        className={signupNativeInputClass}
+                        style={{ color: LOGIN_TEXT }}
                       />
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     </div>
-                    {fieldErrors.email && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.email ? (
+                      <p className="text-xs" style={{ color: LOGIN_ERROR }}>
                         {fieldErrors.email}
                       </p>
-                    )}
+                    ) : null}
                   </div>
-                )}
 
-                {(isLogin || signupStep === 2) && (
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      if (validateStep1()) setSignupStep(2);
+                    }}
+                    whileHover={{ scale: 1.015 }}
+                    whileTap={{ scale: 0.99 }}
+                    className="flex h-[52px] w-full items-center justify-between gap-3 rounded-xl px-5 text-[15px] font-semibold text-white transition-shadow"
+                    style={{
+                      background: LOGIN_GREEN,
+                      boxShadow: `0 0 24px ${LOGIN_GLOW}`,
+                    }}
+                  >
+                    <span className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:justify-start">
+                      Próximo
+                    </span>
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/25"
+                      aria-hidden
+                    >
+                      <ArrowRight className="h-5 w-5" strokeWidth={2.25} />
+                    </span>
+                  </motion.button>
+                </>
+              )}
+
+              {isLogin && (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="email"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    E-mail <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (fieldErrors.email)
+                          setFieldErrors((prev) => ({
+                            ...prev,
+                            email: undefined,
+                          }));
+                      }}
+                      required
+                      className={`pl-11 h-11 ${
+                        fieldErrors.email
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : "dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:focus-visible:border-zinc-500"
+                      }`}
+                    />
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  </div>
+                  {fieldErrors.email && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {fieldErrors.email}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isLogin && (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="password"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Senha <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (fieldErrors.password) {
+                          setFieldErrors((prev) => ({
+                            ...prev,
+                            password: undefined,
+                          }));
+                        }
+                      }}
+                      required
+                      minLength={6}
+                      className={`h-11 pl-11 pr-11 ${
+                        fieldErrors.password
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : "dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:focus-visible:border-zinc-500"
+                      }`}
+                    />
+                    <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {fieldErrors.password ? (
+                    <p className="flex items-center gap-1 text-xs text-destructive">
+                      <AlertCircle className="h-3 w-3" />
+                      {fieldErrors.password}
+                    </p>
+                  ) : null}
+                  <div>
+                    <Link
+                      href="/esqueci-senha"
+                      className="text-xs font-medium transition-colors hover:underline"
+                      style={{ color: LOGIN_GREEN }}
+                    >
+                      Esqueci minha senha
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {!isLogin && signupStep === 2 && (
+                <>
                   <div className="space-y-2">
                     <label
                       htmlFor="password"
-                      className="text-sm font-medium text-foreground"
+                      className="text-sm font-medium"
+                      style={{ color: LOGIN_MUTED }}
                     >
-                      Senha <span className="text-destructive">*</span>
+                      Senha <span style={{ color: LOGIN_ERROR }}>*</span>
                     </label>
-                    <div className="relative">
-                      <Input
+                    <div
+                      className={signupFieldShell(
+                        Boolean(fieldErrors.password),
+                      )}
+                    >
+                      <Lock
+                        className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                        style={{ color: LOGIN_GREEN }}
+                        aria-hidden
+                      />
+                      <input
                         id="password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        placeholder="Crie uma senha segura"
                         value={password}
                         onChange={(e) => {
                           setPassword(e.target.value);
@@ -997,21 +1287,22 @@ export default function LoginPage() {
                             }));
                           }
                         }}
+                        onFocus={() => setSignupFieldFocus("password")}
+                        onBlur={() => setSignupFieldFocus(null)}
                         required
                         minLength={6}
-                        className={`pl-11 pr-11 h-11 ${
-                          fieldErrors.password
-                            ? "border-destructive focus-visible:ring-destructive"
-                            : isLogin
-                              ? "dark:border-zinc-700/80 dark:bg-zinc-900/50 dark:focus-visible:border-zinc-500"
-                              : ""
-                        }`}
+                        autoComplete="new-password"
+                        className={cn(signupNativeInputClass, "pr-1")}
+                        style={{ color: LOGIN_TEXT }}
                       />
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        className="shrink-0 p-1.5 opacity-65 transition hover:opacity-100"
+                        style={{ color: LOGIN_MUTED }}
+                        aria-label={
+                          showPassword ? "Ocultar senha" : "Mostrar senha"
+                        }
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -1020,96 +1311,62 @@ export default function LoginPage() {
                         )}
                       </button>
                     </div>
-                    {fieldErrors.password && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.password ? (
+                      <p className="text-xs" style={{ color: LOGIN_ERROR }}>
                         {fieldErrors.password}
                       </p>
-                    )}
-                    {!isLogin && (
-                      <ul className="text-xs space-y-1 mt-2">
+                    ) : null}
+                    <ul className="mt-2 space-y-1 text-xs">
+                      {(
+                        [
+                          [passwordRules.minLength, "Mínimo de 6 caracteres"],
+                          [passwordRules.hasNumber, "Pelo menos um número"],
+                          [
+                            passwordRules.hasUppercase,
+                            "Pelo menos uma letra maiúscula",
+                          ],
+                          [
+                            passwordRules.hasSpecial,
+                            "Pelo menos um caractere especial (!@#$%...)",
+                          ],
+                        ] as const
+                      ).map(([ok, text]) => (
                         <li
-                          className={`flex items-center gap-2 ${passwordRules.minLength ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
+                          key={text}
+                          className="flex items-center gap-2"
+                          style={{ color: ok ? LOGIN_GREEN : LOGIN_MUTED }}
                         >
                           <span
-                            className={
-                              passwordRules.minLength
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-destructive"
-                            }
+                            style={{ color: ok ? LOGIN_GREEN : LOGIN_ERROR }}
                           >
-                            {passwordRules.minLength ? "✓" : "•"}
+                            {ok ? "✓" : "•"}
                           </span>
-                          Mínimo de 6 caracteres
+                          {text}
                         </li>
-                        <li
-                          className={`flex items-center gap-2 ${passwordRules.hasNumber ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
-                        >
-                          <span
-                            className={
-                              passwordRules.hasNumber
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-destructive"
-                            }
-                          >
-                            {passwordRules.hasNumber ? "✓" : "•"}
-                          </span>
-                          Pelo menos um número
-                        </li>
-                        <li
-                          className={`flex items-center gap-2 ${passwordRules.hasUppercase ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
-                        >
-                          <span
-                            className={
-                              passwordRules.hasUppercase
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-destructive"
-                            }
-                          >
-                            {passwordRules.hasUppercase ? "✓" : "•"}
-                          </span>
-                          Pelo menos uma letra maiúscula
-                        </li>
-                        <li
-                          className={`flex items-center gap-2 ${passwordRules.hasSpecial ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
-                        >
-                          <span
-                            className={
-                              passwordRules.hasSpecial
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-destructive"
-                            }
-                          >
-                            {passwordRules.hasSpecial ? "✓" : "•"}
-                          </span>
-                          Pelo menos um caractere especial (!@#$%...)
-                        </li>
-                      </ul>
-                    )}
-                    {isLogin && (
-                      <div>
-                        <Link
-                          href="/esqueci-senha"
-                          className="text-xs text-primary hover:underline font-medium transition-colors"
-                        >
-                          Esqueci minha senha
-                        </Link>
-                      </div>
-                    )}
+                      ))}
+                    </ul>
                   </div>
-                )}
 
-                {!isLogin && signupStep === 2 && (
                   <div className="space-y-2">
                     <label
                       htmlFor="confirmPassword"
-                      className="text-sm font-medium text-foreground"
+                      className="text-sm font-medium"
+                      style={{ color: LOGIN_MUTED }}
                     >
                       Confirmar senha{" "}
-                      <span className="text-destructive">*</span>
+                      <span style={{ color: LOGIN_ERROR }}>*</span>
                     </label>
-                    <div className="relative">
-                      <Input
+                    <div
+                      className={signupFieldShell(
+                        Boolean(fieldErrors.confirmPassword),
+                      )}
+                    >
+                      <Lock
+                        className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                        style={{ color: LOGIN_GREEN }}
+                        aria-hidden
+                      />
+                      <input
                         id="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="Repita a senha"
@@ -1123,20 +1380,25 @@ export default function LoginPage() {
                             }));
                           }
                         }}
-                        required={!isLogin}
-                        className={`pl-11 pr-11 h-11 ${
-                          fieldErrors.confirmPassword
-                            ? "border-destructive focus-visible:ring-destructive"
-                            : ""
-                        }`}
+                        onFocus={() => setSignupFieldFocus("password")}
+                        onBlur={() => setSignupFieldFocus(null)}
+                        required
+                        autoComplete="new-password"
+                        className={cn(signupNativeInputClass, "pr-1")}
+                        style={{ color: LOGIN_TEXT }}
                       />
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <button
                         type="button"
                         onClick={() =>
                           setShowConfirmPassword(!showConfirmPassword)
                         }
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        className="shrink-0 p-1.5 opacity-65 transition hover:opacity-100"
+                        style={{ color: LOGIN_MUTED }}
+                        aria-label={
+                          showConfirmPassword
+                            ? "Ocultar confirmação"
+                            : "Mostrar confirmação"
+                        }
                       >
                         {showConfirmPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -1145,196 +1407,197 @@ export default function LoginPage() {
                         )}
                       </button>
                     </div>
-                    {fieldErrors.confirmPassword && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.confirmPassword ? (
+                      <p className="text-xs" style={{ color: LOGIN_ERROR }}>
                         {fieldErrors.confirmPassword}
                       </p>
-                    )}
+                    ) : null}
                   </div>
-                )}
 
-                {!isLogin && signupStep === 2 && (
                   <div className="flex gap-3 pt-2">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setSignupStep(1)}
-                      className="flex-1 h-11"
+                      className="h-[52px] flex-1 border-white/15 bg-transparent hover:bg-white/[0.06]"
                     >
                       <ChevronLeft className="mr-2 h-4 w-4" />
                       Voltar
                     </Button>
+                    <motion.button
+                      type="submit"
+                      disabled={loading}
+                      whileHover={loading ? undefined : { scale: 1.02 }}
+                      whileTap={loading ? undefined : { scale: 0.99 }}
+                      className="flex h-[52px] min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold text-white transition-shadow disabled:opacity-60"
+                      style={{
+                        background: LOGIN_GREEN,
+                        boxShadow: `0 0 24px ${LOGIN_GLOW}`,
+                      }}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                          Criando conta…
+                        </>
+                      ) : (
+                        "Criar conta"
+                      )}
+                    </motion.button>
+                  </div>
+                </>
+              )}
+
+              {showMfaInput && (
+                <div className="space-y-4 p-5 rounded-lg bg-primary/5 border-2 border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Shield className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground mb-1">
+                        Verificação de Segurança (2FA)
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Abra seu aplicativo autenticador e digite o código de 6
+                        dígitos
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="mfaCode"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Código de Verificação{" "}
+                      <span className="text-destructive">*</span>
+                    </label>
+                    <div className="relative">
+                      <Input
+                        id="mfaCode"
+                        type="text"
+                        placeholder="000000"
+                        value={mfaCode}
+                        onChange={(e) => {
+                          setMfaCode(
+                            e.target.value.replace(/\D/g, "").slice(0, 6),
+                          );
+                          setError(null);
+                        }}
+                        maxLength={6}
+                        required
+                        className="pl-11 pr-11 text-center text-xl tracking-[0.3em] h-12 font-mono"
+                        autoFocus
+                      />
+                      <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> O código expira em
+                      alguns segundos. Se necessário, gere um novo código no seu
+                      app.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMfaInput(false);
+                      setMfaCode("");
+                      setMfaFactorId(null);
+                      setMfaChallengeId(null);
+                      setError(null);
+                      setPassword("");
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground underline w-full text-center"
+                  >
+                    Voltar ao login
+                  </button>
+                </div>
+              )}
+
+              {isLogin && (
+                <div className="pt-2">
+                  {showMfaInput ? (
+                    <Button
+                      type="button"
+                      onClick={handleMfaVerify}
+                      className="w-full h-11 text-base font-medium"
+                      disabled={mfaVerifying || !mfaCode.trim()}
+                    >
+                      {mfaVerifying ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verificando...
+                        </>
+                      ) : (
+                        "Verificar e Entrar"
+                      )}
+                    </Button>
+                  ) : (
                     <Button
                       type="submit"
-                      className="flex-1 h-11 text-base font-medium"
+                      className="h-11 w-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-colors hover:bg-primary/90 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                       disabled={loading}
                     >
                       {loading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Criando conta...
+                          Entrando...
                         </>
                       ) : (
-                        "Criar conta"
+                        "Entrar"
                       )}
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
-                {showMfaInput && (
-                  <div className="space-y-4 p-5 rounded-lg bg-primary/5 border-2 border-primary/20">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Shield className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-1">
-                          Verificação de Segurança (2FA)
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Abra seu aplicativo autenticador e digite o código de
-                          6 dígitos
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="mfaCode"
-                        className="text-sm font-medium text-foreground"
-                      >
-                        Código de Verificação{" "}
-                        <span className="text-destructive">*</span>
-                      </label>
-                      <div className="relative">
-                        <Input
-                          id="mfaCode"
-                          type="text"
-                          placeholder="000000"
-                          value={mfaCode}
-                          onChange={(e) => {
-                            setMfaCode(
-                              e.target.value.replace(/\D/g, "").slice(0, 6),
-                            );
-                            setError(null);
-                          }}
-                          maxLength={6}
-                          required
-                          className="pl-11 pr-11 text-center text-xl tracking-[0.3em] h-12 font-mono"
-                          autoFocus
-                        />
-                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" /> O código expira em
-                        alguns segundos. Se necessário, gere um novo código no
-                        seu app.
-                      </p>
-                    </div>
+              <div className="pt-2 text-center text-sm">
+                {isLogin ? (
+                  <p style={{ color: LOGIN_MUTED }}>
+                    Não tem uma conta?{" "}
                     <button
                       type="button"
                       onClick={() => {
-                        setShowMfaInput(false);
-                        setMfaCode("");
-                        setMfaFactorId(null);
-                        setMfaChallengeId(null);
+                        setIsLogin(false);
                         setError(null);
-                        setPassword("");
+                        setMessage(null);
+                        setFieldErrors({});
+                        setSignupStep(1);
                       }}
-                      className="text-xs text-muted-foreground hover:text-foreground underline w-full text-center"
+                      className="font-semibold transition-colors hover:underline"
+                      style={{ color: LOGIN_GREEN }}
                     >
-                      Voltar ao login
+                      Criar conta
                     </button>
-                  </div>
+                  </p>
+                ) : (
+                  <p style={{ color: LOGIN_MUTED }}>
+                    Já tem uma conta?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLogin(true);
+                        setError(null);
+                        setMessage(null);
+                        setFieldErrors({});
+                        setName("");
+                        setCurso("");
+                        setPeriodo("");
+                        setConfirmPassword("");
+                        setSignupStep(1);
+                      }}
+                      className="font-semibold transition-colors hover:underline"
+                      style={{ color: LOGIN_GREEN }}
+                    >
+                      Fazer login
+                    </button>
+                  </p>
                 )}
-
-                {isLogin && (
-                  <div className="pt-2">
-                    {showMfaInput ? (
-                      <Button
-                        type="button"
-                        onClick={handleMfaVerify}
-                        className="w-full h-11 text-base font-medium"
-                        disabled={mfaVerifying || !mfaCode.trim()}
-                      >
-                        {mfaVerifying ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Verificando...
-                          </>
-                        ) : (
-                          "Verificar e Entrar"
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="submit"
-                        className="h-11 w-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-colors hover:bg-primary/90 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Entrando...
-                          </>
-                        ) : (
-                          "Entrar"
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                <div className="text-center text-sm pt-2">
-                  {isLogin ? (
-                    <p className="text-muted-foreground">
-                      Não tem uma conta?{" "}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsLogin(false);
-                          setError(null);
-                          setMessage(null);
-                          setFieldErrors({});
-                          setSignupStep(1);
-                        }}
-                        className="text-primary hover:underline font-semibold transition-colors"
-                      >
-                        Criar conta
-                      </button>
-                    </p>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      Já tem uma conta?{" "}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsLogin(true);
-                          setError(null);
-                          setMessage(null);
-                          setFieldErrors({});
-                          setName("");
-                          setCurso("");
-                          setPeriodo("");
-                          setConfirmPassword("");
-                          setSignupStep(1);
-                        }}
-                        className="text-primary hover:underline font-semibold transition-colors"
-                      >
-                        Fazer login
-                      </button>
-                    </p>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+            </form>
+          </div>
+        </motion.div>
       </div>
-
-      <div className="fixed bottom-6 right-6 z-50">
-        <ThemeToggle variant="floating" syncThemeToServer={false} />
-      </div>
-    </div>
+    </AuthModernShell>
   );
 }

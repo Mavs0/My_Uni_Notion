@@ -11,11 +11,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
-  FileText,
   User,
   ChevronRight,
   Clock,
-  Trophy,
+  Sparkles,
+  BarChart3,
+  ArrowRight,
 } from "lucide-react";
 import {
   LineChart,
@@ -27,18 +28,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { Disciplina } from "@/hooks/useDisciplinasOptimized";
 import type { Avaliacao } from "@/hooks/useAvaliacoesOptimized";
-import { useI18n } from "@/lib/i18n/context";
+import { LOGIN_GREEN, LOGIN_GLOW } from "@/components/auth/login-modern/theme";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
 
@@ -53,11 +47,15 @@ type PrioridadeItem = {
   disciplinaId?: string;
 };
 
-interface DashboardLayoutNewProps {
+export interface DashboardLayoutNewProps {
   greeting: string;
   nomeUsuario: string;
   dataHoje: string;
-  totalDisciplinas: number;
+  /** Tarefas com vencimento hoje (não concluídas). */
+  tarefasHojeCount: number;
+  /** Avaliações com data de amanhã. */
+  avaliacoesAmanhaCount: number;
+  /** Avaliações próximas (filtro da página, ex.: próximos 7 dias). */
   totalAvaliacoesSemana: number;
   aulasHoje: number;
   horasEstudadas: string;
@@ -76,10 +74,14 @@ interface DashboardLayoutNewProps {
   }>;
   estatisticas: {
     horasPorSemana?: Array<{ semana: string; horas: number }>;
+    produtividade?: {
+      tarefasConcluidas: number;
+      tarefasTotal: number;
+      taxaConclusao: number;
+    };
   } | null;
   loadingEstatisticas: boolean;
   profileData: { nome?: string; email?: string; avatar_url?: string } | null;
-  avaliacoes: Avaliacao[];
   eventosSemana: Array<{
     id: string;
     tipo: "avaliacao" | "aula";
@@ -99,36 +101,58 @@ function daysUntil(dtISO: string) {
   );
 }
 
+function parseHM(s: string) {
+  const [h, m] = s.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+function slotProgressPercent(inicio: string, fim: string): number {
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+  const a = parseHM(inicio);
+  const b = parseHM(fim);
+  if (b <= a || nowM < a || nowM > b) return 0;
+  return Math.round(((nowM - a) / (b - a)) * 100);
+}
+
+function isSlotNow(inicio: string, fim: string): boolean {
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+  return nowM >= parseHM(inicio) && nowM <= parseHM(fim);
+}
+
 function tipoBadge(tipo: "prova" | "trabalho" | "seminario") {
   const map = {
-    prova: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
-    trabalho: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+    prova: "bg-red-500/15 text-red-400 border-red-500/30",
+    trabalho: "bg-blue-500/15 text-blue-400 border-blue-500/30",
     seminario:
-      "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   };
   return `rounded px-2 py-0.5 text-xs border capitalize ${map[tipo]}`;
 }
 
-function tipoDisciplinaLabel(
-  tipo: "obrigatoria" | "eletiva" | "optativa",
-  locale: string,
-) {
-  if (locale === "pt-BR") {
-    const m = {
-      obrigatoria: "Obrigatória",
-      eletiva: "Eletiva",
-      optativa: "Optativa",
-    };
-    return m[tipo];
-  }
-  return tipo;
+function tipoDisciplinaLabel(tipo: "obrigatoria" | "eletiva" | "optativa") {
+  const m = {
+    obrigatoria: "Obrigatória",
+    eletiva: "Eletiva",
+    optativa: "Optativa",
+  };
+  return m[tipo];
+}
+
+function tipoDisciplinaStyle(tipo: "obrigatoria" | "eletiva" | "optativa") {
+  const map = {
+    obrigatoria: "border-sky-500/40 bg-sky-500/10 text-sky-300",
+    eletiva: "border-violet-500/40 bg-violet-500/10 text-violet-300",
+    optativa: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+  };
+  return map[tipo];
 }
 
 export function DashboardLayoutNew({
   greeting,
   nomeUsuario,
   dataHoje,
-  totalDisciplinas,
+  tarefasHojeCount,
+  avaliacoesAmanhaCount,
   totalAvaliacoesSemana,
   aulasHoje,
   horasEstudadas,
@@ -142,419 +166,215 @@ export function DashboardLayoutNew({
   estatisticas,
   loadingEstatisticas,
   profileData,
-  avaliacoes,
   eventosSemana,
   disciplinas,
 }: DashboardLayoutNewProps) {
-  const { t, locale } = useI18n();
-  const chartData = estatisticas?.horasPorSemana || [];
+  const primeiroNome = nomeUsuario.split(/\s+/)[0] ?? nomeUsuario;
+
+  const resumoLinha = useMemo(() => {
+    const parts: string[] = [];
+    if (tarefasHojeCount > 0) {
+      parts.push(
+        `${tarefasHojeCount} ${tarefasHojeCount === 1 ? "tarefa" : "tarefas"} hoje`,
+      );
+    }
+    if (avaliacoesAmanhaCount > 0) {
+      parts.push(
+        `${avaliacoesAmanhaCount} ${avaliacoesAmanhaCount === 1 ? "avaliação" : "avaliações"} amanhã`,
+      );
+    }
+    if (parts.length === 0) {
+      return "Organize seu dia e acompanhe sua agenda acadêmica.";
+    }
+    return `Você tem ${parts.join(" e ")}.`;
+  }, [tarefasHojeCount, avaliacoesAmanhaCount]);
+
+  const chartDataRaw = estatisticas?.horasPorSemana || [];
+  const chartData = useMemo(() => {
+    const slice = chartDataRaw.slice(-7);
+    return slice.map((row, i) => ({
+      ...row,
+      label: row.semana?.includes("W")
+        ? `S${row.semana.split("W")[1] ?? i + 1}`
+        : `${i + 1}`,
+    }));
+  }, [chartDataRaw]);
+
+  const prod = estatisticas?.produtividade;
 
   const disciplinasAtivas = useMemo(
     () => disciplinas.filter((d) => d.ativo !== false),
     [disciplinas],
   );
 
-  const tipoDistrib = useMemo(() => {
-    const o = { obrigatoria: 0, eletiva: 0, optativa: 0 };
-    disciplinasAtivas.forEach((d) => {
-      if (d.tipo in o) o[d.tipo as keyof typeof o]++;
-    });
-    const total = o.obrigatoria + o.eletiva + o.optativa;
-    return { o, total };
-  }, [disciplinasAtivas]);
+  const atasSemanaResumo = `${prod?.tarefasConcluidas ?? 0} de ${prod?.tarefasTotal ?? 0}`;
 
-  const destacadas = useMemo(
-    () =>
-      [...disciplinasAtivas]
-        .sort((a, b) => (b.horasSemana ?? 0) - (a.horasSemana ?? 0))
-        .slice(0, 5),
-    [disciplinasAtivas],
-  );
+  const glass =
+    "rounded-2xl border border-white/[0.08] bg-[rgba(18,18,18,0.55)] shadow-xl backdrop-blur-xl";
+
+  const statCardIcon =
+    "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12";
 
   const courseShell = (i: number) =>
     [
-      "border-emerald-500/25 bg-emerald-500/[0.07] dark:bg-emerald-950/35",
-      "border-sky-500/25 bg-sky-500/[0.07] dark:bg-sky-950/35",
-      "border-amber-500/25 bg-amber-500/[0.07] dark:bg-amber-950/35",
-      "border-teal-500/25 bg-teal-500/[0.07] dark:bg-teal-950/35",
+      "border-emerald-500/30 bg-emerald-500/[0.08]",
+      "border-sky-500/30 bg-sky-500/[0.08]",
+      "border-amber-500/30 bg-amber-500/[0.08]",
+      "border-violet-500/30 bg-violet-500/[0.08]",
     ][i % 4]!;
 
-  const dashCard =
-    "rounded-2xl border border-border/70 bg-card shadow-sm transition-[box-shadow,border-color] hover:shadow-md dark:border-border/50 dark:bg-card/90";
+  const dicaIA = useMemo(() => {
+    const h = new Date().getHours();
+    if (h >= 18 || h < 5)
+      return "Você costuma render melhor à noite — que tal revisar às 19h?";
+    if (h >= 12)
+      return "Boa hora para fechar tarefas leves e revisar anotações da manhã.";
+    return "Reserve este período para o conteúdo que pede mais foco.";
+  }, []);
 
-  const atividadesLista = (
-    <Card className={dashCard}>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold tracking-tight">
-          {locale === "pt-BR" ? "Tarefas do dia" : "Today's tasks"}
-        </CardTitle>
-        <CardDescription>
-          {locale === "pt-BR"
-            ? "Aulas na grade e prioridades"
-            : "Schedule and priorities"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loadingTarefas || loadingAv ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-16 animate-pulse rounded-xl bg-muted/50"
-              />
-            ))}
-          </div>
-        ) : prioridadesHoje.length === 0 && hojeNaGrade.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            {t.dashboard.semAulasHoje}
-          </p>
-        ) : (
-          <ul className="max-h-[min(420px,55vh)] space-y-2 overflow-y-auto pr-1 [scrollbar-width:thin]">
-            {hojeNaGrade.slice(0, 6).map((aula) => (
-              <li key={aula.disciplinaId + aula.inicio}>
-                <div className="flex items-center gap-3 rounded-xl border border-border/60 p-3">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{aula.disciplina}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {aula.inicio} – {aula.fim}
-                      {aula.local ? ` · ${aula.local}` : ""}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/calendar">
-                      <Bell className="mr-1 h-4 w-4" />
-                      {locale === "pt-BR" ? "Lembrete" : "Reminder"}
-                    </Link>
-                  </Button>
-                </div>
-              </li>
-            ))}
-            {prioridadesHoje
-              .slice(0, Math.max(0, 6 - hojeNaGrade.length))
-              .map((item) => {
-                const isTarefa = item.type === "tarefa";
-                return (
-                  <li key={`${item.type}-${item.id}`}>
-                    <div className="flex items-center gap-3 rounded-xl border border-border/60 p-3">
-                      {isTarefa ? (
-                        <Checkbox
-                          checked={item.concluida}
-                          onCheckedChange={() =>
-                            toggleConcluida(item.id, !item.concluida)
-                          }
-                          className="shrink-0"
-                        />
-                      ) : (
-                        <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
-                      )}
-                      <Link
-                        href={
-                          isTarefa
-                            ? `/disciplinas/${item.disciplinaId}`
-                            : "/avaliacoes"
-                        }
-                        className="min-w-0 flex-1"
-                      >
-                        <p className="truncate font-medium">{item.titulo}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {item.subtitulo}
-                        </p>
-                      </Link>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/calendar">
-                          {locale === "pt-BR" ? "Lembrete" : "Reminder"}
-                        </Link>
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  const sidebarCol = (
-    <div className="space-y-8 lg:col-span-4">
-      <Card className={dashCard}>
-        <CardContent className="p-0">
-          <Link
-            href="/perfil"
-            className="flex items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-muted/40"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-500/10 ring-2 ring-emerald-500/20">
-              {profileData?.avatar_url ? (
-                <img
-                  src={profileData.avatar_url}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <User className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">
-                {profileData?.nome || nomeUsuario}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {profileData?.email || ""}
-              </p>
-            </div>
-          </Link>
-        </CardContent>
-      </Card>
-
-      <Card className={dashCard}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold tracking-tight">
-            {new Date().toLocaleDateString(
-              locale === "pt-BR" ? "pt-BR" : "en-US",
-              { month: "long", year: "numeric" },
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
-            {DIAS.map((d) => (
-              <div key={d} className="font-medium">
-                {d.slice(0, 3)}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {(() => {
-              const now = new Date();
-              const firstDay = new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                1,
-              ).getDay();
-              const daysInMonth = new Date(
-                now.getFullYear(),
-                now.getMonth() + 1,
-                0,
-              ).getDate();
-              return Array.from({ length: 42 }, (_, i) => {
-                const day = i - firstDay + 1;
-                const isCurrentMonth = day > 0 && day <= daysInMonth;
-                const isToday = isCurrentMonth && day === now.getDate();
-                const hasEvent =
-                  isCurrentMonth &&
-                  avaliacoes.some((a) => {
-                    const d = new Date(a.dataISO);
-                    return (
-                      d.getDate() === day && d.getMonth() === now.getMonth()
-                    );
-                  });
-                return (
-                  <div
-                    key={i}
-                    className={`flex aspect-square items-center justify-center rounded text-xs ${
-                      !isCurrentMonth
-                        ? "text-muted-foreground/40"
-                        : isToday
-                          ? "bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500"
-                          : hasEvent
-                            ? "border border-emerald-500/25 bg-emerald-500/10"
-                            : "text-foreground"
-                    }`}
-                  >
-                    {isCurrentMonth ? day : ""}
-                  </div>
-                );
-              });
-            })()}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className={dashCard}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold tracking-tight">
-            {locale === "pt-BR" ? "Próximos eventos" : "Upcoming events"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {eventosSemana.length === 0 ? (
-            <p className="py-2 text-sm text-muted-foreground">
-              {t.dashboard.nadaPorEnquanto}
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {eventosSemana.slice(0, 4).map((ev) => {
-                const d = new Date(ev.dataISO);
-                const timeStr = d.toLocaleTimeString(
-                  locale === "pt-BR" ? "pt-BR" : "en-US",
-                  { hour: "2-digit", minute: "2-digit" },
-                );
-                return (
-                  <li
-                    key={ev.id}
-                    className="border-b border-border/50 pb-2 last:border-0 last:pb-0"
-                  >
-                    <p className="text-xs text-muted-foreground">{timeStr}</p>
-                    <p className="truncate text-sm font-medium">{ev.titulo}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {ev.subtitulo}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className={dashCard}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-lg font-semibold tracking-tight">
-            {locale === "pt-BR" ? "Minhas notas" : "My notes"}
-          </CardTitle>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/disciplinas" className="gap-1">
-              <Plus className="h-4 w-4" />
-              {locale === "pt-BR" ? "Adicionar" : "Add"}
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            {locale === "pt-BR"
-              ? "Suas anotações por disciplina."
-              : "Your notes by subject."}
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 w-full justify-start"
-            asChild
-          >
-            <Link href="/disciplinas" className="gap-2">
-              <FileText className="h-4 w-4" />
-              {t.dashboard.verTodas}
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  const avaliacaoSubtitle = useMemo(() => {
+    if (avaliacoesAmanhaCount === 1) return "1 avaliação amanhã";
+    if (avaliacoesAmanhaCount > 1)
+      return `${avaliacoesAmanhaCount} avaliações amanhã`;
+    if (totalAvaliacoesSemana > 0)
+      return `${totalAvaliacoesSemana} na semana`;
+    return "Nenhuma próxima";
+  }, [avaliacoesAmanhaCount, totalAvaliacoesSemana]);
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-background">
-      <div className="mx-auto w-full max-w-[min(100%,1600px)] space-y-10 px-2 pb-14 pt-4 sm:px-4 lg:px-6">
-        {/* Hero + métricas */}
+    <div
+      className="min-h-[calc(100dvh-4rem)]"
+      style={{ backgroundColor: "#0a0a0a", color: "#fafafa" }}
+    >
+      <div className="mx-auto w-full max-w-[min(100%,1600px)] space-y-8 px-3 pb-16 pt-6 sm:px-5 lg:space-y-10 lg:px-8">
+        {/* Saudação + KPIs */}
         <section className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between xl:gap-12">
           <header className="min-w-0 flex-1">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-[2.5rem] lg:leading-[1.15]">
-              {greeting}, {nomeUsuario}!
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.35rem] lg:leading-tight">
+              {greeting}, {primeiroNome}!{" "}
+              <span className="inline-block" aria-hidden>
+                👋
+              </span>
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              {locale === "pt-BR"
-                ? "Mantenha o foco — aqui está o essencial do seu percurso acadêmico."
-                : "Stay focused — your academic essentials at a glance."}
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base">
+              {resumoLinha}
             </p>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">
+            <p className="mt-2 text-sm font-medium capitalize text-neutral-500">
               {dataHoje}
             </p>
           </header>
 
-          <div className="grid w-full max-w-4xl shrink-0 grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 xl:max-w-[44rem]">
-            <Card className={dashCard}>
-              <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 sm:h-12 sm:w-12">
-                  <BookOpen className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
+          <div className="grid w-full max-w-4xl shrink-0 grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 xl:max-w-[46rem]">
+            <div className={cn(glass, "p-4 sm:p-5")}>
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(statCardIcon, "bg-emerald-500/15")}
+                  style={{ color: LOGIN_GREEN }}
+                >
+                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-2xl font-bold tabular-nums sm:text-3xl">
-                    {totalDisciplinas}
+                    {disciplinasAtivas.length}
                   </p>
-                  <p className="text-[11px] text-muted-foreground sm:text-xs">
-                    {t.dashboard.resumoDisciplinas}
+                  <p className="text-[11px] leading-snug text-neutral-500 sm:text-xs">
+                    Disciplinas ativas
+                  </p>
+                  <p className="mt-1 text-[10px] text-neutral-600">
+                    Resumo das disciplinas
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-            <Card className={dashCard}>
-              <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 sm:h-12 sm:w-12">
-                  <GraduationCap className="h-5 w-5 text-amber-500 sm:h-6 sm:w-6" />
+              </div>
+            </div>
+            <div className={cn(glass, "p-4 sm:p-5")}>
+              <div className="flex items-start gap-3">
+                <div className={cn(statCardIcon, "bg-amber-500/15 text-amber-400")}>
+                  <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-2xl font-bold tabular-nums sm:text-3xl">
                     {totalAvaliacoesSemana}
                   </p>
-                  <p className="text-[11px] text-muted-foreground sm:text-xs">
-                    {t.dashboard.proximasAvaliacoes}
+                  <p className="text-[11px] leading-snug text-neutral-500 sm:text-xs">
+                    {avaliacaoSubtitle}
+                  </p>
+                  <p className="mt-1 text-[10px] text-neutral-600">
+                    Próximas avaliações
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-            <Card className={dashCard}>
-              <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 sm:h-12 sm:w-12">
-                  <Calendar className="h-5 w-5 text-blue-500 sm:h-6 sm:w-6" />
+              </div>
+            </div>
+            <div className={cn(glass, "p-4 sm:p-5")}>
+              <div className="flex items-start gap-3">
+                <div className={cn(statCardIcon, "bg-blue-500/15 text-blue-400")}>
+                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-2xl font-bold tabular-nums sm:text-3xl">
                     {aulasHoje}
                   </p>
-                  <p className="text-[11px] text-muted-foreground sm:text-xs">
-                    {t.dashboard.hojeNaGrade}
+                  <p className="text-[11px] leading-snug text-neutral-500 sm:text-xs">
+                    {aulasHoje === 1 ? "Aula hoje" : "Aulas hoje"}
+                  </p>
+                  <p className="mt-1 text-[10px] text-neutral-600">
+                    Hoje na grade
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-            <Card className={dashCard}>
-              <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 sm:h-12 sm:w-12">
-                  <TrendingUp className="h-5 w-5 text-emerald-500 sm:h-6 sm:w-6" />
+              </div>
+            </div>
+            <div className={cn(glass, "p-4 sm:p-5")}>
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(statCardIcon, "bg-emerald-500/15")}
+                  style={{ color: LOGIN_GREEN }}
+                >
+                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-2xl font-bold tabular-nums sm:text-3xl">
                     {horasEstudadas}
                   </p>
-                  <p className="text-[11px] text-muted-foreground sm:text-xs">
-                    {t.dashboard.progressoHoras}
+                  <p className="text-[11px] leading-snug text-neutral-500 sm:text-xs">
+                    Horas esta semana
+                  </p>
+                  <p className="mt-1 text-[10px] text-neutral-600">
+                    Progresso de horas
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Faixa 1 — Disciplinas (carrossel) + Agenda do dia (timeline) */}
-        <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-8">
+        {/* Disciplinas + Agenda */}
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
           <div className="min-w-0 lg:col-span-8">
-            <Card className={dashCard}>
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
+            <div className={glass}>
+              <div className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] p-5 pb-4">
                 <div>
-                  <CardTitle className="text-lg font-semibold tracking-tight">
-                    {locale === "pt-BR"
-                      ? "Minhas disciplinas"
-                      : "My courses"}
-                  </CardTitle>
-                  <CardDescription>
-                    {locale === "pt-BR"
-                      ? "Acesso rápido às suas disciplinas"
-                      : "Quick access to your subjects"}
-                  </CardDescription>
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    Minhas disciplinas
+                  </h2>
+                  <p className="text-sm text-neutral-500">
+                    Acesso rápido às suas disciplinas
+                  </p>
                 </div>
-                <Button variant="ghost" size="sm" className="shrink-0" asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-emerald-400 hover:bg-white/5 hover:text-emerald-300"
+                  asChild
+                >
                   <Link href="/disciplinas" className="gap-1">
-                    {locale === "pt-BR" ? "Ver todas" : "View all"}
+                    Ver todas
                     <ChevronRight className="h-4 w-4" />
                   </Link>
                 </Button>
-              </CardHeader>
-              <CardContent className="pt-0">
+              </div>
+              <div className="p-5 pt-4">
                 {disciplinasAtivas.length === 0 ? (
-                  <p className="py-10 text-center text-sm text-muted-foreground">
-                    {locale === "pt-BR"
-                      ? "Adicione disciplinas para ver o carrossel."
-                      : "Add courses to see them here."}
+                  <p className="py-10 text-center text-sm text-neutral-500">
+                    Adicione disciplinas para vê-las aqui.
                   </p>
                 ) : (
                   <div className="flex gap-4 overflow-x-auto pb-2 pt-1 [scrollbar-width:thin]">
@@ -568,307 +388,418 @@ export function DashboardLayoutNew({
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur">
-                            {tipoDisciplinaLabel(d.tipo, locale)}
+                          <span
+                            className={cn(
+                              "rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                              tipoDisciplinaStyle(d.tipo),
+                            )}
+                          >
+                            {tipoDisciplinaLabel(d.tipo)}
                           </span>
-                          <BookOpen className="h-5 w-5 shrink-0 opacity-70" />
+                          <BookOpen className="h-5 w-5 shrink-0 opacity-80" />
                         </div>
                         <p className="mt-3 line-clamp-2 text-base font-semibold leading-snug">
                           {d.nome}
                         </p>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {d.horasSemana ?? 0} h/sem
+                        <p className="mt-2 text-xs text-neutral-500">
+                          {d.horasSemana ?? 0} h/semana
                           {d.favorito ? " · ★" : ""}
                         </p>
                       </Link>
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           <div className="lg:col-span-4">
-            <Card className={cn(dashCard, "h-full")}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold tracking-tight">
-                  {locale === "pt-BR" ? "Agenda de hoje" : "Today's schedule"}
-                </CardTitle>
-                <CardDescription className="flex items-center gap-1.5">
+            <div className={cn(glass, "flex h-full flex-col")}>
+              <div className="border-b border-white/[0.06] p-5 pb-4">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Agenda de hoje
+                </h2>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
                   <Clock className="h-3.5 w-3.5" />
                   {dataHoje}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+                </p>
+              </div>
+              <div className="flex-1 p-5">
                 {hojeNaGrade.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-muted-foreground">
-                    {locale === "pt-BR"
-                      ? "Sem aulas na grade para hoje."
-                      : "No classes scheduled for today."}
+                  <p className="py-8 text-center text-sm text-neutral-500">
+                    Sem aulas na grade para hoje.
                   </p>
                 ) : (
-                  <div className="relative space-y-3 border-l-2 border-border/80 pl-4">
-                    {hojeNaGrade.map((aula, idx) => (
-                      <div
-                        key={aula.disciplinaId + aula.inicio}
-                        className={cn(
-                          "relative rounded-xl border p-3",
-                          idx % 2 === 0
-                            ? "border-emerald-500/25 bg-emerald-500/[0.06]"
-                            : "border-sky-500/25 bg-sky-500/[0.06]",
-                        )}
-                      >
-                        <p className="text-[11px] font-medium tabular-nums text-muted-foreground">
-                          {aula.inicio} – {aula.fim}
-                        </p>
-                        <p className="font-semibold leading-snug">
-                          {aula.disciplina}
-                        </p>
-                        {aula.local ? (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {aula.local}
+                  <div className="space-y-4">
+                    {hojeNaGrade.map((aula) => {
+                      const agora = isSlotNow(aula.inicio, aula.fim);
+                      const pct = agora
+                        ? slotProgressPercent(aula.inicio, aula.fim)
+                        : 0;
+                      return (
+                        <div
+                          key={aula.disciplinaId + aula.inicio}
+                          className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-medium tabular-nums text-neutral-400">
+                              {aula.inicio} – {aula.fim}
+                            </p>
+                            {agora ? (
+                              <span className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
+                                Agora
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-2 font-semibold leading-snug">
+                            {aula.disciplina}
                           </p>
-                        ) : null}
-                      </div>
-                    ))}
+                          {aula.local ? (
+                            <p className="mt-1 text-xs text-neutral-500">
+                              {aula.local}
+                            </p>
+                          ) : null}
+                          {agora ? (
+                            <div className="mt-3 space-y-1">
+                              <div className="flex justify-between text-[10px] text-neutral-500">
+                                <span>Progresso da aula</span>
+                                <span>{pct}%</span>
+                              </div>
+                              <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${pct}%`,
+                                    background: LOGIN_GREEN,
+                                    boxShadow: `0 0 12px ${LOGIN_GLOW}`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Faixa 2 — Atividades (gráfico) | Tarefas | Destaques */}
-        <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-8">
-          <div className="space-y-4 lg:col-span-5">
-            <Card className={dashCard}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-semibold tracking-tight">
-                  {locale === "pt-BR"
-                    ? "Relatório de horas estudadas"
-                    : "Study hours report"}
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">
-                  {locale === "pt-BR" ? "Semanal" : "Weekly"}
-                </span>
-              </CardHeader>
-              <CardContent>
+        {/* Resumo semana | Tarefas | IA */}
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+          <div className="lg:col-span-5">
+            <div className={glass}>
+              <div className="border-b border-white/[0.06] p-5">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Resumo da semana
+                </h2>
+                <p className="text-sm text-neutral-500">
+                  Produtividade e metas rápidas
+                </p>
+              </div>
+              <div className="space-y-4 p-5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3 text-center">
+                    <p className="text-xs text-neutral-500">Tarefas concluídas</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums">
+                      {atasSemanaResumo}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3 text-center">
+                    <p className="text-xs text-neutral-500">Horas estudadas</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums">
+                      {horasEstudadas}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3 text-center">
+                    <p className="text-xs text-neutral-500">Avaliações na semana</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums">
+                      {totalAvaliacoesSemana}
+                    </p>
+                  </div>
+                </div>
+
                 {loadingEstatisticas ? (
-                  <div className="flex h-56 items-center justify-center">
-                    <div className="animate-pulse text-muted-foreground">
-                      {locale === "pt-BR" ? "Carregando…" : "Loading…"}
-                    </div>
+                  <div className="flex h-52 items-center justify-center text-neutral-500">
+                    Carregando…
                   </div>
                 ) : chartData.length === 0 ? (
-                  <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                    {locale === "pt-BR"
-                      ? "Registre horas de estudo para ver o gráfico."
-                      : "Record study hours to see the chart."}
+                  <div className="flex h-52 items-center justify-center text-sm text-neutral-500">
+                    Registre horas de estudo para ver o gráfico.
                   </div>
                 ) : (
-                  <div className="h-56">
+                  <div className="h-52">
+                    <p className="mb-2 text-xs font-medium text-neutral-500">
+                      Produtividade (horas por período)
+                    </p>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData}>
                         <CartesianGrid
                           strokeDasharray="3 3"
-                          stroke="hsl(var(--muted))"
+                          stroke="rgba(255,255,255,0.06)"
                         />
                         <XAxis
-                          dataKey="semana"
-                          stroke="hsl(var(--muted-foreground))"
+                          dataKey="label"
+                          stroke="rgba(163,163,163,0.8)"
                           fontSize={11}
                         />
-                        <YAxis
-                          stroke="hsl(var(--muted-foreground))"
-                          fontSize={11}
-                        />
+                        <YAxis stroke="rgba(163,163,163,0.8)" fontSize={11} />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "hsl(var(--background))",
-                            border: "1px solid hsl(var(--border))",
+                            backgroundColor: "#141414",
+                            border: "1px solid rgba(255,255,255,0.1)",
                             borderRadius: "12px",
                           }}
+                          labelStyle={{ color: "#fafafa" }}
                         />
                         <Line
                           type="monotone"
                           dataKey="horas"
-                          stroke="#34d399"
+                          stroke={LOGIN_GREEN}
                           strokeWidth={2}
-                          dot={{ fill: "#34d399", r: 4 }}
+                          dot={{ fill: LOGIN_GREEN, r: 4 }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                 )}
-                {tipoDistrib.total > 0 ? (
-                  <div className="mt-6 space-y-2 border-t border-border/60 pt-4">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {locale === "pt-BR"
-                        ? "Disciplinas por tipo"
-                        : "Courses by type"}
-                    </p>
-                    <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
-                      {tipoDistrib.o.obrigatoria > 0 ? (
-                        <div
-                          className="bg-amber-500/90"
-                          style={{
-                            width: `${(tipoDistrib.o.obrigatoria / tipoDistrib.total) * 100}%`,
-                          }}
-                          title="Obrigatória"
-                        />
-                      ) : null}
-                      {tipoDistrib.o.eletiva > 0 ? (
-                        <div
-                          className="bg-sky-500/90"
-                          style={{
-                            width: `${(tipoDistrib.o.eletiva / tipoDistrib.total) * 100}%`,
-                          }}
-                          title="Eletiva"
-                        />
-                      ) : null}
-                      {tipoDistrib.o.optativa > 0 ? (
-                        <div
-                          className="bg-emerald-500/90"
-                          style={{
-                            width: `${(tipoDistrib.o.optativa / tipoDistrib.total) * 100}%`,
-                          }}
-                          title="Optativa"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-                      <span>
-                        Obr.: {tipoDistrib.o.obrigatoria}
-                      </span>
-                      <span>
-                        Elet.: {tipoDistrib.o.eletiva}
-                      </span>
-                      <span>
-                        Opt.: {tipoDistrib.o.optativa}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
-          <div className="lg:col-span-4">{atividadesLista}</div>
-
-          <div className="lg:col-span-3">
-            <Card className={dashCard}>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                  <Trophy className="h-5 w-5 text-amber-500" />
-                  {locale === "pt-BR" ? "Em destaque" : "Highlights"}
-                </CardTitle>
-                <CardDescription>
-                  {locale === "pt-BR"
-                    ? "Disciplinas com mais carga horária"
-                    : "Subjects by weekly hours"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {destacadas.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-muted-foreground">
-                    {locale === "pt-BR"
-                      ? "Sem dados ainda."
-                      : "No data yet."}
+          <div className="lg:col-span-4">
+            <div className={glass}>
+              <div className="flex flex-row items-center justify-between gap-2 border-b border-white/[0.06] p-5">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    Tarefas do dia
+                  </h2>
+                  <p className="text-sm text-neutral-500">
+                    Prioridades e checklist
                   </p>
-                ) : (
-                  <ul className="space-y-3">
-                    {destacadas.map((d, i) => (
-                      <li key={d.id}>
-                        <Link
-                          href={`/disciplinas/${d.id}`}
-                          className="flex items-center gap-3 rounded-xl border border-border/50 p-2.5 transition-colors hover:bg-muted/50"
-                        >
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold tabular-nums">
-                            {i + 1}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">
-                              {d.nome}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {d.horasSemana ?? 0} h/sem
-                            </p>
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* Faixa 3 — Próximas avaliações + Sidebar widgets */}
-        <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-8">
-          <div className="lg:col-span-8">
-            <Card className={dashCard}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold tracking-tight">
-                  {t.dashboard.proximasAvaliacoes}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loadingAv ? (
+                </div>
+                <Button
+                  size="sm"
+                  className="shrink-0 gap-1 border border-white/10 bg-white/[0.06] text-neutral-200 hover:bg-white/10"
+                  asChild
+                >
+                  <Link href="/disciplinas">
+                    <Plus className="h-4 w-4" />
+                    Nova tarefa
+                  </Link>
+                </Button>
+              </div>
+              <div className="p-5 pt-4">
+                {loadingTarefas || loadingAv ? (
                   <div className="space-y-2">
                     {[1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className="h-14 animate-pulse rounded-xl bg-muted/50"
+                        className="h-16 animate-pulse rounded-xl bg-white/[0.06]"
                       />
                     ))}
                   </div>
-                ) : proximasAvaliacoes.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-muted-foreground">
-                    {locale === "pt-BR"
-                      ? "Nenhuma avaliação próxima."
-                      : "No upcoming assessments."}
+                ) : prioridadesHoje.length === 0 &&
+                  hojeNaGrade.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-neutral-500">
+                    Nada pendente para hoje.
                   </p>
                 ) : (
-                  <ul className="grid gap-2 sm:grid-cols-2">
-                    {proximasAvaliacoes.slice(0, 8).map((a) => {
-                      const dname =
-                        disciplinasMap.get(a.disciplinaId)?.nome ?? "";
-                      const dias = daysUntil(a.dataISO);
-                      return (
-                        <li key={a.id}>
-                          <Link
-                            href="/avaliacoes"
-                            className="flex items-center gap-3 rounded-xl border border-border/60 p-3 transition-colors hover:bg-muted/40"
-                          >
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                              <GraduationCap className="h-4 w-4 text-primary" />
+                  <ul className="max-h-[min(420px,55vh)] space-y-2 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                    {hojeNaGrade.slice(0, 3).map((aula) => (
+                      <li key={aula.disciplinaId + aula.inicio}>
+                        <div className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-neutral-500" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{aula.disciplina}</p>
+                            <p className="text-xs text-neutral-500">
+                              {aula.inicio} – {aula.fim}
+                              {aula.local ? ` · ${aula.local}` : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                            Hoje
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                    {prioridadesHoje
+                      .slice(0, Math.max(0, 8 - hojeNaGrade.length))
+                      .map((item) => {
+                        const isTarefa = item.type === "tarefa";
+                        return (
+                          <li key={`${item.type}-${item.id}`}>
+                            <div className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                              {isTarefa ? (
+                                <Checkbox
+                                  checked={item.concluida}
+                                  onCheckedChange={() =>
+                                    toggleConcluida(item.id, !item.concluida)
+                                  }
+                                  className="shrink-0 border-white/30 data-[state=checked]:border-[#05865E] data-[state=checked]:bg-[#05865E]"
+                                />
+                              ) : (
+                                <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
+                              )}
+                              <Link
+                                href={
+                                  isTarefa
+                                    ? `/disciplinas/${item.disciplinaId}`
+                                    : "/avaliacoes"
+                                }
+                                className="min-w-0 flex-1"
+                              >
+                                <p className="truncate font-medium">
+                                  {item.titulo}
+                                </p>
+                                <p className="truncate text-xs text-neutral-500">
+                                  {item.subtitulo}
+                                </p>
+                              </Link>
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                                  item.concluida
+                                    ? "border-neutral-600 bg-neutral-800 text-neutral-400"
+                                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+                                )}
+                              >
+                                {item.concluida ? "Concluída" : "Hoje"}
+                              </span>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate font-medium">{dname}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {dias > 0
-                                  ? `${dias} ${dias === 1 ? "dia" : "dias"}`
-                                  : dias === 0
-                                    ? "Hoje"
-                                    : ""}
-                              </p>
-                            </div>
-                            <span
-                              className={`shrink-0 text-xs ${tipoBadge(a.tipo)}`}
-                            >
-                              {a.tipo}
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
+                          </li>
+                        );
+                      })}
                   </ul>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
-          {sidebarCol}
+
+          <div className="lg:col-span-3 space-y-4">
+            <div
+              className={cn(glass, "overflow-hidden")}
+              style={{
+                boxShadow: `0 0 40px -20px ${LOGIN_GLOW}`,
+              }}
+            >
+              <div className="relative border-b border-white/[0.06] bg-gradient-to-br from-emerald-950/40 to-transparent p-5">
+                <div className="flex items-start gap-4">
+                  <div className="relative h-16 w-16 shrink-0">
+                    <img
+                      src="/mascot/ufam-hub-robot.svg"
+                      alt=""
+                      width={64}
+                      height={64}
+                      className="drop-shadow-[0_0_12px_rgba(5,134,94,0.45)]"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Sparkles className="h-4 w-4 shrink-0" />
+                      <span className="text-xs font-semibold uppercase tracking-wide">
+                        Sugestões da IA
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm font-medium leading-snug">
+                      {dicaIA}
+                    </p>
+                    <Button
+                      className="mt-4 w-full gap-2 font-semibold text-white"
+                      style={{
+                        background: LOGIN_GREEN,
+                        boxShadow: `0 0 20px ${LOGIN_GLOW}`,
+                      }}
+                      asChild
+                    >
+                      <Link href="/chat">
+                        Criar plano de estudo
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2 p-4">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+                  Em breve
+                </p>
+                {proximasAvaliacoes.slice(0, 2).map((a) => {
+                  const dname =
+                    disciplinasMap.get(a.disciplinaId)?.nome ?? "Disciplina";
+                  const dias = daysUntil(a.dataISO);
+                  return (
+                    <Link
+                      key={a.id}
+                      href="/avaliacoes"
+                      className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-colors hover:bg-white/[0.06]"
+                    >
+                      <GraduationCap
+                        className="h-5 w-5 shrink-0"
+                        style={{ color: LOGIN_GREEN }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{dname}</p>
+                        <p className="text-xs text-neutral-500">
+                          {dias === 0
+                            ? "Hoje"
+                            : dias === 1
+                              ? "Amanhã"
+                              : `Em ${dias} dias`}
+                        </p>
+                      </div>
+                      <span className={cn("shrink-0 text-xs", tipoBadge(a.tipo))}>
+                        {a.tipo}
+                      </span>
+                    </Link>
+                  );
+                })}
+                {eventosSemana.slice(0, 2).map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-neutral-400"
+                  >
+                    <Bell className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-neutral-200">{ev.titulo}</p>
+                      <p className="text-neutral-500">{ev.subtitulo}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={cn(glass, "p-4")}>
+              <Link
+                href="/perfil"
+                className="flex items-center gap-3 rounded-xl transition-colors hover:bg-white/[0.04]"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-emerald-500/30">
+                  {profileData?.avatar_url ? (
+                    <img
+                      src={profileData.avatar_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5 text-emerald-400" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">
+                    {profileData?.nome || nomeUsuario}
+                  </p>
+                  <p className="truncate text-xs text-neutral-500">
+                    {profileData?.email || "Perfil"}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-neutral-500" />
+              </Link>
+            </div>
+          </div>
         </section>
       </div>
     </div>

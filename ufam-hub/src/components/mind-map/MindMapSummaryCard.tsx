@@ -13,6 +13,8 @@ type Props = {
   onRegenerateIa: () => void;
   regenerating: boolean;
   className?: string;
+  /** Quando false, só edição manual do resumo (sem botão de IA). */
+  showIaRegenerate?: boolean;
 };
 
 export function MindMapSummaryCard({
@@ -22,6 +24,7 @@ export function MindMapSummaryCard({
   onRegenerateIa,
   regenerating,
   className,
+  showIaRegenerate = true,
 }: Props) {
   return (
     <div
@@ -37,26 +40,28 @@ export function MindMapSummaryCard({
             Resumo textual
           </h3>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || regenerating}
-          onClick={onRegenerateIa}
-          className="rounded-lg border-[#262626] bg-[#151515] text-xs text-[#E5E5E5] hover:bg-[#1a1a1a]"
-        >
-          {regenerating ? (
-            <>
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-              A gerar...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-1 h-3.5 w-3.5" />
-              Regenerar com IA
-            </>
-          )}
-        </Button>
+        {showIaRegenerate ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || regenerating}
+            onClick={onRegenerateIa}
+            className="rounded-lg border-[#262626] bg-[#151515] text-xs text-[#E5E5E5] hover:bg-[#1a1a1a]"
+          >
+            {regenerating ? (
+              <>
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                A gerar...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                Regenerar com IA
+              </>
+            )}
+          </Button>
+        ) : null}
       </div>
       <p className={cn("mb-3 text-xs", MM.muted)}>
         Versão compacta para revisão rápida; podes editar livremente.

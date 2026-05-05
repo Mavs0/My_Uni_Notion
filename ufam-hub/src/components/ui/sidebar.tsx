@@ -7,6 +7,7 @@ import {
   BookOpen,
   GraduationCap,
   FileText,
+  Table2,
   Users,
   Library,
   MessageSquare,
@@ -97,10 +98,14 @@ const navSections: NavSection[] = [
             icon: GraduationCap,
             i18n: "avaliacoes",
           },
+          {
+            title: "Faltas e notas",
+            href: "/controle-academico",
+            icon: Table2,
+            i18n: "controleAcademico",
+          },
           { title: "Anotações", href: "/busca-anotacoes", icon: FileText },
-          /* Flashcards / revisão: atalho na página de Anotações (ações rápidas)
-          { title: "Flashcards", href: "/revisao", icon: Brain },
-          */
+          /* Revisão (flashcards) e mapa mental manual: atalhos na página Anotações */
           {
             title: "Chat IA",
             href: "/chat",
@@ -181,17 +186,7 @@ export function Sidebar() {
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               collapsed && !isMobile && "justify-center px-2",
             )}
-          >
-            <Zap className="h-5 w-5 shrink-0 text-primary" />
-            {(!collapsed || isMobile) && (
-              <>
-                <span className="flex-1 text-left">Quick actions</span>
-                <kbd className="hidden sm:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
-                  ⌘K
-                </kbd>
-              </>
-            )}
-          </button>
+          ></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-5">

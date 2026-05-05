@@ -98,7 +98,10 @@ export async function saveMindMapToBiblioteca(body: {
   descricao?: string;
   tags?: string[];
   conteudo: MapaMentalData;
+  /** Quando `tags` vier vazio, usa isto em vez de `["mapa-mental", "ia"]`. */
+  defaultTagsWhenEmpty?: string[];
 }): Promise<{ id: string }> {
+  const fallbackTags = body.defaultTagsWhenEmpty ?? ["mapa-mental", "ia"];
   const res = await fetch("/api/colaboracao/biblioteca", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -108,7 +111,7 @@ export async function saveMindMapToBiblioteca(body: {
       descricao: body.descricao ?? body.conteudo.descricao ?? body.conteudo.resumo,
       tipo: "mapa_mental",
       categoria: "estudo",
-      tags: body.tags?.length ? body.tags : ["mapa-mental", "ia"],
+      tags: body.tags?.length ? body.tags : fallbackTags,
       visibilidade: "privado",
       arquivo_url: JSON.stringify(body.conteudo),
       arquivo_tipo: "application/json",

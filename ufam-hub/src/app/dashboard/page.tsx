@@ -799,7 +799,6 @@ export default function DashboardPage() {
       return disc.includes(search.toLowerCase());
     });
   }, [search, disciplinasMap, avaliacoes]);
-  const totalDisciplinas = disciplinas.length;
   const totalAvaliacoesSemana = proximasAvaliacoes.filter(
     (a) => daysUntil(a.dataISO) <= 7,
   ).length;
@@ -813,6 +812,28 @@ export default function DashboardPage() {
     if (h >= 12 && h < 18) return "Boa tarde";
     return "Boa noite";
   })();
+
+  const tarefasHojeCount = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return tarefas.filter((t) => {
+      if (t.concluida || !t.dataVencimento) return false;
+      const v = new Date(t.dataVencimento);
+      v.setHours(0, 0, 0, 0);
+      return v.getTime() === hoje.getTime();
+    }).length;
+  }, [tarefas]);
+
+  const avaliacoesAmanhaCount = useMemo(() => {
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    amanha.setHours(0, 0, 0, 0);
+    return avaliacoes.filter((a) => {
+      const d = new Date(a.dataISO);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === amanha.getTime();
+    }).length;
+  }, [avaliacoes]);
 
   const hojeISO = useMemo(() => {
     const d = new Date();
@@ -1839,7 +1860,8 @@ export default function DashboardPage() {
           month: "long",
           year: "numeric",
         })}
-        totalDisciplinas={totalDisciplinas}
+        tarefasHojeCount={tarefasHojeCount}
+        avaliacoesAmanhaCount={avaliacoesAmanhaCount}
         totalAvaliacoesSemana={totalAvaliacoesSemana}
         aulasHoje={hojeNaGrade.length}
         horasEstudadas={
@@ -1857,7 +1879,6 @@ export default function DashboardPage() {
         estatisticas={estatisticas}
         loadingEstatisticas={loadingEstatisticas}
         profileData={profileData}
-        avaliacoes={avaliacoes}
         eventosSemana={eventosSemana}
         disciplinas={disciplinas}
       />

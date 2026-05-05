@@ -21,8 +21,9 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
+    /* lucide-react retirado: em dev (HMR) `optimizePackageImports` + muitos ícones
+     * pode levar a `Cannot read properties of undefined (reading 'call')` em /login. */
     optimizePackageImports: [
-      "lucide-react",
       "@radix-ui/react-dialog",
       "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-slider",

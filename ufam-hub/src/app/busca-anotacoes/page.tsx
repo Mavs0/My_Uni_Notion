@@ -12,6 +12,7 @@ import {
   FolderOpen,
   Brain,
   MessageSquare,
+  Network,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -306,7 +307,7 @@ export default function BuscaAnotacoesPage() {
         </div>
 
         {/* Ações rápidas (referência anexo 03) — entre busca e anotações recentes */}
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-5">
           <Link
             href="/disciplinas"
             className={cn(
@@ -389,6 +390,27 @@ export default function BuscaAnotacoesPage() {
               </p>
               <p className="mt-0.5 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
                 Tire dúvidas com o assistente
+              </p>
+            </div>
+          </Link>
+          <Link
+            href="/resumos-mapa-mental"
+            className={cn(
+              "group flex flex-col gap-3 rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-all",
+              "hover:border-teal-200 hover:shadow-md",
+              "dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-teal-900/50",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30",
+            )}
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-100 text-teal-800 dark:bg-teal-950/50 dark:text-teal-400">
+              <Network className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 text-left">
+              <p className="font-semibold text-zinc-900 dark:text-zinc-50">
+                Mapa mental
+              </p>
+              <p className="mt-0.5 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
+                Resumo manual, sem IA
               </p>
             </div>
           </Link>

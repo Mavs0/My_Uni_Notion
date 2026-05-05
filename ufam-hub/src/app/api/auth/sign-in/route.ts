@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
   if (!email || !password) {
     return NextResponse.json(
-      { error: "Email e senha são obrigatórios" },
+      { error: "E-mail e senha são obrigatórios" },
       { status: 400 },
     );
   }
@@ -100,13 +100,16 @@ export async function POST(request: NextRequest) {
         lower.includes("invalid credentials")
       ) {
         return NextResponse.json(
-          { error: "Email ou senha incorretos." },
+          {
+            error:
+              "Não foi possível fazer login com esses dados. Confira o e-mail e a senha e tente novamente.",
+          },
           { status: 401 },
         );
       }
       if (lower.includes("email not confirmed")) {
         return NextResponse.json(
-          { error: "Email não confirmado. Verifique a caixa de entrada." },
+          { error: "E-mail não confirmado. Verifique sua caixa de entrada." },
           { status: 401 },
         );
       }

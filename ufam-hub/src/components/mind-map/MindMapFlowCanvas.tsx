@@ -103,7 +103,7 @@ function MindMapFlowCanvasInner({
         fitView
         className="!bg-[#050505] [&_.react-flow__edge-path]:!stroke-opacity-100"
         defaultEdgeOptions={{
-          type: "default",
+          type: "smoothstep",
           style: { strokeWidth: 2.5 },
         }}
       >

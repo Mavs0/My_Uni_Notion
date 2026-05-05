@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -18,7 +17,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -37,7 +35,6 @@ import {
   Eye,
   User,
   Plus,
-  Upload,
   Link as LinkIcon,
   Loader2,
   ExternalLink,
@@ -65,6 +62,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { NovoMaterialDialog } from "@/components/biblioteca/NovoMaterialDialog";
 
 const BIBLIOTECA_PINNED_KEY = "biblioteca-pinned";
 
@@ -221,24 +219,7 @@ export default function BibliotecaPage() {
   const [ordenar, setOrdenar] = useState<string>("recentes");
   const [filtroTags, setFiltroTags] = useState<string>("");
   const [showBuscaAvancada, setShowBuscaAvancada] = useState(false);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [formData, setFormData] = useState({
-    titulo: "",
-    descricao: "",
-    tipo: "arquivo",
-    categoria: "",
-    grupo_id: "",
-    arquivo_url: "",
-    tags: "",
-    visibilidade: "publico",
-  });
-  const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [arquivoMetodo, setArquivoMetodo] = useState<"upload" | "url">(
-    "upload"
-  );
-  const [subtipoAnotacao, setSubtipoAnotacao] = useState<string>("");
-  const [subtipoFlashcard, setSubtipoFlashcard] = useState<string>("");
+  const [novoMaterialOpen, setNovoMaterialOpen] = useState(false);
   const [mostrarArquivados, setMostrarArquivados] = useState(false);
   const [materialToArchive, setMaterialToArchive] = useState<{
     id: string;
@@ -246,8 +227,6 @@ export default function BibliotecaPage() {
     isAtivo: boolean;
   } | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [dialogShake, setDialogShake] = useState(false);
-  const [addMaterialStep, setAddMaterialStep] = useState(1);
 
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
@@ -360,12 +339,6 @@ export default function BibliotecaPage() {
 
   const gruposPublicos = grupos.filter((g) => g.visibilidade === "publico");
   const gruposPrivados = grupos.filter((g) => g.visibilidade === "privado");
-  const gruposDisponiveis =
-    formData.visibilidade === "privado"
-      ? gruposPrivados
-      : formData.visibilidade === "publico"
-      ? gruposPublicos
-      : [];
 
   const ITEMS_PER_PAGE = 6;
   const [page, setPage] = useState(1);
@@ -431,173 +404,6 @@ export default function BibliotecaPage() {
   }, [loadMateriais]);
 
   const totalPages = Math.max(1, Math.ceil(totalMateriais / ITEMS_PER_PAGE));
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("Arquivo muito grande. Máximo de 10MB.");
-        return;
-      }
-      setSelectedFile(file);
-      setFormData({ ...formData, arquivo_url: file.name });
-    }
-  };
-
-  const handleUploadFile = async (): Promise<string | null> => {
-    if (!selectedFile) return null;
-
-    try {
-      setUploading(true);
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", selectedFile);
-      formDataUpload.append("folder", "biblioteca");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.url;
-      } else {
-        const errorData = await response.json();
-        const errorMessage =
-          errorData.details ||
-          errorData.error ||
-          "Erro ao fazer upload do arquivo";
-        toast.error(errorMessage);
-        if (errorData.details?.includes("Bucket")) {
-          console.error(
-            "⚠️ Bucket não encontrado. Crie o bucket 'biblioteca' no Supabase Storage."
-          );
-        }
-        return null;
-      }
-    } catch (error) {
-      console.error("Erro ao fazer upload:", error);
-      toast.error("Erro ao fazer upload do arquivo");
-      return null;
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleAddMaterial = async () => {
-    if (!formData.titulo.trim()) {
-      toast.error("Título é obrigatório");
-      return;
-    }
-
-    if (formData.visibilidade === "privado" && !formData.grupo_id) {
-      toast.error("Grupo é obrigatório para materiais privados");
-      return;
-    }
-
-    if (formData.tipo === "arquivo") {
-      if (arquivoMetodo === "upload" && !selectedFile) {
-        toast.error("Arquivo é obrigatório");
-        return;
-      }
-      if (arquivoMetodo === "url" && !formData.arquivo_url.trim()) {
-        toast.error("URL é obrigatória");
-        return;
-      }
-    }
-
-    if (formData.tipo === "link" && !formData.arquivo_url.trim()) {
-      toast.error("URL é obrigatória para materiais do tipo link");
-      return;
-    }
-
-    try {
-      setUploading(true);
-      let arquivoUrl = formData.arquivo_url;
-      let arquivoTipo = "";
-      let arquivoTamanho = 0;
-
-      if (selectedFile && formData.tipo === "arquivo") {
-        const uploadedUrl = await handleUploadFile();
-        if (!uploadedUrl) {
-          return;
-        }
-        arquivoUrl = uploadedUrl;
-        arquivoTipo = selectedFile.type;
-        arquivoTamanho = selectedFile.size;
-      } else if (formData.tipo === "link") {
-        arquivoUrl = formData.arquivo_url;
-        arquivoTipo = "link";
-      }
-
-      const tagsArray = formData.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0);
-
-      if (subtipoAnotacao) {
-        tagsArray.push(`subtipo:${subtipoAnotacao}`);
-      }
-      if (subtipoFlashcard) {
-        tagsArray.push(`subtipo:${subtipoFlashcard}`);
-      }
-
-      const grupoIdFinal =
-        formData.visibilidade === "geral"
-          ? null
-          : formData.grupo_id && formData.grupo_id !== "none"
-          ? formData.grupo_id
-          : null;
-
-      const response = await fetch("/api/colaboracao/biblioteca", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo: formData.titulo.trim(),
-          descricao: formData.descricao.trim() || null,
-          tipo: formData.tipo,
-          categoria: formData.categoria || null,
-          grupo_id: grupoIdFinal,
-          arquivo_url: arquivoUrl || null,
-          arquivo_tipo: arquivoTipo || null,
-          arquivo_tamanho: arquivoTamanho || null,
-          tags: tagsArray,
-          visibilidade: formData.visibilidade,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success("Material adicionado com sucesso!");
-        setShowAddDialog(false);
-        setAddMaterialStep(1);
-        setFormData({
-          titulo: "",
-          descricao: "",
-          tipo: "arquivo",
-          categoria: "",
-          grupo_id: "",
-          arquivo_url: "",
-          tags: "",
-          visibilidade: "publico",
-        });
-        setSelectedFile(null);
-        setArquivoMetodo("upload");
-        setSubtipoAnotacao("");
-        setSubtipoFlashcard("");
-        setDialogShake(false);
-        resetMateriais();
-      } else {
-        toast.error(data.error || "Erro ao adicionar material");
-      }
-    } catch (error) {
-      console.error("Erro ao adicionar material:", error);
-      toast.error("Erro ao adicionar material");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleSearch = () => {
     resetMateriais();
@@ -722,447 +528,26 @@ export default function BibliotecaPage() {
             Explore e compartilhe materiais de estudo
           </p>
         </div>
-        <Dialog 
-          open={showAddDialog} 
-          onOpenChange={(open) => {
-            setShowAddDialog(open);
-            if (!open) {
-              setDialogShake(false);
-              setAddMaterialStep(1);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button className="rounded-full px-5 font-semibold shadow-sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar material
-            </Button>
-          </DialogTrigger>
-          <DialogContent 
-            className={`max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 ${
-              dialogShake ? "animate-[shake_0.5s_ease-in-out]" : ""
-            }`}
-            onInteractOutside={(e) => {
-              e.preventDefault();
-              setDialogShake(true);
-              setTimeout(() => setDialogShake(false), 500);
-            }}
+        <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+          <Button
+            type="button"
+            className="rounded-full px-5 font-semibold shadow-sm"
+            onClick={() => setNovoMaterialOpen(true)}
           >
-            {/* Stepper */}
-            <div className="flex items-center justify-center gap-1 px-6 pt-6 pb-2 border-b">
-              {[1, 2, 3].map((s) => (
-                <div key={s} className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setAddMaterialStep(s)}
-                    className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-medium transition-colors ${
-                      addMaterialStep === s
-                        ? "bg-primary text-primary-foreground"
-                        : addMaterialStep > s
-                          ? "bg-primary/20 text-primary"
-                          : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                  {s < 3 && <div className="w-8 h-0.5 bg-muted mx-0.5" />}
-                </div>
-              ))}
-            </div>
-            <div className="px-2 text-center text-xs text-muted-foreground mb-4 mt-2">
-              {addMaterialStep === 1 && "Informações gerais"}
-              {addMaterialStep === 2 && "Visibilidade"}
-              {addMaterialStep === 3 && "Conteúdo"}
-            </div>
-
-            <div className="px-6 pb-6 space-y-4">
-            {addMaterialStep === 1 && (
-              <div className="space-y-5">
-                <DialogHeader>
-                  <DialogTitle>Informações do material</DialogTitle>
-                  <DialogDescription>
-                    Título, descrição, tipo e categoria
-                  </DialogDescription>
-                </DialogHeader>
-                <div>
-                  <Label htmlFor="titulo" className="block mb-3">
-                    Título <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="titulo"
-                    value={formData.titulo}
-                    onChange={(e) =>
-                      setFormData({ ...formData, titulo: e.target.value })
-                    }
-                    placeholder="Ex: Resumo de Cálculo I"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="descricao" className="block mb-3">Descrição</Label>
-                  <textarea
-                    id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) =>
-                      setFormData({ ...formData, descricao: e.target.value })
-                    }
-                    placeholder="Descreva o material..."
-                    className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="tipo" className="block mb-3">
-                      Tipo <span className="text-red-500">*</span>
-                    </Label>
-                  <Select
-                    value={formData.tipo}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, tipo: value });
-                      setSubtipoAnotacao("");
-                      setSubtipoFlashcard("");
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="anotacao">Anotação</SelectItem>
-                      <SelectItem value="arquivo">Arquivo</SelectItem>
-                      <SelectItem value="link">Link</SelectItem>
-                      <SelectItem value="flashcard">Flashcard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="categoria" className="block mb-3">Categoria</Label>
-                  <Select
-                    value={formData.categoria}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, categoria: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="apostila">Apostila</SelectItem>
-                      <SelectItem value="resumo">Resumo</SelectItem>
-                      <SelectItem value="exercicio">Exercício</SelectItem>
-                      <SelectItem value="prova">Prova</SelectItem>
-                      <SelectItem value="mapa-mental">Mapa Mental</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {formData.tipo === "anotacao" && (
-                <div>
-                  <Label htmlFor="subtipo-anotacao" className="block mb-3">Tipo de Anotação</Label>
-                  <Select
-                    value={subtipoAnotacao}
-                    onValueChange={setSubtipoAnotacao}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="resumo">Resumo</SelectItem>
-                      <SelectItem value="mapa-mental">Mapa Mental</SelectItem>
-                      <SelectItem value="esquema">Esquema</SelectItem>
-                      <SelectItem value="lista">Lista</SelectItem>
-                      <SelectItem value="tabela">Tabela</SelectItem>
-                      <SelectItem value="formulas">Fórmulas</SelectItem>
-                      <SelectItem value="definicoes">Definições</SelectItem>
-                      <SelectItem value="exemplos">Exemplos</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {formData.tipo === "flashcard" && (
-                <div>
-                  <Label htmlFor="subtipo-flashcard" className="block mb-3">Tipo de Flashcard</Label>
-                  <Select
-                    value={subtipoFlashcard}
-                    onValueChange={setSubtipoFlashcard}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pergunta-resposta">
-                        Pergunta e Resposta
-                      </SelectItem>
-                      <SelectItem value="termo-definicao">
-                        Termo e Definição
-                      </SelectItem>
-                      <SelectItem value="formula-aplicacao">
-                        Fórmula e Aplicação
-                      </SelectItem>
-                      <SelectItem value="conceito-exemplo">
-                        Conceito e Exemplo
-                      </SelectItem>
-                      <SelectItem value="data-evento">Data e Evento</SelectItem>
-                      <SelectItem value="vocabulario">Vocabulário</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-            )}
-
-            {addMaterialStep === 2 && (
-              <div className="space-y-5">
-                <DialogHeader>
-                  <DialogTitle>Visibilidade e compartilhamento</DialogTitle>
-                  <DialogDescription>
-                    Quem pode ver este material
-                  </DialogDescription>
-                </DialogHeader>
-                <div>
-                  <Label htmlFor="visibilidade" className="block mb-3">
-                    Visibilidade <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={formData.visibilidade}
-                    onValueChange={(value) => {
-                      setFormData({
-                        ...formData,
-                        visibilidade: value,
-                        grupo_id: value === "geral" ? "" : formData.grupo_id,
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="publico">Público</SelectItem>
-                      <SelectItem value="privado">Privado</SelectItem>
-                      <SelectItem value="geral">Geral</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.visibilidade === "privado" && gruposDisponiveis.length > 0 && (
-                  <div>
-                    <Label htmlFor="grupo" className="block mb-3">
-                      Grupo <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={formData.grupo_id}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, grupo_id: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um grupo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {gruposDisponiveis.map((grupo) => (
-                          <SelectItem key={grupo.id} value={grupo.id}>
-                            {grupo.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Selecione o grupo privado para compartilhar
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {addMaterialStep === 3 && (
-              <div className="space-y-5">
-                <DialogHeader>
-                  <DialogTitle>Conteúdo do material</DialogTitle>
-                  <DialogDescription>
-                    Arquivo, link ou URL e tags
-                  </DialogDescription>
-                </DialogHeader>
-              {formData.tipo === "arquivo" && (
-                <div>
-                  <Label htmlFor="arquivo" className="block mb-3">
-                    Arquivo <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex gap-2 mb-2">
-                    <Button
-                      type="button"
-                      variant={
-                        arquivoMetodo === "upload" ? "default" : "outline"
-                      }
-                      onClick={() => {
-                        setArquivoMetodo("upload");
-                        setFormData({ ...formData, arquivo_url: "" });
-                        setSelectedFile(null);
-                      }}
-                      className="flex-1"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={arquivoMetodo === "url" ? "default" : "outline"}
-                      onClick={() => {
-                        setArquivoMetodo("url");
-                        setSelectedFile(null);
-                      }}
-                      className="flex-1"
-                    >
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      URL
-                    </Button>
-                  </div>
-
-                  {arquivoMetodo === "upload" ? (
-                    <>
-                      <label
-                        htmlFor="arquivo"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="mb-2 text-sm text-muted-foreground">
-                            <span className="font-semibold">Clique para fazer upload</span> ou arraste o arquivo aqui
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            PDF, CSV, JPG, PNG (máx. 10MB)
-                          </p>
-                        </div>
-                        <Input
-                          id="arquivo"
-                          type="file"
-                          onChange={handleFileSelect}
-                          accept=".pdf,.csv,.jpg,.jpeg,.png"
-                          className="hidden"
-                        />
-                      </label>
-                      {selectedFile && (
-                        <p className="text-sm text-muted-foreground">
-                          Arquivo selecionado: {selectedFile.name} (
-                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <Input
-                      value={formData.arquivo_url}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          arquivo_url: e.target.value,
-                        })
-                      }
-                      placeholder="https://..."
-                      type="url"
-                    />
-                  )}
-                </div>
-              )}
-
-              {formData.tipo === "link" && (
-                <div>
-                  <Label htmlFor="url" className="block mb-3">
-                    URL <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="url"
-                    type="url"
-                    value={formData.arquivo_url}
-                    onChange={(e) =>
-                      setFormData({ ...formData, arquivo_url: e.target.value })
-                    }
-                    placeholder="https://..."
-                  />
-                </div>
-              )}
-
-              <div>
-                <Label htmlFor="tags" className="block mb-3">Tags (separadas por vírgula)</Label>
-                <Input
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tags: e.target.value })
-                  }
-                  placeholder="Ex: cálculo, matemática, resumo"
-                />
-              </div>
-              </div>
-            )}
-
-            <DialogFooter className="flex-row justify-between items-center gap-4 p-4 border-t bg-muted/20 mt-6">
-              <div>
-                {addMaterialStep > 1 ? (
-                  <Button variant="outline" onClick={() => setAddMaterialStep((s) => s - 1)}>
-                    <ChevronLeft className="h-4 w-4 mr-2" />
-                    Voltar
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddDialog(false);
-                      setFormData({
-                        titulo: "",
-                        descricao: "",
-                        tipo: "arquivo",
-                        categoria: "",
-                        grupo_id: "",
-                        arquivo_url: "",
-                        tags: "",
-                        visibilidade: "publico",
-                      });
-                      setSelectedFile(null);
-                      setArquivoMetodo("upload");
-                      setSubtipoAnotacao("");
-                      setSubtipoFlashcard("");
-                      setDialogShake(false);
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                )}
-              </div>
-              <div>
-                {addMaterialStep < 3 ? (
-                  <Button
-                    onClick={() => setAddMaterialStep((s) => s + 1)}
-                    disabled={
-                      (addMaterialStep === 1 && !formData.titulo.trim()) ||
-                      (addMaterialStep === 2 &&
-                        formData.visibilidade === "privado" &&
-                        !formData.grupo_id)
-                    }
-                  >
-                    Próximo
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
-                ) : (
-                  <Button onClick={handleAddMaterial} disabled={uploading}>
-                    {uploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Adicionando...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Adicionar
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </DialogFooter>
-            </div>
-          </DialogContent>
-        </Dialog>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo material
+          </Button>
+          <NovoMaterialDialog
+            open={novoMaterialOpen}
+            onOpenChange={setNovoMaterialOpen}
+            gruposPublicos={gruposPublicos}
+            gruposPrivados={gruposPrivados}
+            onMaterialCreated={() => {
+              resetMateriais();
+              void loadQuickAndRecent();
+            }}
+          />
+        </div>
       </div>
       {/* Busca e filtros */}
       <section>
@@ -1529,9 +914,9 @@ export default function BibliotecaPage() {
             <Library className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
             <p className="text-sm font-medium text-foreground">Nenhum material recente</p>
             <p className="text-xs text-muted-foreground mt-1">Adicione um material para ver no acesso rápido.</p>
-            <Button variant="outline" size="sm" className="mt-3 rounded-lg" onClick={() => setShowAddDialog(true)}>
+            <Button variant="outline" size="sm" className="mt-3 rounded-lg" onClick={() => setNovoMaterialOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar material
+              Novo material
             </Button>
           </div>
         )}
@@ -1715,8 +1100,8 @@ export default function BibliotecaPage() {
             title="Nenhum material encontrado"
             description="Tente buscar com outros termos, ajustar os filtros ou adicione o primeiro material ao grupo."
             action={{
-              label: "Adicionar material",
-              onClick: () => setShowAddDialog(true),
+              label: "Novo material",
+              onClick: () => setNovoMaterialOpen(true),
               icon: Plus,
             }}
           />

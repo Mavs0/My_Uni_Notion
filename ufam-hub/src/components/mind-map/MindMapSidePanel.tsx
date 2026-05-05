@@ -38,10 +38,13 @@ type Props = {
     patch: { texto?: string; detalhes?: string }
   ) => void;
   onRemoveSubramo: (subId: string) => void;
+  onDuplicateSubramo: (subId: string) => void;
   onRemoveRamo: () => void;
   onDuplicateRamo: () => void;
   onTopicIa: (action: MindMapRefineAction) => void;
   onClearIaOutput: () => void;
+  /** Quando false, esconde o bloco «IA neste tópico» e o resultado da IA. */
+  showTopicIa?: boolean;
 };
 
 export function MindMapSidePanel({
@@ -54,10 +57,12 @@ export function MindMapSidePanel({
   onAddSubramo,
   onUpdateSubramo,
   onRemoveSubramo,
+  onDuplicateSubramo,
   onRemoveRamo,
   onDuplicateRamo,
   onTopicIa,
   onClearIaOutput,
+  showTopicIa = true,
 }: Props) {
   const subList = useMemo(() => ramo?.subramos ?? [], [ramo]);
 
@@ -74,7 +79,9 @@ export function MindMapSidePanel({
                 Editar tópico
               </SheetTitle>
               <SheetDescription className={MM.muted}>
-                Ajusta o texto, subitens e usa IA para aprofundar este ramo.
+                {showTopicIa
+                  ? "Ajusta o texto, subitens e usa IA para aprofundar este ramo."
+                  : "Ajusta o texto e os subitens deste ramo."}
               </SheetDescription>
             </SheetHeader>
 
@@ -148,110 +155,124 @@ export function MindMapSidePanel({
                         placeholder="Detalhes (opcional)"
                         className="border-[#333] bg-[#151515] text-xs text-[#A3A3A3]"
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2 h-7 text-[#DC2626] hover:bg-red-500/10"
-                        onClick={() => onRemoveSubramo(s.id)}
-                      >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" />
-                        Remover subitem
-                      </Button>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-[#A3A3A3] hover:bg-[#1f1f1f] hover:text-[#E5E5E5]"
+                          onClick={() => onDuplicateSubramo(s.id)}
+                        >
+                          <Copy className="mr-1 h-3.5 w-3.5" />
+                          Duplicar subitem
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-[#DC2626] hover:bg-red-500/10"
+                          onClick={() => onRemoveSubramo(s.id)}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          Remover subitem
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3">
-                <p className={cn("mb-2 text-xs font-medium", MM.muted)}>
-                  IA neste tópico
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={iaLoading}
-                    className="border-[#333] bg-[#151515] text-xs"
-                    onClick={() => onTopicIa("expandir_topico")}
-                  >
-                    <Wand2 className="mr-1 h-3.5 w-3.5" />
-                    Expandir
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={iaLoading}
-                    className="border-[#333] bg-[#151515] text-xs"
-                    onClick={() => onTopicIa("resumir_topico")}
-                  >
-                    <Minimize2 className="mr-1 h-3.5 w-3.5" />
-                    Resumir
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={iaLoading}
-                    className="border-[#333] bg-[#151515] text-xs"
-                    onClick={() => onTopicIa("exemplos_topico")}
-                  >
-                    <Sparkles className="mr-1 h-3.5 w-3.5" />
-                    Exemplos
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={iaLoading}
-                    className="border-[#333] bg-[#151515] text-xs"
-                    onClick={() => onTopicIa("reorganizar_pontos")}
-                  >
-                    <ListChecks className="mr-1 h-3.5 w-3.5" />
-                    Reorganizar pontos
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={iaLoading}
-                    className="border-[#333] bg-[#151515] text-xs"
-                    onClick={() => onTopicIa("checklist_estudo")}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" />
-                    Checklist
-                  </Button>
-                </div>
-                {iaLoading ? (
-                  <div className="mt-3 flex items-center gap-2 text-xs text-[#A3A3A3]">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    A processar com IA...
+              {showTopicIa ? (
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3">
+                  <p className={cn("mb-2 text-xs font-medium", MM.muted)}>
+                    IA neste tópico
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={iaLoading}
+                      className="border-[#333] bg-[#151515] text-xs"
+                      onClick={() => onTopicIa("expandir_topico")}
+                    >
+                      <Wand2 className="mr-1 h-3.5 w-3.5" />
+                      Expandir
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={iaLoading}
+                      className="border-[#333] bg-[#151515] text-xs"
+                      onClick={() => onTopicIa("resumir_topico")}
+                    >
+                      <Minimize2 className="mr-1 h-3.5 w-3.5" />
+                      Resumir
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={iaLoading}
+                      className="border-[#333] bg-[#151515] text-xs"
+                      onClick={() => onTopicIa("exemplos_topico")}
+                    >
+                      <Sparkles className="mr-1 h-3.5 w-3.5" />
+                      Exemplos
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={iaLoading}
+                      className="border-[#333] bg-[#151515] text-xs"
+                      onClick={() => onTopicIa("reorganizar_pontos")}
+                    >
+                      <ListChecks className="mr-1 h-3.5 w-3.5" />
+                      Reorganizar pontos
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={iaLoading}
+                      className="border-[#333] bg-[#151515] text-xs"
+                      onClick={() => onTopicIa("checklist_estudo")}
+                    >
+                      <Copy className="mr-1 h-3.5 w-3.5" />
+                      Checklist
+                    </Button>
                   </div>
-                ) : null}
-                {iaOutput ? (
-                  <div className="mt-3 rounded-lg border border-[#262626] bg-[#0a0a0a] p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-[#A3A3A3]">
-                        Resultado
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={onClearIaOutput}
-                      >
-                        Fechar
-                      </Button>
+                  {iaLoading ? (
+                    <div className="mt-3 flex items-center gap-2 text-xs text-[#A3A3A3]">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      A processar com IA...
                     </div>
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-[#E5E5E5]">
-                      {iaOutput}
-                    </pre>
-                  </div>
-                ) : null}
-              </div>
+                  ) : null}
+                  {iaOutput ? (
+                    <div className="mt-3 rounded-lg border border-[#262626] bg-[#0a0a0a] p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-[#A3A3A3]">
+                          Resultado
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={onClearIaOutput}
+                        >
+                          Fechar
+                        </Button>
+                      </div>
+                      <pre className="max-h-48 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-[#E5E5E5]">
+                        {iaOutput}
+                      </pre>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="flex flex-wrap gap-2 border-t border-[#262626] pt-4">
                 <Button

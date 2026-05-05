@@ -34,6 +34,10 @@ type Props = {
   onGlobalIa: (action: MindMapRefineAction) => void;
   disciplinaLabel?: string | null;
   className?: string;
+  /** Quando false, esconde regenerar por IA e o menu «IA no mapa». */
+  showIaActions?: boolean;
+  /** Título à direita da disciplina (ex.: «Resumo em mapa mental»). */
+  heading?: string;
 };
 
 export function MindMapToolbar({
@@ -45,6 +49,8 @@ export function MindMapToolbar({
   onGlobalIa,
   disciplinaLabel,
   className,
+  showIaActions = true,
+  heading = "Mapa mental",
 }: Props) {
   return (
     <div
@@ -60,7 +66,7 @@ export function MindMapToolbar({
           </p>
         ) : null}
         <p className="truncate text-lg font-semibold text-[#F5F5F5]">
-          Mapa mental
+          {heading}
         </p>
       </div>
 
@@ -101,18 +107,21 @@ export function MindMapToolbar({
           <Plus className="h-4 w-4 sm:mr-2" />
           <span className="hidden sm:inline">Novo</span>
         </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={mapBusy}
-          onClick={onRegenerate}
-          className="rounded-lg border-[#262626] bg-[#151515] text-[#E5E5E5]"
-        >
-          <RefreshCw className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Regenerar</span>
-        </Button>
+        {showIaActions ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={mapBusy}
+            onClick={onRegenerate}
+            className="rounded-lg border-[#262626] bg-[#151515] text-[#E5E5E5]"
+          >
+            <RefreshCw className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Regenerar</span>
+          </Button>
+        ) : null}
 
+        {showIaActions ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -179,6 +188,7 @@ export function MindMapToolbar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        ) : null}
       </div>
     </div>
   );
