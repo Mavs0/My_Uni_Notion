@@ -144,7 +144,7 @@ export function CommandPalette({
       try {
         const [discRes, libRes] = await Promise.all([
           fetch("/api/disciplinas"),
-          fetch("/api/colaboracao/biblioteca?ordenar=recentes&limit=5&offset=0"),
+          fetch("/api/colaboracao/biblioteca?ordenar=recentes&limit=6&offset=0"),
         ]);
         if (cancelled) return;
         if (discRes.ok) {
@@ -186,7 +186,7 @@ export function CommandPalette({
     let cancelled = false;
     setPeopleLoading(true);
     const q = searchQuery.trim().length >= 2 ? searchQuery : "";
-    fetch(`/api/users/discover?limit=${q ? 10 : 6}${q ? `&search=${encodeURIComponent(q)}` : ""}`)
+    fetch(`/api/users/discover?limit=6${q ? `&search=${encodeURIComponent(q)}` : ""}`)
       .then((r) => r.ok ? r.json() : { users: [] })
       .then((data) => {
         if (!cancelled) setPeople(data.users || []);

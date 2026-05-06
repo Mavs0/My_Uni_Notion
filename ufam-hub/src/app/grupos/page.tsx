@@ -182,7 +182,7 @@ export default function GruposPage() {
   });
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const GRUPOS_PER_PAGE = 9;
+  const GRUPOS_PER_PAGE = 6;
   const [sortBy, setSortBy] = useState<"recent" | "name" | "members">(
     "recent",
   );
@@ -243,7 +243,9 @@ export default function GruposPage() {
   const loadGrupos = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/colaboracao/grupos?meus_grupos=true");
+      const response = await fetch(
+        "/api/colaboracao/grupos?meus_grupos=true&limit=500&offset=0",
+      );
       if (response.ok) {
         const { grupos: gruposData } = await response.json();
         setGrupos(gruposData || []);

@@ -1,5 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+/** Vercel: ~16KB no total dos cabeçalhos do pedido (middleware / edge). */
+function approximateRequestHeadersByteSize(headers: Headers): number {
+  let n = 0;
+  headers.forEach((value, name) => {
+    n += name.length + value.length + 4;
+  });
+  return n;
+}
+
 /**
  * Vercel devolve 494 REQUEST_HEADER_TOO_LARGE quando o pedido (incl. Cookie)
  * excede o limite da edge. Sessões Supabase com JWT/metadata gigantes fragmentam
@@ -31,23 +40,34 @@ export function emergencyCookieResponseIfNeeded(
    * Limites para sessão anómala (JWT/metadata gigante → muitos cookies sb-*).
    * Em **development** o teto é mais alto: senão o primeiro GET a /dashboard após
    * login ainda com JWT grande disparava Clear-Site-Data e mandava para login?reason=cookie.
-   * Produção: mantém valores mais conservadores (edge Vercel ~8KB–32KB conforme plano).
+   * Produção: abaixo de ~16KB **no total** dos cabeçalhos (limite Vercel) — margem para
+   * Host, User-Agent, etc.; senão o edge devolve 494 antes de conseguirmos limpar cookies.
    */
   const isDev = process.env.NODE_ENV === "development";
+  const maxTotalHeader =
+    Number(process.env.COOKIE_EMERGENCY_TOTAL_HEADER_BYTES) ||
+    (isDev ? 96 * 1024 : 14 * 1024);
   const maxHeader =
     Number(process.env.COOKIE_EMERGENCY_HEADER_BYTES) ||
-    (isDev ? 96 * 1024 : 30_720);
+    (isDev ? 96 * 1024 : 12 * 1024);
   const maxSbChunks =
-    Number(process.env.COOKIE_EMERGENCY_SB_CHUNKS) || (isDev ? 40 : 24);
+    Number(process.env.COOKIE_EMERGENCY_SB_CHUNKS) || (isDev ? 40 : 18);
   const maxSbBytes =
     Number(process.env.COOKIE_EMERGENCY_SB_BYTES) ||
-    (isDev ? 128 * 1024 : 48 * 1024);
+    (isDev ? 128 * 1024 : 36 * 1024);
 
-  const tooLargeHeader = raw.length > maxHeader;
+  const totalHeaders = approximateRequestHeadersByteSize(request.headers);
+  const tooLargeTotal = totalHeaders > maxTotalHeader;
+  const tooLargeCookieHeader = raw.length > maxHeader;
   const tooManyChunks = sb.length >= maxSbChunks;
   const tooFatSb = sbBytes > maxSbBytes;
 
-  if (!tooLargeHeader && !tooManyChunks && !tooFatSb) {
+  if (
+    !tooLargeTotal &&
+    !tooLargeCookieHeader &&
+    !tooManyChunks &&
+    !tooFatSb
+  ) {
     return null;
   }
 

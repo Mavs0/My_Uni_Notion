@@ -215,7 +215,7 @@ export default function GrupoDetailPage() {
   const loadMensagens = async () => {
     try {
       const response = await fetch(
-        `/api/colaboracao/grupos/${grupoId}/mensagens`,
+        `/api/colaboracao/grupos/${grupoId}/mensagens?limit=200&offset=0`,
       );
       if (response.ok) {
         const { mensagens: mensagensData } = await response.json();

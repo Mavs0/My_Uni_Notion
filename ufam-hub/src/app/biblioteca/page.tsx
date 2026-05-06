@@ -276,7 +276,7 @@ export default function BibliotecaPage() {
     setLoadingQuick(true);
     try {
       const res = await fetch(
-        `/api/colaboracao/biblioteca?ordenar=recentes&limit=10&offset=0`
+        `/api/colaboracao/biblioteca?ordenar=recentes&limit=6&offset=0`
       );
       if (!res.ok) {
         if (res.status === 401) toast.error("Faça login para ver a biblioteca.");
@@ -301,7 +301,7 @@ export default function BibliotecaPage() {
     setLoadingPinned(true);
     try {
       const res = await fetch(
-        `/api/colaboracao/biblioteca?ids=${pinnedIds.join(",")}&limit=20`
+        `/api/colaboracao/biblioteca?ids=${pinnedIds.join(",")}&limit=${pinnedIds.length}`
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -348,7 +348,9 @@ export default function BibliotecaPage() {
 
   const loadGrupos = async () => {
     try {
-      const response = await fetch("/api/colaboracao/grupos?meus_grupos=true");
+      const response = await fetch(
+        "/api/colaboracao/grupos?meus_grupos=true&limit=500&offset=0",
+      );
       if (response.ok) {
         const { grupos: gruposData } = await response.json();
         setGrupos(gruposData || []);

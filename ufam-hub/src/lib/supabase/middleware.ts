@@ -45,23 +45,19 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  let session: import("@supabase/supabase-js").Session | null = null;
   try {
-    const { data } = await supabase.auth.getSession();
-    session = data.session ?? null;
+    await supabase.auth.getSession();
   } catch {
-    session = null;
+    /* sessão inválida — continua sem utilizador */
   }
 
-  const requestHeaders = new Headers(request.headers);
-  if (session?.access_token) {
-    requestHeaders.set("Authorization", `Bearer ${session.access_token}`);
-    /* Fallback se o Next não reencaminhar Authorization ao Route Handler (comum em dev). */
-    requestHeaders.set("x-sb-access-token", session.access_token);
-  }
-
+  /**
+   * Não duplicar o JWT em cabeçalhos: `createSupabaseServer` usa só `cookies()` —
+   * `Authorization` + `x-sb-access-token` somavam ~2× o tamanho do token ao pedido
+   * interno e rebentavam o limite ~16KB do Vercel (494 REQUEST_HEADER_TOO_LARGE).
+   */
   const withAuth = NextResponse.next({
-    request: { headers: requestHeaders },
+    request,
   });
 
   const setCookies = supabaseResponse.headers.getSetCookie?.() ?? [];

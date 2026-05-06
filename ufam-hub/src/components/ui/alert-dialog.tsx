@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
@@ -22,6 +23,10 @@ const AlertDialogOverlay = React.forwardRef<
 ));
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
+type DialogContentProps = React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+>;
+
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
@@ -35,6 +40,28 @@ const AlertDialogContent = React.forwardRef<
         className
       )}
       {...props}
+      {...({
+        onInteractOutside: (e: NonNullable<
+          DialogContentProps["onInteractOutside"]
+        > extends (ev: infer E) => void
+          ? E
+          : never) => {
+          e.preventDefault();
+        },
+        onPointerDownOutside: (e: NonNullable<
+          DialogContentProps["onPointerDownOutside"]
+        > extends (ev: infer E) => void
+          ? E
+          : never) => {
+          e.preventDefault();
+        },
+      } satisfies Pick<
+        DialogContentProps,
+        "onInteractOutside" | "onPointerDownOutside"
+      > as Pick<
+        DialogContentProps,
+        "onInteractOutside" | "onPointerDownOutside"
+      >)}
     />
   </AlertDialogPortal>
 ));

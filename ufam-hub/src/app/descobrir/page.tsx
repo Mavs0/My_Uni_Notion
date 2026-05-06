@@ -49,7 +49,7 @@ import {
 } from "@/components/auth/InviteUserPanel";
 import { cn } from "@/lib/utils";
 
-const INITIAL_FETCH_LIMIT = 36;
+const INITIAL_FETCH_LIMIT = 6;
 
 interface DiscoverUser {
   id: string;
@@ -741,7 +741,7 @@ export default function DiscoverPage() {
                   type="button"
                   variant="link"
                   className="shrink-0 gap-1 text-[#05865E] no-underline hover:no-underline"
-                  onClick={() => setFetchLimit((n) => n + 24)}
+                  onClick={() => setFetchLimit((n) => n + 6)}
                 >
                   {pt ? "Ver todos" : "See all"}
                   <ChevronRight className="h-4 w-4" />

@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     const busca = searchParams.get("busca");
     const tags = searchParams.get("tags");
     const ordenar = searchParams.get("ordenar") || "recentes"; // recentes | visualizacoes | downloads | curtidas
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const limit = parseInt(searchParams.get("limit") || "6");
     const offset = parseInt(searchParams.get("offset") || "0");
     const idsParam = searchParams.get("ids"); // ids=id1,id2 para fixados
     const ids = idsParam ? idsParam.split(",").map((id) => id.trim()).filter(Boolean) : null;

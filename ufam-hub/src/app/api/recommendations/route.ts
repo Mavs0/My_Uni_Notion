@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const tipo = searchParams.get("tipo");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(searchParams.get("limit") || "6");
 
     const recommendations: Recommendation[] = [];
 

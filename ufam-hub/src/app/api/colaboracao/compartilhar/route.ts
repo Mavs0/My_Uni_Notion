@@ -214,7 +214,7 @@ export async function GET(request: NextRequest) {
     const link = searchParams.get("link");
     const disciplina_id = searchParams.get("disciplina_id");
     const visibilidade = searchParams.get("visibilidade");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const limit = parseInt(searchParams.get("limit") || "6");
     const offset = parseInt(searchParams.get("offset") || "0");
     const supabase = await createSupabaseServer(request);
     if (link) {

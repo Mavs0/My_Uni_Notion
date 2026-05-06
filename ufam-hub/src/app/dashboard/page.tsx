@@ -674,7 +674,7 @@ export default function DashboardPage() {
   const { data: notificacoesData, isLoading: loadingNotificacoes } = useQuery({
     queryKey: ["notificacoes", "recentes"],
     queryFn: async () => {
-      const res = await fetch("/api/notificacoes/recentes?limit=5");
+      const res = await fetch("/api/notificacoes/recentes?limit=6");
       if (!res.ok) throw new Error("Erro ao buscar notificações");
       const data = await res.json();
       return data.notificacoes || [];

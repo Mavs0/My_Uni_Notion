@@ -51,7 +51,7 @@ interface RecommendationsWidgetProps {
 
 export function RecommendationsWidget({
   tipo,
-  limit = 5,
+  limit = 6,
   showTitle = true,
   className = "",
 }: RecommendationsWidgetProps) {

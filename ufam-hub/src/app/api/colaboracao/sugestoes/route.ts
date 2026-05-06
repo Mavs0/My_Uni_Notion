@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const disciplina_id = searchParams.get("disciplina_id");
-    const limit = parseInt(searchParams.get("limit") || "5");
+    const limit = parseInt(searchParams.get("limit") || "6");
     const supabase = await createSupabaseServer(request);
     const {
       data: { user },
