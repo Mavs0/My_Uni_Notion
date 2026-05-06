@@ -29,7 +29,7 @@ interface UseRecommendationsOptions {
 }
 
 export function useRecommendations(options: UseRecommendationsOptions = {}) {
-  const { tipo, limit = 10, enabled = true } = options;
+  const { tipo, limit = 6, enabled = true } = options;
 
   return useQuery({
     queryKey: ["recommendations", tipo, limit],

@@ -29,7 +29,7 @@ export async function GET(
     }
 
     const limit = Math.min(
-      parseInt(request.nextUrl.searchParams.get("limit") || "30"),
+      parseInt(request.nextUrl.searchParams.get("limit") || "6"),
       50
     );
 

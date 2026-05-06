@@ -81,7 +81,7 @@ export type BibliotecaItem = {
 
 export async function listSavedMindMaps(): Promise<BibliotecaItem[]> {
   const res = await fetch(
-    "/api/colaboracao/biblioteca?tipo=mapa_mental&limit=50",
+    "/api/colaboracao/biblioteca?tipo=mapa_mental&limit=6",
     { credentials: "include" }
   );
   const json = await res.json().catch(() => ({}));

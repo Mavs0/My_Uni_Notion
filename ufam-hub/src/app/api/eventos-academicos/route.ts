@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const dataInicio = searchParams.get("data_inicio");
     const dataFim = searchParams.get("data_fim");
     const publico = searchParams.get("publico");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = parseInt(searchParams.get("limit") || "6");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     let query = supabase

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   MessageSquare,
@@ -65,7 +66,22 @@ import { Badge } from "@/components/ui/badge";
 import { MessageRenderer } from "@/components/chat/MessageRenderer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { MindMapWorkspace } from "@/components/mind-map";
+
+const MindMapWorkspace = dynamic(
+  () =>
+    import("@/components/mind-map").then((m) => ({
+      default: m.MindMapWorkspace,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm">Carregando mapa mental…</p>
+      </div>
+    ),
+  },
+);
 
 type Msg = {
   id: string;

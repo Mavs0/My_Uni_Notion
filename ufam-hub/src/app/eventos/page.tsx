@@ -323,6 +323,7 @@ export default function EventosPage() {
       if (categoriaFiltro !== "todas") {
         params.append("categoria", categoriaFiltro);
       }
+      params.append("limit", "500");
       const res = await fetch(`/api/eventos-academicos?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();

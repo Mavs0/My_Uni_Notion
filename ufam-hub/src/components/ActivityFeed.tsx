@@ -34,7 +34,7 @@ interface ActivityFeedProps {
 
 export function ActivityFeed({
   type = "personalized",
-  limit = 20,
+  limit = 6,
   refreshKey = 0,
   filters = {},
 }: ActivityFeedProps) {

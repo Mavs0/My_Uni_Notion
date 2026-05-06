@@ -21,7 +21,7 @@ export function useNotificationHistory() {
   const [loading, setLoading] = useState(true);
 
   const loadNotifications = useCallback(
-    async (lida?: boolean, tipo?: string, limit = 50) => {
+    async (lida?: boolean, tipo?: string, limit = 6) => {
       try {
         setLoading(true);
         const params = new URLSearchParams();

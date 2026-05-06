@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const lidaParam = searchParams.get("lida");
     const tipo = searchParams.get("tipo");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10) || 50, 100);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "6", 10) || 6, 100);
     const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10));
 
     let query = db

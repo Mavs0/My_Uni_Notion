@@ -16,7 +16,7 @@ interface UseInfiniteScrollOptions<T> {
 
 export function useInfiniteScroll<T>({
   fetchFn,
-  limit = 20,
+  limit = 6,
   enabled = true,
   dependencies = [],
 }: UseInfiniteScrollOptions<T>) {

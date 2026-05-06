@@ -42,6 +42,8 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onInteractOutside,
+  onPointerDownOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
@@ -56,6 +58,14 @@ function DialogContent({
           className
         )}
         {...props}
+        onInteractOutside={(e) => {
+          e.preventDefault();
+          onInteractOutside?.(e);
+        }}
+        onPointerDownOutside={(e) => {
+          e.preventDefault();
+          onPointerDownOutside?.(e);
+        }}
       >
         {children}
         {showCloseButton && (

@@ -211,7 +211,7 @@ export default function PublicProfilePage() {
   const loadActivities = async () => {
     try {
       setLoadingActivities(true);
-      const res = await fetch(`/api/users/${userId}/activities?limit=30`);
+      const res = await fetch(`/api/users/${userId}/activities?limit=6`);
       if (res.ok) {
         const { items } = await res.json();
         setActivities(items || []);
