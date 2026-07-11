@@ -95,7 +95,7 @@ const getNotificationLink = (notificacao: any) => {
     case "disciplina":
       return `/disciplinas/${notificacao.referencia_id}`;
     case "activity":
-      return `/feed`;
+      return null;
     case "friend_request":
       return `/perfil/amizades`;
     case "grupo":

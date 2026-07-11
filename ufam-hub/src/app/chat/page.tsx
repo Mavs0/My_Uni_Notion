@@ -789,6 +789,17 @@ export default function ChatPage() {
       setStreamErr("Digite o conceito que deseja entender");
       return;
     }
+    if (!disciplinasAtivas || disciplinasAtivas.length === 0) {
+      setStreamErr("Cadastre uma disciplina para usar o Explicar.");
+      toast.error("Cadastre uma disciplina primeiro.");
+      return;
+    }
+    if (!disciplinaId) {
+      setStreamErr("Selecione uma disciplina na barra lateral.");
+      toast.error("Selecione uma disciplina.");
+      return;
+    }
+    setStreamErr(null);
     setExplicacaoLoading(true);
     setExplicacaoTexto("");
     try {
@@ -823,8 +834,15 @@ export default function ChatPage() {
         acc += chunk;
         setExplicacaoTexto(acc);
       }
+      if (!acc.trim()) {
+        throw new Error(
+          "Resposta vazia da IA. Verifique GOOGLE_GENERATIVE_AI_API_KEY e o modelo configurado.",
+        );
+      }
     } catch (error: any) {
-      setStreamErr(error.message);
+      const msg = error?.message || "Erro ao gerar explicação";
+      setStreamErr(msg);
+      toast.error(msg);
     } finally {
       setExplicacaoLoading(false);
     }
@@ -2066,9 +2084,12 @@ export default function ChatPage() {
                 </div>
               </Card>
 
-              {explicacaoTexto && (
+              {(explicacaoLoading || explicacaoTexto) && (
                 <Card className="rounded-2xl border border-border/60 bg-card/80 p-6 shadow-lg backdrop-blur-sm dark:border-white/5 dark:bg-card/50">
-                  <MessageRenderer content={explicacaoTexto} />
+                  <MessageRenderer
+                    content={explicacaoTexto}
+                    isStreaming={explicacaoLoading}
+                  />
                 </Card>
               )}
             </div>

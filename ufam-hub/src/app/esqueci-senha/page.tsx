@@ -45,8 +45,7 @@ const FORGOT_FEATURES: AuthModernFeature[] = [
   {
     Icon: Zap,
     title: "Rápido",
-    subtitle:
-      "Você recebe o e-mail em instantes — verifique também o spam.",
+    subtitle: "Você recebe o e-mail em instantes — verifique também o spam.",
   },
   {
     Icon: MousePointerClick,
@@ -119,7 +118,11 @@ export default function EsqueciSenhaPage() {
     <AuthModernShell
       eyebrow={
         <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(5,134,94,0.35)] bg-[rgba(5,134,94,0.12)] px-4 py-2 text-sm font-medium text-[#fafafa]">
-          <Lock className="h-4 w-4" style={{ color: LOGIN_GREEN }} aria-hidden />
+          <Lock
+            className="h-4 w-4"
+            style={{ color: LOGIN_GREEN }}
+            aria-hidden
+          />
           Recuperação de senha
         </span>
       }
@@ -135,7 +138,7 @@ export default function EsqueciSenhaPage() {
       description="Informe seu e-mail e enviaremos um link seguro para redefinir sua senha. O processo é rápido e simples."
       features={FORGOT_FEATURES}
       speechBubble={{
-        default: "Vamos te ajudar a voltar o quanto antes! 🚀",
+        default: "Vamos te ajudar a voltar o quanto antes! ",
       }}
       mascotMode={mascotMode}
       mascotFocus={mascotFocus}
@@ -152,25 +155,16 @@ export default function EsqueciSenhaPage() {
           </Link>
         </div>
       }
-      leftFooter={
-        <div
-          className="flex items-start gap-2.5 text-[11px] leading-relaxed sm:text-xs"
-          style={{ color: "rgba(250,250,250,0.5)" }}
-        >
-          <Lock
-            className="mt-0.5 h-3.5 w-3.5 shrink-0"
-            style={{ color: LOGIN_GREEN }}
-            aria-hidden
-          />
-          <span>Seus dados estão protegidos com segurança avançada.</span>
-        </div>
-      }
     >
       <div className="mx-auto w-full max-w-[400px] space-y-6 lg:max-w-[380px]">
         <Card className="rounded-2xl border border-white/10 bg-[rgba(18,18,18,0.55)] shadow-xl backdrop-blur-xl dark:border-white/10">
           <CardHeader className="space-y-2 pb-6">
             <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full border border-[rgba(5,134,94,0.45)] bg-[rgba(5,134,94,0.15)] shadow-[0_0_24px_rgba(5,134,94,0.12)]">
-              <Mail className="h-7 w-7" style={{ color: LOGIN_GREEN }} aria-hidden />
+              <Mail
+                className="h-7 w-7"
+                style={{ color: LOGIN_GREEN }}
+                aria-hidden
+              />
             </div>
             <CardTitle className="text-center text-3xl font-bold tracking-tight text-foreground">
               Esqueci minha{" "}
@@ -229,7 +223,10 @@ export default function EsqueciSenhaPage() {
                     }}
                     role="alert"
                   >
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+                    <AlertCircle
+                      className="mt-0.5 h-5 w-5 shrink-0"
+                      aria-hidden
+                    />
                     <span>{error}</span>
                   </div>
                 ) : null}
@@ -277,7 +274,10 @@ export default function EsqueciSenhaPage() {
                 >
                   <span className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:justify-start">
                     {loading ? (
-                      <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
+                      <Loader2
+                        className="h-5 w-5 shrink-0 animate-spin"
+                        aria-hidden
+                      />
                     ) : null}
                     {loading ? "Enviando…" : "Enviar link de recuperação"}
                   </span>

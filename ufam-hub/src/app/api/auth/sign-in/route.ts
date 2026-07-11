@@ -8,6 +8,10 @@ import {
   MAX_AVATAR_URL_LENGTH,
 } from "@/lib/profile/avatar-metadata";
 import type { User } from "@supabase/supabase-js";
+import {
+  getSignInCatchHttpError,
+  getSignInHttpError,
+} from "@/lib/auth/sign-in-errors";
 
 function safeRedirect(raw: unknown): string {
   if (typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//")) {
@@ -93,33 +97,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      const msg = error.message || "Falha no login";
-      const lower = msg.toLowerCase();
-      if (
-        lower.includes("invalid login") ||
-        lower.includes("invalid credentials")
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Não foi possível fazer login com esses dados. Confira o e-mail e a senha e tente novamente.",
-          },
-          { status: 401 },
-        );
-      }
-      if (lower.includes("email not confirmed")) {
-        return NextResponse.json(
-          { error: "E-mail não confirmado. Verifique sua caixa de entrada." },
-          { status: 401 },
-        );
-      }
-      if (lower.includes("too many requests")) {
-        return NextResponse.json(
-          { error: "Muitas tentativas. Aguarde alguns minutos." },
-          { status: 429 },
-        );
-      }
-      return NextResponse.json({ error: msg }, { status: 401 });
+      const { status, error: errMsg } = getSignInHttpError(error);
+      console.error("[sign-in] auth error:", error.message);
+      return NextResponse.json({ error: errMsg }, { status });
     }
 
     if (!data.session) {
@@ -157,6 +137,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, redirect });
   } catch (e) {
     console.error("[sign-in]", e);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    const { status, error: errMsg } = getSignInCatchHttpError(e);
+    return NextResponse.json({ error: errMsg }, { status });
   }
 }

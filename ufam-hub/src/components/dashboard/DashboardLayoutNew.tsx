@@ -96,9 +96,7 @@ export interface DashboardLayoutNewProps {
 function daysUntil(dtISO: string) {
   const now = new Date();
   const target = new Date(dtISO);
-  return Math.ceil(
-    (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function parseHM(s: string) {
@@ -123,8 +121,7 @@ function tipoBadge(tipo: "prova" | "trabalho" | "seminario") {
   const map = {
     prova: "bg-red-500/15 text-red-400 border-red-500/30",
     trabalho: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-    seminario:
-      "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    seminario: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   };
   return `rounded px-2 py-0.5 text-xs border capitalize ${map[tipo]}`;
 }
@@ -236,8 +233,7 @@ export function DashboardLayoutNew({
     if (avaliacoesAmanhaCount === 1) return "1 avaliação amanhã";
     if (avaliacoesAmanhaCount > 1)
       return `${avaliacoesAmanhaCount} avaliações amanhã`;
-    if (totalAvaliacoesSemana > 0)
-      return `${totalAvaliacoesSemana} na semana`;
+    if (totalAvaliacoesSemana > 0) return `${totalAvaliacoesSemana} na semana`;
     return "Nenhuma próxima";
   }, [avaliacoesAmanhaCount, totalAvaliacoesSemana]);
 
@@ -247,14 +243,10 @@ export function DashboardLayoutNew({
       style={{ backgroundColor: "#0a0a0a", color: "#fafafa" }}
     >
       <div className="mx-auto w-full max-w-[min(100%,1600px)] space-y-8 px-3 pb-16 pt-6 sm:px-5 lg:space-y-10 lg:px-8">
-        {/* Saudação + KPIs */}
         <section className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between xl:gap-12">
           <header className="min-w-0 flex-1">
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.35rem] lg:leading-tight">
               {greeting}, {primeiroNome}!{" "}
-              <span className="inline-block" aria-hidden>
-                👋
-              </span>
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base">
               {resumoLinha}
@@ -288,7 +280,9 @@ export function DashboardLayoutNew({
             </div>
             <div className={cn(glass, "p-4 sm:p-5")}>
               <div className="flex items-start gap-3">
-                <div className={cn(statCardIcon, "bg-amber-500/15 text-amber-400")}>
+                <div
+                  className={cn(statCardIcon, "bg-amber-500/15 text-amber-400")}
+                >
                   <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
@@ -306,7 +300,9 @@ export function DashboardLayoutNew({
             </div>
             <div className={cn(glass, "p-4 sm:p-5")}>
               <div className="flex items-start gap-3">
-                <div className={cn(statCardIcon, "bg-blue-500/15 text-blue-400")}>
+                <div
+                  className={cn(statCardIcon, "bg-blue-500/15 text-blue-400")}
+                >
                   <Calendar className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
@@ -348,9 +344,9 @@ export function DashboardLayoutNew({
 
         {/* Disciplinas + Agenda */}
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
-          <div className="min-w-0 lg:col-span-8">
+          <div className="min-w-0 lg:col-span-8 md:pb-20">
             <div className={glass}>
-              <div className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] p-5 pb-4">
+              <div className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] p-5 pb-4 md:pb-10">
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight">
                     Minhas disciplinas
@@ -503,7 +499,9 @@ export function DashboardLayoutNew({
               <div className="space-y-4 p-5">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3 text-center">
-                    <p className="text-xs text-neutral-500">Tarefas concluídas</p>
+                    <p className="text-xs text-neutral-500">
+                      Tarefas concluídas
+                    </p>
                     <p className="mt-1 text-lg font-semibold tabular-nums">
                       {atasSemanaResumo}
                     </p>
@@ -515,7 +513,9 @@ export function DashboardLayoutNew({
                     </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3 text-center">
-                    <p className="text-xs text-neutral-500">Avaliações na semana</p>
+                    <p className="text-xs text-neutral-500">
+                      Avaliações na semana
+                    </p>
                     <p className="mt-1 text-lg font-semibold tabular-nums">
                       {totalAvaliacoesSemana}
                     </p>
@@ -602,8 +602,7 @@ export function DashboardLayoutNew({
                       />
                     ))}
                   </div>
-                ) : prioridadesHoje.length === 0 &&
-                  hojeNaGrade.length === 0 ? (
+                ) : prioridadesHoje.length === 0 && hojeNaGrade.length === 0 ? (
                   <p className="py-8 text-center text-sm text-neutral-500">
                     Nada pendente para hoje.
                   </p>
@@ -614,7 +613,9 @@ export function DashboardLayoutNew({
                         <div className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
                           <CheckCircle2 className="h-5 w-5 shrink-0 text-neutral-500" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium">{aula.disciplina}</p>
+                            <p className="truncate font-medium">
+                              {aula.disciplina}
+                            </p>
                             <p className="text-xs text-neutral-500">
                               {aula.inicio} – {aula.fim}
                               {aula.local ? ` · ${aula.local}` : ""}
@@ -688,15 +689,6 @@ export function DashboardLayoutNew({
             >
               <div className="relative border-b border-white/[0.06] bg-gradient-to-br from-emerald-950/40 to-transparent p-5">
                 <div className="flex items-start gap-4">
-                  <div className="relative h-16 w-16 shrink-0">
-                    <img
-                      src="/mascot/ufam-hub-robot.svg"
-                      alt=""
-                      width={64}
-                      height={64}
-                      className="drop-shadow-[0_0_12px_rgba(5,134,94,0.45)]"
-                    />
-                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 text-emerald-400">
                       <Sparkles className="h-4 w-4 shrink-0" />
@@ -751,7 +743,9 @@ export function DashboardLayoutNew({
                               : `Em ${dias} dias`}
                         </p>
                       </div>
-                      <span className={cn("shrink-0 text-xs", tipoBadge(a.tipo))}>
+                      <span
+                        className={cn("shrink-0 text-xs", tipoBadge(a.tipo))}
+                      >
                         {a.tipo}
                       </span>
                     </Link>
@@ -764,7 +758,9 @@ export function DashboardLayoutNew({
                   >
                     <Bell className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                     <div className="min-w-0">
-                      <p className="font-medium text-neutral-200">{ev.titulo}</p>
+                      <p className="font-medium text-neutral-200">
+                        {ev.titulo}
+                      </p>
                       <p className="text-neutral-500">{ev.subtitulo}</p>
                     </div>
                   </div>

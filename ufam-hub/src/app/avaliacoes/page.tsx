@@ -78,6 +78,7 @@ import {
 } from "@/hooks/useAvaliacoes";
 import { useDisciplinas } from "@/hooks/useDisciplinas";
 import { SyncAvaliacoesWithCalendar } from "@/components/GoogleCalendarIntegration";
+import { RegistarNotaAvaliacaoDialog } from "@/components/avaliacoes/RegistarNotaAvaliacaoDialog";
 import {
   LineChart,
   Line,
@@ -278,6 +279,9 @@ export default function AvaliacoesPage() {
   const [openNew, setOpenNew] = useState(false);
   const [editing, setEditing] = useState<Avaliacao | null>(null);
   const [avaliacaoToDelete, setAvaliacaoToDelete] = useState<string | null>(
+    null
+  );
+  const [registarNotaAval, setRegistarNotaAval] = useState<Avaliacao | null>(
     null
   );
   const [viewMode, setViewMode] = useState<"lista" | "calendario">("lista");
@@ -1109,9 +1113,26 @@ export default function AvaliacoesPage() {
                 return (
                   <div
                     key={rowKey}
+                    role={isPast ? "button" : undefined}
+                    tabIndex={isPast ? 0 : undefined}
+                    onClick={
+                      isPast ? () => setRegistarNotaAval(a) : undefined
+                    }
+                    onKeyDown={
+                      isPast
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setRegistarNotaAval(a);
+                            }
+                          }
+                        : undefined
+                    }
                     className={cn(
                       "group rounded-xl border bg-card p-5 shadow-sm transition-all duration-300",
                       "hover:shadow-lg hover:-translate-y-0.5",
+                      isPast &&
+                        "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isHoje &&
                         !hasNota &&
                         "border-destructive/50 bg-gradient-to-br from-destructive/5 to-transparent",
@@ -1143,11 +1164,20 @@ export default function AvaliacoesPage() {
                               size="icon"
                               className="h-8 w-8 md:opacity-0 md:group-hover:opacity-100"
                               aria-label="Opções"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {isPast && (
+                              <DropdownMenuItem
+                                onClick={() => setRegistarNotaAval(a)}
+                              >
+                                <ClipboardList className="h-4 w-4 mr-2" />
+                                Nota no Controle Acadêmico
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => duplicarAvaliacao(a)}>
                               <Copy className="h-4 w-4 mr-2" />
                               Duplicar
@@ -1179,6 +1209,11 @@ export default function AvaliacoesPage() {
                           {fmtDate(a.dataISO)}
                         </span>
                       </div>
+                      {isPast && (
+                        <p className="text-xs text-muted-foreground">
+                          Clique no cartão para registrar ou editar a nota.
+                        </p>
+                      )}
                       {/* Nota */}
                       {hasNota && (
                         <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border">
@@ -1293,6 +1328,17 @@ export default function AvaliacoesPage() {
           await saveEdited(upd);
         }}
         disciplinas={disciplinasAtivas}
+      />
+      <RegistarNotaAvaliacaoDialog
+        open={!!registarNotaAval}
+        onOpenChange={(open) => !open && setRegistarNotaAval(null)}
+        avaliacao={registarNotaAval}
+        disciplinaNome={
+          registarNotaAval
+            ? discMap.get(registarNotaAval.disciplinaId) ?? undefined
+            : undefined
+        }
+        updateAvaliacao={updateAvaliacao}
       />
       {}
       <Dialog

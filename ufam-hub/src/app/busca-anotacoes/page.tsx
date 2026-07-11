@@ -8,6 +8,7 @@ import {
   Loader2,
   ArrowRight,
   BookOpen,
+  ChevronLeft,
   ChevronRight,
   FolderOpen,
   Brain,
@@ -91,6 +92,8 @@ function notaEditorPath(nota: { disciplinaId: string; id: string }) {
   return `/disciplinas/${nota.disciplinaId}/notas/${nota.id}`;
 }
 
+const NOTAS_POR_PAGINA = 6;
+
 function initialsFromProfile(nome: string, email: string) {
   if (nome?.trim()) {
     const parts = nome.trim().split(/\s+/);
@@ -125,6 +128,7 @@ export default function BuscaAnotacoesPage() {
   const [disciplinaNovaId, setDisciplinaNovaId] = useState("");
   const [criandoNova, setCriandoNova] = useState(false);
   const [erroNova, setErroNova] = useState<string | null>(null);
+  const [paginaLista, setPaginaLista] = useState(1);
 
   const disciplinasOrdenadas = useMemo(() => {
     return [...disciplinasAtivas].sort((a, b) =>
@@ -186,6 +190,25 @@ export default function BuscaAnotacoesPage() {
   const results = hasSearch ? searchResults : allNotasFormatted;
   const loading = hasSearch ? searchLoading : allNotasLoading;
   const error = hasSearch ? searchError : allNotasError;
+
+  const totalPaginasLista = Math.max(
+    1,
+    Math.ceil(results.length / NOTAS_POR_PAGINA),
+  );
+  const paginaListaSegura = Math.min(paginaLista, totalPaginasLista);
+
+  const resultadosPaginados = useMemo(() => {
+    const inicio = (paginaListaSegura - 1) * NOTAS_POR_PAGINA;
+    return results.slice(inicio, inicio + NOTAS_POR_PAGINA);
+  }, [results, paginaListaSegura]);
+
+  useEffect(() => {
+    setPaginaLista(1);
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    setPaginaLista((p) => Math.min(p, totalPaginasLista));
+  }, [totalPaginasLista, results.length]);
 
   const recentNotas = useMemo(() => {
     return [...allNotasFormatted]
@@ -265,12 +288,12 @@ export default function BuscaAnotacoesPage() {
   return (
     <main
       className={cn(
-        "mx-auto min-h-[calc(100dvh-6rem)] w-full max-w-6xl",
-        "bg-[#F8F9FB] px-4 py-8 sm:px-6 lg:px-8",
+        "mx-auto min-h-[calc(100dvh-6rem)] w-full max-w-screen-2xl",
+        "bg-[#F8F9FB] px-4 py-8 sm:px-6 lg:px-8 xl:px-10",
         "dark:bg-transparent",
       )}
     >
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="mx-auto w-full max-w-none space-y-8">
         {/* Cabeçalho estilo dashboard claro */}
         <header className="space-y-1">
           <div className="flex items-start gap-4">
@@ -613,7 +636,7 @@ export default function BuscaAnotacoesPage() {
                 <span className="text-right" />
               </div>
               <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {(results as NotaSearchResult[]).map((nota) => (
+                {(resultadosPaginados as NotaSearchResult[]).map((nota) => (
                   <li key={nota.id}>
                     <button
                       type="button"
@@ -672,9 +695,49 @@ export default function BuscaAnotacoesPage() {
               </ul>
             </div>
 
+            {totalPaginasLista > 1 && (
+              <div className="hidden items-center justify-center gap-3 pt-2 md:flex">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                  onClick={() =>
+                    setPaginaLista((p) => {
+                      const atual = Math.min(p, totalPaginasLista);
+                      return Math.max(1, atual - 1);
+                    })
+                  }
+                  disabled={paginaListaSegura <= 1}
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[10rem] text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  Página {paginaListaSegura} de {totalPaginasLista}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                  onClick={() =>
+                    setPaginaLista((p) => {
+                      const atual = Math.min(p, totalPaginasLista);
+                      return Math.min(totalPaginasLista, atual + 1);
+                    })
+                  }
+                  disabled={paginaListaSegura >= totalPaginasLista}
+                  aria-label="Próxima página"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
             {/* Mobile: cartões */}
             <div className="space-y-3 md:hidden">
-              {(results as NotaSearchResult[]).map((nota) => (
+              {(resultadosPaginados as NotaSearchResult[]).map((nota) => (
                 <button
                   key={nota.id}
                   type="button"
@@ -721,6 +784,46 @@ export default function BuscaAnotacoesPage() {
                 </button>
               ))}
             </div>
+
+            {totalPaginasLista > 1 && (
+              <div className="flex items-center justify-center gap-3 pt-2 md:hidden">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                  onClick={() =>
+                    setPaginaLista((p) => {
+                      const atual = Math.min(p, totalPaginasLista);
+                      return Math.max(1, atual - 1);
+                    })
+                  }
+                  disabled={paginaListaSegura <= 1}
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[10rem] text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  Página {paginaListaSegura} de {totalPaginasLista}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                  onClick={() =>
+                    setPaginaLista((p) => {
+                      const atual = Math.min(p, totalPaginasLista);
+                      return Math.min(totalPaginasLista, atual + 1);
+                    })
+                  }
+                  disabled={paginaListaSegura >= totalPaginasLista}
+                  aria-label="Próxima página"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

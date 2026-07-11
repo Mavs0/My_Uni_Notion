@@ -74,7 +74,7 @@ const TOUR_STEPS: TourStep[] = [
     id: "social",
     title: "Rede e Descobrir",
     description:
-      "Conecte-se com outros estudantes, descubra perfis públicos e acompanhe atividades no feed.",
+      "Conecte-se com outros estudantes e descubra perfis públicos.",
     icon: Users,
     action: { label: "Explorar", href: "/descobrir" },
   },

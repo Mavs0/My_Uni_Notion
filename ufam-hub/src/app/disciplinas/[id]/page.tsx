@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDisciplinas } from "@/hooks/useDisciplinas";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { useAvaliacoes } from "@/hooks/useAvaliacoes";
+import { useAvaliacoes, type Avaliacao as AvaliacaoRow } from "@/hooks/useAvaliacoes";
 import { useTarefas, type Tarefa } from "@/hooks/useTarefas";
 import { useNotas } from "@/hooks/useNotas";
 import {
@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { COLAB_WEB_LOGIN_URL } from "@/lib/external-links";
 import { EditDisciplinaDialog } from "@/components/EditDisciplinaDialog";
+import { RegistarNotaAvaliacaoDialog } from "@/components/avaliacoes/RegistarNotaAvaliacaoDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -86,15 +87,6 @@ type Disciplina = {
   horarios?: { dia: number; inicio: string; fim: string }[];
 };
 type AvaliacaoTipo = "prova" | "trabalho" | "seminario";
-type Avaliacao = {
-  id: string;
-  disciplinaId: string;
-  tipo: AvaliacaoTipo;
-  dataISO: string;
-  descricao?: string;
-  resumo_assuntos?: string;
-  gerado_por_ia?: boolean;
-};
 type Material = {
   id: string;
   titulo: string;
@@ -283,6 +275,7 @@ export default function DisciplinaDetailPage() {
     loading: loadingAval,
     createAvaliacao,
     deleteAvaliacao,
+    updateAvaliacao,
   } = useAvaliacoes({
     disciplinaId: isValidDisciplinaId(id) ? id : undefined,
   });
@@ -324,34 +317,41 @@ export default function DisciplinaDetailPage() {
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [blocosAssistidos, setBlocosAssistidos] = useState<number>(0);
   const [notaToDelete, setNotaToDelete] = useState<string | null>(null);
+  const [avaliacaoRegistarNota, setAvaliacaoRegistarNota] =
+    useState<AvaliacaoRow | null>(null);
   const [editDisciplinaOpen, setEditDisciplinaOpen] = useState(false);
   const [disciplinaTab, setDisciplinaTab] = useState<
     "visao" | "anotacoes" | "materiais" | "tarefas" | "avaliacoes"
   >("visao");
 
-  useEffect(() => {
+  // Carregar antes de qualquer useEffect que persista — senão gravávamos [] e apagávamos o que estava salvo.
+  useLayoutEffect(() => {
     const saved = localStorage.getItem(storeKey("materials"));
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           setMateriais(parsed);
+          return;
         }
       } catch (e) {
         console.error("Erro ao carregar materiais do localStorage:", e);
       }
     }
+    setMateriais([]);
   }, [id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const saved = localStorage.getItem(storeKey("blocks"));
     if (saved) {
       try {
-        setBlocosAssistidos(parseInt(saved) || 0);
+        setBlocosAssistidos(parseInt(saved, 10) || 0);
+        return;
       } catch (e) {
         console.error("Erro ao carregar blocos do localStorage:", e);
       }
     }
+    setBlocosAssistidos(0);
   }, [id]);
 
   useEffect(() => {
@@ -1309,10 +1309,26 @@ export default function DisciplinaDetailPage() {
                 return (
                   <li
                     key={a.id}
+                    role={isPast ? "button" : undefined}
+                    tabIndex={isPast ? 0 : undefined}
+                    onClick={
+                      isPast ? () => setAvaliacaoRegistarNota(a) : undefined
+                    }
+                    onKeyDown={
+                      isPast
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setAvaliacaoRegistarNota(a);
+                            }
+                          }
+                        : undefined
+                    }
                     className={cn(
                       "group overflow-hidden rounded-2xl border p-4 shadow-sm transition-all hover:shadow-md dark:hover:shadow-black/25",
                       "border-slate-200/80 bg-gradient-to-br from-white to-slate-50/90 dark:border-zinc-800 dark:from-zinc-900/60 dark:to-zinc-950/40",
-                      isPast && "opacity-60",
+                      isPast &&
+                        "cursor-pointer opacity-60 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       isUrgent &&
                         !isPast &&
                         "border-amber-500/35 ring-1 ring-amber-500/20"
@@ -1348,6 +1364,12 @@ export default function DisciplinaDetailPage() {
                           <div className="mt-1 text-sm text-muted-foreground">
                             {fmtDate(a.dataISO)}
                           </div>
+                          {isPast && (
+                            <p className="mt-1 text-xs text-muted-foreground/90">
+                              Clique para registrar ou editar a nota no Controle
+                              Acadêmico.
+                            </p>
+                          )}
                           {a.descricao && (
                             <p className="mt-2 line-clamp-2 text-sm text-foreground">
                               {truncatePreview(a.descricao, 160)}
@@ -1361,7 +1383,8 @@ export default function DisciplinaDetailPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={async () => {
+                              onClick={async (e) => {
+                                e.stopPropagation();
                                 const result = await deleteAvaliacao(a.id);
                                 if (!result.success) {
                                   toast.error(
@@ -1406,6 +1429,12 @@ export default function DisciplinaDetailPage() {
         )}
       </Section>
       )}
+      <RegistarNotaAvaliacaoDialog
+        open={!!avaliacaoRegistarNota}
+        onOpenChange={(open) => !open && setAvaliacaoRegistarNota(null)}
+        avaliacao={avaliacaoRegistarNota}
+        updateAvaliacao={updateAvaliacao}
+      />
       {/* Dialog de confirmação para excluir nota */}
       <Dialog
         open={!!notaToDelete}

@@ -6,6 +6,39 @@ import {
 
 const MAX_CONTEUDO = 2000;
 
+/** PostgREST / Postgres: tabela ausente ou não exposta no cache. */
+function isRelationMissingError(err: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!err) return false;
+  const c = err.code || "";
+  const m = (err.message || "").toLowerCase();
+  if (c === "42P01" || c === "PGRST205") return true;
+  if (m.includes("nota_comentarios")) {
+    if (
+      m.includes("schema cache") ||
+      m.includes("does not exist") ||
+      m.includes("could not find")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** BD: coluna `comentario`; front/API: `conteudo`. */
+function rowToApiComentario(row: Record<string, unknown>): Record<string, unknown> {
+  const { comentario, conteudo: _legacy, ...rest } = row;
+  const text =
+    typeof comentario === "string"
+      ? comentario
+      : typeof row.conteudo === "string"
+        ? row.conteudo
+        : "";
+  return { ...rest, conteudo: text };
+}
+
 async function isNotaOwner(
   supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
   userId: string,
@@ -63,21 +96,21 @@ export async function GET(
             try {
               const { data: userData } =
                 await adminClient.auth.admin.getUserById(comentario.user_id);
-              return {
+              return rowToApiComentario({
                 ...comentario,
                 usuario: {
                   id: comentario.user_id,
                   raw_user_meta_data: userData?.user?.user_metadata || null,
                 },
-              };
+              } as Record<string, unknown>);
             } catch {
-              return {
+              return rowToApiComentario({
                 ...comentario,
                 usuario: {
                   id: comentario.user_id,
                   raw_user_meta_data: null,
                 },
-              };
+              } as Record<string, unknown>);
             }
           }),
         );
@@ -90,15 +123,17 @@ export async function GET(
         .eq("nota_id", notaId)
         .order("created_at", { ascending: true });
 
-      comentarios = (result.data || []).map((c) => ({
-        ...c,
-        usuario: { id: c.user_id, raw_user_meta_data: null },
-      }));
+      comentarios = (result.data || []).map((c) =>
+        rowToApiComentario({
+          ...c,
+          usuario: { id: c.user_id, raw_user_meta_data: null },
+        } as Record<string, unknown>),
+      );
       comentariosError = result.error;
     }
 
     if (comentariosError) {
-      if (comentariosError.code === "42P01") {
+      if (isRelationMissingError(comentariosError)) {
         return NextResponse.json({ comentarios: [] });
       }
       console.error("Erro ao buscar comentários da nota:", comentariosError);
@@ -158,71 +193,63 @@ export async function POST(
       );
     }
 
-    let comentario: Record<string, unknown> | null = null;
-    let comentarioError: { code?: string } | null = null;
+    const insertResult = await supabase
+      .from("nota_comentarios")
+      .insert({
+        nota_id: notaId,
+        user_id: user.id,
+        comentario: conteudo.trim(),
+        nota_compartilhada_id: null,
+      })
+      .select()
+      .single();
 
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const adminClient = createSupabaseAdmin();
-      const result = await adminClient
-        .from("nota_comentarios")
-        .insert({
-          nota_id: notaId,
-          user_id: user.id,
-          conteudo: conteudo.trim(),
-        })
-        .select()
-        .single();
-
-      comentario = result.data as Record<string, unknown> | null;
-      comentarioError = result.error;
-
-      if (comentario) {
-        const { data: userData } = await adminClient.auth.admin.getUserById(
-          user.id,
-        );
-        comentario = {
-          ...comentario,
-          usuario: {
-            id: user.id,
-            raw_user_meta_data: userData?.user?.user_metadata || null,
-          },
-        };
-      }
-    } else {
-      const result = await supabase
-        .from("nota_comentarios")
-        .insert({
-          nota_id: notaId,
-          user_id: user.id,
-          conteudo: conteudo.trim(),
-        })
-        .select()
-        .single();
-
-      comentario = result.data
-        ? {
-            ...result.data,
-            usuario: { id: user.id, raw_user_meta_data: null },
-          }
-        : null;
-      comentarioError = result.error;
-    }
+    const comentarioError = insertResult.error;
+    let comentario = insertResult.data as Record<string, unknown> | null;
 
     if (comentarioError) {
-      if (comentarioError.code === "42P01") {
+      if (isRelationMissingError(comentarioError)) {
         return NextResponse.json(
           {
             error:
-              "Tabela de comentários não existe. Execute o SQL em supabase/migrations/20260307120000_nota_comentarios.sql no Supabase.",
+              "Tabela de comentários não existe. Execute o SQL em supabase/migrations/20260508150000_nota_comentarios.sql no Supabase (SQL Editor).",
           },
           { status: 503 },
         );
       }
       console.error("Erro ao criar comentário na nota:", comentarioError);
       return NextResponse.json(
-        { error: "Erro ao criar comentário" },
+        {
+          error: "Erro ao criar comentário",
+          details:
+            process.env.NODE_ENV === "development"
+              ? comentarioError.message
+              : undefined,
+        },
         { status: 500 },
       );
+    }
+
+    if (comentario) {
+      let rawMeta = null;
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const adminClient = createSupabaseAdmin();
+          const { data: userData } = await adminClient.auth.admin.getUserById(
+            user.id,
+          );
+          rawMeta = userData?.user?.user_metadata ?? null;
+        } catch {
+          rawMeta = null;
+        }
+      }
+      comentario = rowToApiComentario({
+        ...comentario,
+        usuario: {
+          id: user.id,
+          raw_user_meta_data: rawMeta,
+        },
+      } as Record<string, unknown>);
     }
 
     return NextResponse.json({ success: true, comentario });

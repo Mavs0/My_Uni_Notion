@@ -1,7 +1,14 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  type ComponentPropsWithoutRef,
+} from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -33,6 +40,7 @@ import {
   Pencil,
   Columns2,
   Send,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +54,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,9 +116,14 @@ function formatEditedAgo(dateStr: string) {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
 
-/** Conteúdo para preview: trata "1 - item" como lista numerada (1. item) para o Markdown renderizar */
+/** Remove comentários HTML `<!-- ... -->` do texto (não aparecem na pré-visualização). */
+function stripHtmlComments(md: string): string {
+  return md.replace(/<!--[\s\S]*?-->/g, "");
+}
+
+/** Conteúdo para preview: comentários HTML ocultos; "1 - item" → lista numerada (1. item). */
 function contentForPreview(raw: string): string {
-  return raw.replace(/^(\s*)(\d+)\s*-\s+/gm, "$1$2. ");
+  return stripHtmlComments(raw).replace(/^(\s*)(\d+)\s*-\s+/gm, "$1$2. ");
 }
 
 /** Extrai sumário (headings) do markdown para a sidebar */
@@ -154,13 +177,23 @@ export default function NotaPage() {
   const [disciplinaNome, setDisciplinaNome] = useState("");
   /** Padrão: só editor (mais espaço). Dividir só em telas grandes. */
   const [viewMode, setViewMode] = useState<"edit" | "preview" | "split">("edit");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const comentariosEndRef = useRef<HTMLDivElement>(null);
-  const assistenteEndRef = useRef<HTMLDivElement>(null);
+  const assistenteScrollRef = useRef<HTMLDivElement>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const headingIdRef = useRef(0);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPersistedRef = useRef({ titulo: "", content: "" });
+  const isCreatingDraftRef = useRef(false);
+  const tituloRef = useRef(titulo);
+  const contentMdRef = useRef(content_md);
+  const isNovaRef = useRef(isNova);
+  tituloRef.current = titulo;
+  contentMdRef.current = content_md;
+  isNovaRef.current = isNova;
 
   const wrapSelection = useCallback(
     (prefix: string, suffix: string = prefix) => {
@@ -209,6 +242,7 @@ export default function NotaPage() {
     if (isNova) {
       setTitulo("");
       setContent_md("");
+      lastPersistedRef.current = { titulo: "", content: "" };
       setLoading(false);
       return;
     }
@@ -227,6 +261,10 @@ export default function NotaPage() {
       setNota(data);
       setTitulo(data.titulo);
       setContent_md(data.content_md ?? "");
+      lastPersistedRef.current = {
+        titulo: (data.titulo ?? "").trim(),
+        content: data.content_md ?? "",
+      };
     } catch (e) {
       toast.error("Erro ao carregar a nota");
       router.push(`/disciplinas/${disciplinaId}`);
@@ -329,8 +367,123 @@ export default function NotaPage() {
 
   useEffect(() => {
     if (rightTab !== "assistente" || !rightPanelOpen) return;
-    assistenteEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = assistenteScrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
   }, [assistenteMsgs, assistenteBusy, rightTab, rightPanelOpen]);
+
+  const clearAutosaveTimer = useCallback(() => {
+    if (autosaveTimerRef.current !== null) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+  }, []);
+
+  /** Salvamento automático (debounce): cria rascunho em /nova ou atualiza nota existente. */
+  useEffect(() => {
+    if (loading) return;
+
+    const schedule = (fn: () => void, ms: number) => {
+      clearAutosaveTimer();
+      autosaveTimerRef.current = setTimeout(fn, ms);
+    };
+
+    if (isNova) {
+      const t = tituloRef.current.trim();
+      if (!t) return () => clearAutosaveTimer();
+      schedule(() => {
+        if (!isCreatingDraftRef.current) void createInitialNota();
+      }, 1200);
+      return () => clearAutosaveTimer();
+    }
+
+    const t = tituloRef.current.trim();
+    if (!t) return () => clearAutosaveTimer();
+
+    const c = contentMdRef.current;
+    const dirty =
+      t !== lastPersistedRef.current.titulo || c !== lastPersistedRef.current.content;
+    if (!dirty) return () => clearAutosaveTimer();
+
+    schedule(() => void autosaveExistingNota(), 1000);
+    return () => clearAutosaveTimer();
+  }, [titulo, content_md, loading, isNova, notaId, clearAutosaveTimer]);
+
+  async function createInitialNota() {
+    if (!isNovaRef.current || isCreatingDraftRef.current) return;
+    const t = tituloRef.current.trim();
+    if (!t) return;
+    isCreatingDraftRef.current = true;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/notas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          disciplina_id: disciplinaId,
+          titulo: t,
+          content_md: contentMdRef.current,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erro ao criar nota");
+      }
+      const { nota: created } = await res.json();
+      lastPersistedRef.current = {
+        titulo: (created.titulo ?? t).trim(),
+        content: created.content_md ?? contentMdRef.current,
+      };
+      router.replace(`/disciplinas/${disciplinaId}/notas/${created.id}`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar rascunho");
+    } finally {
+      isCreatingDraftRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  async function autosaveExistingNota() {
+    if (isNovaRef.current) return;
+    const t = tituloRef.current.trim();
+    if (!t) return;
+    const c = contentMdRef.current;
+    if (
+      t === lastPersistedRef.current.titulo &&
+      c === lastPersistedRef.current.content
+    ) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/notas/${notaId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titulo: t, content_md: c }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erro ao salvar");
+      }
+      lastPersistedRef.current = { titulo: t, content: c };
+      setNota((prev) =>
+        prev
+          ? {
+              ...prev,
+              titulo: t,
+              content_md: c,
+              updated_at: new Date().toISOString(),
+            }
+          : null,
+      );
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const notasFiltradas = useMemo(() => {
     const q = notasSearch.trim().toLowerCase();
@@ -411,13 +564,19 @@ export default function NotaPage() {
   };
 
   const handleSave = async () => {
+    clearAutosaveTimer();
     if (!titulo.trim()) {
       toast.error("Título é obrigatório");
+      return;
+    }
+    if (isNova && isCreatingDraftRef.current) {
+      toast.info("Salvamento em andamento…");
       return;
     }
     setSaving(true);
     try {
       if (isNova) {
+        isCreatingDraftRef.current = true;
         const res = await fetch("/api/notas", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -432,6 +591,10 @@ export default function NotaPage() {
           throw new Error(err.error || "Erro ao criar nota");
         }
         const { nota: created } = await res.json();
+        lastPersistedRef.current = {
+          titulo: (created.titulo ?? titulo.trim()).trim(),
+          content: created.content_md ?? content_md,
+        };
         toast.success("Nota criada!");
         router.replace(
           `/disciplinas/${disciplinaId}/notas/${created.id}`
@@ -450,9 +613,11 @@ export default function NotaPage() {
         const err = await res.json();
         throw new Error(err.error || "Erro ao salvar");
       }
+      const trimmed = titulo.trim();
+      lastPersistedRef.current = { titulo: trimmed, content: content_md };
       setNota((prev) =>
         prev
-          ? { ...prev, titulo: titulo.trim(), content_md, updated_at: new Date().toISOString() }
+          ? { ...prev, titulo: trimmed, content_md, updated_at: new Date().toISOString() }
           : null
       );
       toast.success("Salvo");
@@ -460,16 +625,16 @@ export default function NotaPage() {
       toast.error(e.message || "Erro ao salvar");
     } finally {
       setSaving(false);
+      if (isNova) isCreatingDraftRef.current = false;
     }
   };
 
-  const handleDelete = async () => {
+  const executeDeleteNota = async () => {
+    setDeleteDialogOpen(false);
     if (isNova) {
       router.push(`/disciplinas/${disciplinaId}`);
       return;
     }
-    if (!confirm("Excluir esta anotação? Esta ação não pode ser desfeita."))
-      return;
     try {
       const res = await fetch(`/api/notas/${notaId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erro ao excluir");
@@ -623,7 +788,7 @@ export default function NotaPage() {
   headingIdRef.current = 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 max-h-[calc(100dvh-3.5rem)] flex-1 flex-col overflow-hidden bg-background">
       <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background">
         <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap border-b border-border/60 px-4 py-2 text-xs text-muted-foreground sm:px-6">
           <Link href="/disciplinas" className="hover:text-foreground transition-colors">
@@ -661,7 +826,15 @@ export default function NotaPage() {
                 className="min-w-0 w-full max-w-full bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground sm:max-w-[min(100%,28rem)] md:max-w-md lg:max-w-xl"
               />
               <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
-                {saving ? "Salvando…" : nota?.updated_at ? `Salvo · ${formatEditedAgo(nota.updated_at)}` : "Não salvo"}
+                {saving
+                  ? "Salvando…"
+                  : isNova
+                    ? titulo.trim()
+                      ? "Salvamento automático"
+                      : "Rascunho — preencha o título"
+                    : nota?.updated_at
+                      ? `Salvo · ${formatEditedAgo(nota.updated_at)}`
+                      : "Não salvo"}
               </span>
             </div>
           </div>
@@ -686,7 +859,13 @@ export default function NotaPage() {
                   <Save className="h-4 w-4 mr-2" />
                   Salvar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDelete} className="rounded-lg text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setDeleteDialogOpen(true);
+                  }}
+                  className="rounded-lg text-destructive focus:text-destructive"
+                >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Excluir anotação
                 </DropdownMenuItem>
@@ -780,7 +959,7 @@ export default function NotaPage() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden max-h-full">
         {/* Explorador + sumário (anexo 03 — painel de documentos) */}
         {explorerOpen && (
           <>
@@ -878,7 +1057,7 @@ export default function NotaPage() {
           </>
         )}
 
-        <main className="relative z-0 min-w-0 flex-1 overflow-auto bg-muted/15">
+        <main className="relative z-0 min-h-0 min-w-0 flex-1 overflow-auto bg-muted/15">
           <div className="mx-auto w-full max-w-[min(100%,88rem)] px-3 py-5 sm:px-8 sm:py-10 lg:px-12 lg:py-12 xl:px-16">
             {(viewMode === "edit" || viewMode === "split") && (
               <input
@@ -919,9 +1098,24 @@ export default function NotaPage() {
                       viewMode === "edit" && "min-h-[min(75vh,48rem)]",
                     )}
                   />
-                  <p className="mt-4 text-xs text-muted-foreground">
-                    <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono">**negrito**</kbd>{" "}
-                    <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono">[texto](url)</kbd>
+                  <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex flex-wrap gap-1.5">
+                      <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono">
+                        **negrito**
+                      </kbd>
+                      <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono">
+                        [texto](url)
+                      </kbd>
+                      <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono">
+                        ![legenda](url)
+                      </kbd>
+                    </span>
+                    <span className="text-muted-foreground/85">
+                      Comentários ocultos na leitura:{" "}
+                      <code className="rounded bg-muted/60 px-1 py-px font-mono text-[0.7rem]">
+                        &lt;!-- seu texto --&gt;
+                      </code>
+                    </span>
                   </p>
                 </div>
               )}
@@ -944,8 +1138,7 @@ export default function NotaPage() {
                         "prose prose-base dark:prose-invert max-w-none lg:prose-lg",
                         "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:mt-6 prose-headings:mb-3",
                         "prose-p:leading-[1.75] prose-p:my-3 prose-li:leading-[1.65]",
-                        "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-                        "prose-img:rounded-lg prose-img:max-w-full prose-img:border prose-img:border-border prose-img:my-4"
+                        "prose-img:my-0",
                       )}
                     >
                       <ReactMarkdown
@@ -954,27 +1147,8 @@ export default function NotaPage() {
                           h1: ({ children }) => <h1 id={getNextHeadingId()}>{children}</h1>,
                           h2: ({ children }) => <h2 id={getNextHeadingId()}>{children}</h2>,
                           h3: ({ children }) => <h3 id={getNextHeadingId()}>{children}</h3>,
-                          a: ({ href, children, ...props }) => (
-                            <a
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary underline-offset-2 hover:underline"
-                              {...props}
-                            >
-                              {children}
-                            </a>
-                          ),
-                          img: ({ src, alt, ...props }) => (
-                            <span className="block my-4">
-                              <img
-                                src={src}
-                                alt={alt ?? "Imagem"}
-                                className="h-auto max-w-full rounded-lg border border-border shadow-sm"
-                                {...props}
-                              />
-                            </span>
-                          ),
+                          a: MarkdownLink,
+                          img: MarkdownImage,
                         }}
                       >
                         {contentForPreview(content_md)}
@@ -1003,7 +1177,7 @@ export default function NotaPage() {
               className={cn(
                 "flex min-h-0 w-[min(100vw-0.75rem,20rem)] max-w-[min(100vw-0.5rem,22rem)] shrink-0 flex-col overflow-hidden border-l border-border bg-card/50 shadow-2xl",
                 "fixed inset-y-0 right-0 z-[46] max-h-[100dvh]",
-                "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:w-80 lg:max-w-none lg:shadow-none",
+                "lg:static lg:z-auto lg:h-full lg:max-h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none",
               )}
             >
             <div className="flex shrink-0 border-b border-border">
@@ -1040,8 +1214,11 @@ export default function NotaPage() {
               </button>
             </div>
             {rightTab === "assistente" && (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div
+                  ref={assistenteScrollRef}
+                  className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-3 py-3"
+                >
                   <div className="rounded-lg border border-border/80 bg-muted/25 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
                     <p className="font-medium text-foreground">UFAM Hub · Assistente</p>
                     <p className="mt-1">
@@ -1075,7 +1252,7 @@ export default function NotaPage() {
                     >
                       <div
                         className={cn(
-                          "max-w-[min(95%,100%)] break-words rounded-xl px-3 py-2 text-sm",
+                          "max-w-[min(95%,100%)] min-w-0 break-words rounded-xl px-3 py-2 text-sm",
                           m.role === "user"
                             ? "bg-primary/15 text-foreground"
                             : "border border-border/70 bg-muted/30 text-foreground",
@@ -1086,14 +1263,18 @@ export default function NotaPage() {
                         ) : m.content ? (
                           <div
                             className={cn(
-                              "prose prose-sm dark:prose-invert max-w-none break-words",
-                              "prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5",
+                              "prose prose-sm dark:prose-invert max-w-none min-w-0 break-words",
+                              "prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5 prose-img:my-2",
                             )}
                           >
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm, remarkBreaks]}
+                              components={{
+                                a: MarkdownLink,
+                                img: MarkdownImage,
+                              }}
                             >
-                              {m.content}
+                              {stripHtmlComments(m.content)}
                             </ReactMarkdown>
                           </div>
                         ) : (
@@ -1104,7 +1285,6 @@ export default function NotaPage() {
                       </div>
                     </div>
                   ))}
-                  <div ref={assistenteEndRef} aria-hidden className="h-px shrink-0" />
                 </div>
                 <div className="shrink-0 border-t border-border p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -1491,6 +1671,28 @@ export default function NotaPage() {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-2xl border-border/80">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir anotação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isNova
+                ? "Sair descarta o rascunho atual. Esta ação não pode ser desfeita."
+                : "Esta anotação será removida permanentemente. Esta ação não pode ser desfeita."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void executeDeleteNota()}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {!isNova && nota && (
         <CompartilharNotaDialog
           open={shareOpen}
@@ -1501,6 +1703,65 @@ export default function NotaPage() {
         />
       )}
     </div>
+  );
+}
+
+function MarkdownLink({
+  href,
+  children,
+  ...props
+}: ComponentPropsWithoutRef<"a">) {
+  if (!href || /^javascript:/i.test(href)) {
+    return <span className="text-muted-foreground">{children}</span>;
+  }
+  const isHash = href.startsWith("#");
+  const url =
+    href.startsWith("http") || href.startsWith("/") || isHash
+      ? href
+      : `https://${href}`;
+  return (
+    <a
+      href={url}
+      target={isHash ? undefined : "_blank"}
+      rel={isHash ? undefined : "noopener noreferrer"}
+      className={cn(
+        "inline-flex max-w-full items-start gap-1.5 break-words rounded-lg border border-primary/20 bg-primary/[0.07] px-2 py-1 text-sm font-medium text-primary underline-offset-2 transition-colors hover:border-primary/35 hover:bg-primary/10 hover:underline",
+      )}
+      {...props}
+    >
+      <span className="min-w-0 flex-1 leading-snug">{children}</span>
+      {!isHash && (
+        <ExternalLink
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-65"
+          aria-hidden
+        />
+      )}
+    </a>
+  );
+}
+
+function MarkdownImage({
+  src,
+  alt,
+  ...props
+}: ComponentPropsWithoutRef<"img">) {
+  if (!src || /^javascript:/i.test(String(src))) return null;
+  return (
+    <figure className="not-prose my-4 overflow-hidden rounded-xl border border-border bg-muted/20 p-2 shadow-sm dark:bg-muted/15">
+      <img
+        src={src}
+        alt={alt ?? ""}
+        className="mx-auto h-auto max-h-[min(70vh,28rem)] w-full max-w-full rounded-lg object-contain"
+        loading="lazy"
+        decoding="async"
+        {...props}
+      />
+      {alt ? (
+        <figcaption className="mt-2 px-1 text-center text-xs leading-relaxed text-muted-foreground">
+          {alt}
+        </figcaption>
+      ) : null}
+    </figure>
   );
 }
 

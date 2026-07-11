@@ -15,7 +15,13 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { LOGIN_ERROR, LOGIN_GREEN, LOGIN_GLOW, LOGIN_MUTED, LOGIN_TEXT } from "./theme";
+import {
+  LOGIN_ERROR,
+  LOGIN_GREEN,
+  LOGIN_GLOW,
+  LOGIN_MUTED,
+  LOGIN_TEXT,
+} from "./theme";
 
 export type HoverZone = "email" | "password" | "submit" | "oauth" | null;
 
@@ -72,7 +78,9 @@ export function LoginModernPrimaryForm({
   const cardBg = lightMode ? "rgba(255,255,255,0.72)" : "rgba(18,18,18,0.55)";
   const borderCol = lightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)";
   const labelCol = lightMode ? "#404040" : LOGIN_MUTED;
-  const inputBg = lightMode ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.04)";
+  const inputBg = lightMode
+    ? "rgba(255,255,255,0.9)"
+    : "rgba(255,255,255,0.04)";
   const inputText = lightMode ? "#171717" : LOGIN_TEXT;
 
   return (
@@ -102,14 +110,24 @@ export function LoginModernPrimaryForm({
               UFAM Hub
             </span>
           </h1>
-          <p className="mt-2 text-sm leading-relaxed" style={{ color: labelCol }}>
+          <p
+            className="mt-2 text-sm leading-relaxed"
+            style={{ color: labelCol }}
+          >
             A plataforma inteligente para sua jornada acadêmica.
           </p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
-          <div className="group/field space-y-2" onMouseEnter={() => onHover("email")}>
-            <label htmlFor="login-modern-email" className="text-sm font-medium" style={{ color: labelCol }}>
+          <div
+            className="group/field space-y-2"
+            onMouseEnter={() => onHover("email")}
+          >
+            <label
+              htmlFor="login-modern-email"
+              className="text-sm font-medium"
+              style={{ color: labelCol }}
+            >
               E-mail
             </label>
             <div
@@ -119,10 +137,15 @@ export function LoginModernPrimaryForm({
                   ? "border-black/[0.12] bg-white focus-within:border-[#05865E]"
                   : "border-white/[0.1] bg-white/[0.04] focus-within:border-[#05865E]",
                 "focus-within:shadow-[0_0_0_1px_rgba(5,134,94,0.45),0_0_28px_rgba(5,134,94,0.12)]",
-                hasErr && fieldErrors.email && "!border-red-500/80 focus-within:!shadow-none",
+                hasErr &&
+                  fieldErrors.email &&
+                  "!border-red-500/80 focus-within:!shadow-none",
               )}
             >
-              <Mail className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0" style={{ color: LOGIN_GREEN }} />
+              <Mail
+                className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                style={{ color: LOGIN_GREEN }}
+              />
               <input
                 id="login-modern-email"
                 type="email"
@@ -148,8 +171,15 @@ export function LoginModernPrimaryForm({
             ) : null}
           </div>
 
-          <div className="group/field space-y-2" onMouseEnter={() => onHover("password")}>
-            <label htmlFor="login-modern-password" className="text-sm font-medium" style={{ color: labelCol }}>
+          <div
+            className="group/field space-y-2"
+            onMouseEnter={() => onHover("password")}
+          >
+            <label
+              htmlFor="login-modern-password"
+              className="text-sm font-medium"
+              style={{ color: labelCol }}
+            >
               Senha
             </label>
             <div
@@ -159,10 +189,15 @@ export function LoginModernPrimaryForm({
                   ? "border-black/[0.12] bg-white focus-within:border-[#05865E]"
                   : "border-white/[0.1] bg-white/[0.04] focus-within:border-[#05865E]",
                 "focus-within:shadow-[0_0_0_1px_rgba(5,134,94,0.45),0_0_28px_rgba(5,134,94,0.12)]",
-                hasErr && fieldErrors.password && "!border-red-500/80 focus-within:!shadow-none",
+                hasErr &&
+                  fieldErrors.password &&
+                  "!border-red-500/80 focus-within:!shadow-none",
               )}
             >
-              <Lock className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0" style={{ color: LOGIN_GREEN }} />
+              <Lock
+                className="pointer-events-none h-[1.1rem] w-[1.1rem] shrink-0"
+                style={{ color: LOGIN_GREEN }}
+              />
               <input
                 id="login-modern-password"
                 type={showPassword ? "text" : "password"}
@@ -188,7 +223,11 @@ export function LoginModernPrimaryForm({
                 style={{ color: labelCol }}
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </button>
             </div>
             {fieldErrors.password ? (
@@ -213,7 +252,10 @@ export function LoginModernPrimaryForm({
           ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm" style={{ color: labelCol }}>
+            <label
+              className="flex cursor-pointer items-center gap-2 text-sm"
+              style={{ color: labelCol }}
+            >
               <Checkbox
                 checked={rememberMe}
                 onCheckedChange={(c) => setRememberMe(c === true)}
@@ -247,7 +289,12 @@ export function LoginModernPrimaryForm({
             }}
           >
             <span className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:justify-start">
-              {loading ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden /> : null}
+              {loading ? (
+                <Loader2
+                  className="h-5 w-5 shrink-0 animate-spin"
+                  aria-hidden
+                />
+              ) : null}
               {loading ? "Entrando…" : "Entrar"}
             </span>
             {!loading ? (
@@ -273,7 +320,7 @@ export function LoginModernPrimaryForm({
             </span>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-1">
             <motion.a
               href={googleHref}
               onMouseEnter={() => onHover("oauth")}
@@ -295,30 +342,6 @@ export function LoginModernPrimaryForm({
               </span>
               Google
             </motion.a>
-            <motion.a
-              href={institutionalHref}
-              onMouseEnter={() => onHover("oauth")}
-              onMouseLeave={() => onHover(null)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors"
-              style={{
-                borderColor: borderCol,
-                color: inputText,
-                background: inputBg,
-              }}
-            >
-              <Building2 className="h-4 w-4 shrink-0 opacity-90" style={{ color: LOGIN_GREEN }} aria-hidden />
-              Login institucional
-            </motion.a>
-          </div>
-
-          <div
-            className="flex items-start justify-center gap-2.5 text-center text-[11px] leading-relaxed sm:text-xs"
-            style={{ color: labelCol }}
-          >
-            <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: LOGIN_GREEN }} aria-hidden />
-            <span>Seus dados estão protegidos com segurança avançada.</span>
           </div>
 
           <p className="text-center text-sm" style={{ color: labelCol }}>

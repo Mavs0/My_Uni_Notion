@@ -64,6 +64,9 @@ export function shouldTryGeminiModelFallback(modelError: unknown): boolean {
   return (
     msg.includes("not found") ||
     msg.includes("404") ||
+    lower.includes("invalid model") ||
+    lower.includes("model not found") ||
+    (lower.includes("gemini") && lower.includes("not supported")) ||
     lower.includes("quota") ||
     lower.includes("exceeded") ||
     lower.includes("resource_exhausted") ||

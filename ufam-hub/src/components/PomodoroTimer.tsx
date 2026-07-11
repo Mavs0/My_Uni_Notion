@@ -9,10 +9,15 @@ import {
   Volume2,
   VolumeX,
   Settings,
-  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -54,16 +59,6 @@ const AMBIENT_SOUNDS = [
 
 type AmbientSoundId = (typeof AMBIENT_SOUNDS)[number]["id"];
 
-interface PomodoroSettings {
-  studyTime: number;
-  breakTime: number;
-  longBreakTime: number;
-  enableNotifications: boolean;
-  autoStartBreaks: boolean;
-  autoStartPomodoros: boolean;
-  longBreakInterval: number;
-}
-
 export function PomodoroTimer() {
   const { disciplinasAtivas } = useDisciplinas();
   const pomodoro = usePomodoro();
@@ -95,7 +90,10 @@ export function PomodoroTimer() {
   useEffect(() => {
     if (disciplinasAtivas.length > 0) {
       const firstId = disciplinasAtivas[0].id;
-      if (!selectedDisciplinaId || !disciplinasAtivas.some((d) => d.id === selectedDisciplinaId)) {
+      if (
+        !selectedDisciplinaId ||
+        !disciplinasAtivas.some((d) => d.id === selectedDisciplinaId)
+      ) {
         setSelectedDisciplinaId(firstId);
       }
     } else {
@@ -112,15 +110,16 @@ export function PomodoroTimer() {
 
   const generateWhiteNoise = () => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
+      audioContextRef.current = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )();
     }
     const audioContext = audioContextRef.current;
     const bufferSize = 4096;
     const buffer = audioContext.createBuffer(
       1,
       bufferSize,
-      audioContext.sampleRate
+      audioContext.sampleRate,
     );
     const data = buffer.getChannelData(0);
 
@@ -242,7 +241,8 @@ export function PomodoroTimer() {
                 <CardTitle className="flex items-center gap-2">
                   Pomodoro Timer
                   <Badge variant="outline" className="ml-2">
-                    {completedPomodoros} {completedPomodoros === 1 ? "pomodoro" : "pomodoros"}
+                    {completedPomodoros}{" "}
+                    {completedPomodoros === 1 ? "pomodoro" : "pomodoros"}
                   </Badge>
                 </CardTitle>
                 <CardDescription>
@@ -259,17 +259,23 @@ export function PomodoroTimer() {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="text-lg">Configurações do Pomodoro</DialogTitle>
+                    <DialogTitle className="text-lg">
+                      Configurações do Pomodoro
+                    </DialogTitle>
                     <DialogDescription>
                       Ajuste os tempos e preferências do timer
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-6 py-2">
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-foreground">Tempos</h4>
+                      <h4 className="text-sm font-medium text-foreground">
+                        Tempos
+                      </h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label htmlFor="studyTime" className="text-sm">Estudo (min)</Label>
+                          <Label htmlFor="studyTime" className="text-sm">
+                            Estudo (min)
+                          </Label>
                           <Input
                             id="studyTime"
                             type="number"
@@ -279,14 +285,19 @@ export function PomodoroTimer() {
                             onChange={(e) => {
                               const v = parseInt(e.target.value, 10);
                               if (!isNaN(v) && v >= 1 && v <= 60) {
-                                setSettings((s) => ({ ...s, studyTime: v * 60 }));
+                                setSettings((s) => ({
+                                  ...s,
+                                  studyTime: v * 60,
+                                }));
                               }
                             }}
                             className="h-9"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="breakTime" className="text-sm">Pausa curta (min)</Label>
+                          <Label htmlFor="breakTime" className="text-sm">
+                            Pausa curta (min)
+                          </Label>
                           <Input
                             id="breakTime"
                             type="number"
@@ -296,14 +307,19 @@ export function PomodoroTimer() {
                             onChange={(e) => {
                               const v = parseInt(e.target.value, 10);
                               if (!isNaN(v) && v >= 1 && v <= 30) {
-                                setSettings((s) => ({ ...s, breakTime: v * 60 }));
+                                setSettings((s) => ({
+                                  ...s,
+                                  breakTime: v * 60,
+                                }));
                               }
                             }}
                             className="h-9"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="longBreakTime" className="text-sm">Pausa longa (min)</Label>
+                          <Label htmlFor="longBreakTime" className="text-sm">
+                            Pausa longa (min)
+                          </Label>
                           <Input
                             id="longBreakTime"
                             type="number"
@@ -313,14 +329,22 @@ export function PomodoroTimer() {
                             onChange={(e) => {
                               const v = parseInt(e.target.value, 10);
                               if (!isNaN(v) && v >= 1 && v <= 60) {
-                                setSettings((s) => ({ ...s, longBreakTime: v * 60 }));
+                                setSettings((s) => ({
+                                  ...s,
+                                  longBreakTime: v * 60,
+                                }));
                               }
                             }}
                             className="h-9"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="longBreakInterval" className="text-sm">Pausa longa a cada</Label>
+                          <Label
+                            htmlFor="longBreakInterval"
+                            className="text-sm"
+                          >
+                            Pausa longa a cada
+                          </Label>
                           <Input
                             id="longBreakInterval"
                             type="number"
@@ -330,55 +354,92 @@ export function PomodoroTimer() {
                             onChange={(e) => {
                               const v = parseInt(e.target.value, 10);
                               if (!isNaN(v) && v >= 2 && v <= 10) {
-                                setSettings((s) => ({ ...s, longBreakInterval: v }));
+                                setSettings((s) => ({
+                                  ...s,
+                                  longBreakInterval: v,
+                                }));
                               }
                             }}
                             className="h-9"
                           />
-                          <p className="text-xs text-muted-foreground">pomodoros</p>
+                          <p className="text-xs text-muted-foreground">
+                            pomodoros
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-3 pt-2 border-t">
-                      <h4 className="text-sm font-medium text-foreground">Preferências</h4>
+                      <h4 className="text-sm font-medium text-foreground">
+                        Preferências
+                      </h4>
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                           <div className="flex-1 min-w-0">
-                            <Label htmlFor="notifications" className="text-sm font-medium cursor-pointer">Notificações</Label>
-                            <p className="text-xs text-muted-foreground mt-0.5">Avisar quando o timer completar</p>
+                            <Label
+                              htmlFor="notifications"
+                              className="text-sm font-medium cursor-pointer"
+                            >
+                              Notificações
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Avisar quando o timer completar
+                            </p>
                           </div>
                           <Switch
                             id="notifications"
                             checked={settings.enableNotifications}
                             onCheckedChange={(checked) =>
-                              setSettings((s) => ({ ...s, enableNotifications: checked }))
+                              setSettings((s) => ({
+                                ...s,
+                                enableNotifications: checked,
+                              }))
                             }
                           />
                         </div>
                         <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                           <div className="flex-1 min-w-0">
-                            <Label htmlFor="autoStartBreaks" className="text-sm font-medium cursor-pointer">Iniciar pausas</Label>
-                            <p className="text-xs text-muted-foreground mt-0.5">Começar pausa automaticamente</p>
+                            <Label
+                              htmlFor="autoStartBreaks"
+                              className="text-sm font-medium cursor-pointer"
+                            >
+                              Iniciar pausas
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Começar pausa automaticamente
+                            </p>
                           </div>
                           <Switch
                             id="autoStartBreaks"
                             checked={settings.autoStartBreaks}
                             onCheckedChange={(checked) =>
-                              setSettings((s) => ({ ...s, autoStartBreaks: checked }))
+                              setSettings((s) => ({
+                                ...s,
+                                autoStartBreaks: checked,
+                              }))
                             }
                           />
                         </div>
                         <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                           <div className="flex-1 min-w-0">
-                            <Label htmlFor="autoStartPomodoros" className="text-sm font-medium cursor-pointer">Iniciar pomodoros</Label>
-                            <p className="text-xs text-muted-foreground mt-0.5">Começar próximo ciclo após pausa</p>
+                            <Label
+                              htmlFor="autoStartPomodoros"
+                              className="text-sm font-medium cursor-pointer"
+                            >
+                              Iniciar pomodoros
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Começar próximo ciclo após pausa
+                            </p>
                           </div>
                           <Switch
                             id="autoStartPomodoros"
                             checked={settings.autoStartPomodoros}
                             onCheckedChange={(checked) =>
-                              setSettings((s) => ({ ...s, autoStartPomodoros: checked }))
+                              setSettings((s) => ({
+                                ...s,
+                                autoStartPomodoros: checked,
+                              }))
                             }
                           />
                         </div>
@@ -400,7 +461,13 @@ export function PomodoroTimer() {
               disabled={isRunning}
             >
               <SelectTrigger>
-                <SelectValue placeholder={disciplinasAtivas.length === 0 ? "Nenhuma disciplina" : "Selecione uma disciplina"} />
+                <SelectValue
+                  placeholder={
+                    disciplinasAtivas.length === 0
+                      ? "Nenhuma disciplina"
+                      : "Selecione uma disciplina"
+                  }
+                />
               </SelectTrigger>
               <SelectContent className="z-[100] max-h-[var(--radix-select-content-available-height)]">
                 {disciplinasAtivas.map((disc) => (
@@ -464,7 +531,9 @@ export function PomodoroTimer() {
 
           {/* Timer Display */}
           <div className="flex flex-col items-center justify-center space-y-6 py-8">
-            <div className={`text-7xl font-bold tabular-nums ${getPhaseColor()} transition-all duration-300`}>
+            <div
+              className={`text-7xl font-bold tabular-nums ${getPhaseColor()} transition-all duration-300`}
+            >
               {formatTime(timeLeft)}
             </div>
             <div className="text-xl font-medium text-muted-foreground">
@@ -493,7 +562,12 @@ export function PomodoroTimer() {
                 </>
               )}
             </Button>
-            <Button onClick={resetTimer} size="lg" variant="outline" disabled={isRunning}>
+            <Button
+              onClick={resetTimer}
+              size="lg"
+              variant="outline"
+              disabled={isRunning}
+            >
               <RotateCcw className="h-5 w-5 mr-2" />
               Resetar
             </Button>
@@ -505,12 +579,13 @@ export function PomodoroTimer() {
               {phase === "study"
                 ? "Foque completamente na tarefa. Evite distrações!"
                 : phase === "break"
-                ? "Descanse um pouco. Você merece!"
-                : "Pausa longa! Recarregue suas energias."}
+                  ? "Descanse um pouco. Você merece!"
+                  : "Pausa longa! Recarregue suas energias."}
             </p>
             {phase === "study" && (
               <p className="text-xs">
-                O tempo será registrado automaticamente quando o pomodoro completar.
+                O tempo será registrado automaticamente quando o pomodoro
+                completar.
               </p>
             )}
           </div>

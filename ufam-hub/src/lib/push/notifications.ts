@@ -197,7 +197,7 @@ export async function sendSocialInteractionNotification(
     body,
     tag: `social-${data.tipo}-${data.activityId}`,
     data: {
-      url: `/feed?activity=${data.activityId}`,
+      url: `/perfil`,
       type: `social_${data.tipo}`,
       activity_id: data.activityId,
     },

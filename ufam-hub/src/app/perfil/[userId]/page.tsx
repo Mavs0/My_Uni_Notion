@@ -80,7 +80,7 @@ const getActivityLabel = (tipo: string) => {
     avaliacao_adicionada: "Adicionou uma avaliação",
     nota_criada: "Criou uma anotação",
     conquista_desbloqueada: "Desbloqueou uma conquista",
-    post_personalizado: "Publicou no feed",
+    post_personalizado: "Fez uma publicação",
     tarefa_concluida: "Concluiu uma tarefa",
     meta_atingida: "Atingiu uma meta",
   };
@@ -108,9 +108,8 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
         <Activity className="h-4 w-4 text-muted-foreground" />
       );
     return (
-      <Link href={`/feed?activity=${item.id}`}>
-        <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4 transition-colors hover:bg-accent/50">
-          <div className="mt-0.5">{icon}</div>
+      <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4">
+        <div className="mt-0.5">{icon}</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">{getActivityLabel(tipo)}</p>
             {d.titulo && (
@@ -128,14 +127,12 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
             </p>
           </div>
         </div>
-      </Link>
     );
   }
   if (item.tipo === "comment") {
     return (
-      <Link href={`/feed?activity=${d.activity_id}`}>
-        <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4 transition-colors hover:bg-accent/50">
-          <MessageCircle className="h-4 w-4 text-blue-500 mt-0.5" />
+      <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4">
+        <MessageCircle className="h-4 w-4 text-blue-500 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm">
               <span className="font-medium">Comentou</span> em publicação de{" "}
@@ -149,7 +146,6 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
             </p>
           </div>
         </div>
-      </Link>
     );
   }
   if (item.tipo === "reaction") {
@@ -160,9 +156,8 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
           ? Lightbulb
           : Heart;
     return (
-      <Link href={`/feed?activity=${d.activity_id}`}>
-        <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4 transition-colors hover:bg-accent/50">
-          <ReactionIcon className="h-4 w-4 text-pink-500 mt-0.5" />
+      <div className="flex h-full items-start gap-3 rounded-2xl border bg-card/40 p-4">
+        <ReactionIcon className="h-4 w-4 text-pink-500 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm">
               <span className="font-medium capitalize">
@@ -180,7 +175,6 @@ function ActivityItemRow({ item }: { item: ActivityItem }) {
             </p>
           </div>
         </div>
-      </Link>
     );
   }
   return null;
@@ -526,7 +520,7 @@ export default function PublicProfilePage() {
               <Activity className="mx-auto mb-3 h-12 w-12 opacity-40" />
               <p className="font-medium">Nenhuma atividade recente</p>
               <p className="mt-1 text-sm opacity-80">
-                As interações no feed aparecem aqui.
+                As atividades recentes aparecem aqui.
               </p>
             </div>
           ) : (

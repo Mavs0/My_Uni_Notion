@@ -944,122 +944,6 @@ const helpContents: Record<string, HelpContent> = {
       </div>
     ),
   },
-  "feed-social": {
-    id: "feed-social",
-    title: "Feed Social e Interações",
-    category: "Social",
-    content: (
-      <div className="space-y-6">
-        <section>
-          <h2 className="text-2xl font-semibold mb-4">
-            Feed Social e Interações
-          </h2>
-          <p className="text-muted-foreground leading-relaxed mb-4">
-            Conecte-se com outros estudantes, compartilhe suas conquistas e
-            descubra conteúdo interessante.
-          </p>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Acessar o Feed</h3>
-          <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-            <li>
-              Vá para{" "}
-              <Link href="/feed" className="text-primary hover:underline">
-                Feed
-              </Link>
-            </li>
-            <li>
-              Escolha o tipo de feed:
-              <ul className="list-disc list-inside ml-6 mt-2">
-                <li>
-                  <strong>Personalizado:</strong> Baseado em seus interesses e
-                  disciplinas
-                </li>
-                <li>
-                  <strong>Todas:</strong> Todas as atividades públicas
-                </li>
-                <li>
-                  <strong>Seguindo:</strong> Apenas de usuários que você segue
-                </li>
-                <li>
-                  <strong>Públicas:</strong> Atividades públicas de todos
-                </li>
-              </ul>
-            </li>
-          </ol>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Publicar uma Atividade</h3>
-          <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-            <li>No Feed, clique em "Publicar"</li>
-            <li>Preencha o título (obrigatório)</li>
-            <li>Adicione uma descrição (opcional)</li>
-            <li>Escolha a visibilidade (Público ou Privado)</li>
-            <li>Clique em "Publicar"</li>
-          </ol>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Reagir a Atividades</h3>
-          <p className="text-muted-foreground mb-3">
-            Você pode reagir de três formas:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>
-              <strong>❤️ Like:</strong> Mostre que gostou
-            </li>
-            <li>
-              <strong>👍 Útil:</strong> Marque como útil
-            </li>
-            <li>
-              <strong>💡 Inspirador:</strong> Marque como inspirador
-            </li>
-          </ul>
-          <p className="text-sm text-muted-foreground mt-3">
-            Clique novamente para remover sua reação.
-          </p>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Comentar</h3>
-          <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-            <li>Clique no botão de comentários em uma atividade</li>
-            <li>Digite seu comentário</li>
-            <li>Clique em enviar</li>
-            <li>Você pode deletar seus próprios comentários</li>
-          </ol>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Navegação Contextual</h3>
-          <p className="text-muted-foreground mb-3">
-            Os cards de atividade têm links diretos:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>
-              Clique no badge da disciplina para ir à página da disciplina
-            </li>
-            <li>Clique no nome do usuário para ver o perfil</li>
-            <li>Links aparecem automaticamente quando aplicável</li>
-          </ul>
-        </section>
-
-        <section>
-          <h3 className="text-xl font-semibold mb-3">Paginação Infinita</h3>
-          <p className="text-muted-foreground mb-3">
-            O feed carrega automaticamente mais conteúdo:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Role até o final da página</li>
-            <li>Mais atividades são carregadas automaticamente</li>
-            <li>Indicador mostra quando está carregando</li>
-          </ul>
-        </section>
-      </div>
-    ),
-  },
   seguranca: {
     id: "seguranca",
     title: "Segurança da Conta",
@@ -1136,7 +1020,7 @@ const helpContents: Record<string, HelpContent> = {
             Configure sua privacidade:
           </p>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Escolha o que compartilhar no feed</li>
+            <li>Escolha o que compartilhar no seu perfil</li>
             <li>Controle visibilidade de atividades</li>
           </ul>
         </section>

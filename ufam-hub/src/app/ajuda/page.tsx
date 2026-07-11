@@ -26,7 +26,6 @@ import {
   Brain,
   Clock,
   Shield,
-  Users,
   MessageSquare,
   Settings,
   Bell,
@@ -120,16 +119,6 @@ const HELP_ARTICLES: HelpArticle[] = [
     icon: Bell,
     href: "/ajuda/lembretes",
     tags: ["lembretes", "notificações", "avaliações", "tarefas"],
-  },
-  {
-    id: "feed-social",
-    title: "Feed Social e Interações",
-    description:
-      "Compartilhe atividades, comente, reaja e descubra outros estudantes na plataforma.",
-    category: "Social",
-    icon: Users,
-    href: "/ajuda/feed-social",
-    tags: ["feed", "social", "comentários", "reações", "compartilhamento"],
   },
   {
     id: "seguranca",

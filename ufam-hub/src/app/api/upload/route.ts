@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const fileName = `${user.id}/${timestamp}-${randomStr}.${fileExt}`;
     const filePath = `${folder}/${fileName}`;
 
-    const bucketName = folder === "feed" ? "biblioteca" : folder;
+    const bucketName = folder;
 
     console.log("📤 Iniciando upload:", {
       fileName: file.name,

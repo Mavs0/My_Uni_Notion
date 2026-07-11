@@ -88,7 +88,7 @@ export function LoginModernShell({
   return (
     <AuthModernShell
       lightMode={lightMode}
-      eyebrow="Olá! 👋"
+      eyebrow="Olá!"
       title={
         <>
           Bem-vindo{" "}
@@ -100,8 +100,8 @@ export function LoginModernShell({
       description="Faça login para continuar organizando seus estudos e alcançando seus objetivos."
       features={LOGIN_FEATURES}
       speechBubble={{
-        default: "Vamos juntos nessa jornada? 🚀",
-        password: "Prometo não olhar! 🙈",
+        default: "Vamos juntos nessa jornada? ",
+        password: "Prometo não olhar! ",
       }}
       mascotMode={mascotMode}
       mascotFocus={focus}

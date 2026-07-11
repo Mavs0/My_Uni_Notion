@@ -73,7 +73,7 @@ export function GruposOnlineSidebar() {
           </div>
         ) : users.length === 0 ? (
           <p className="px-2 py-6 text-center text-sm text-white/75">
-            Ninguém por aqui no momento. Volte mais tarde ou abra o feed.
+            Ninguém por aqui no momento. Volte mais tarde.
           </p>
         ) : (
           <ul className="space-y-0.5">

@@ -133,23 +133,6 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error("Erro ao registrar pomodoro:", e);
         }
-        try {
-          const disc = info.disciplinas.find((d) => d.id === info.selectedDisciplinaId);
-          const titulo = disc
-            ? `Completou ${settings.studyTime / 60} min de foco em ${disc.nome}`
-            : `Completou um Pomodoro de ${settings.studyTime / 60} minutos`;
-          await fetch("/api/feed", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tipo: "pomodoro_completo",
-              titulo,
-              visibilidade: "public",
-              referencia_id: info.selectedDisciplinaId || undefined,
-              referencia_tipo: info.selectedDisciplinaId ? "disciplina" : undefined,
-            }),
-          });
-        } catch {}
       }
 
       sendNotification("Pomodoro completo! Hora de uma pausa.");

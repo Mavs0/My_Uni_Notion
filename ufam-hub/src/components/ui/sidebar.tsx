@@ -12,7 +12,6 @@ import {
   Library,
   MessageSquare,
   Clock,
-  Activity,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -120,7 +119,6 @@ const navSections: NavSection[] = [
         icon: Link2,
         items: [
           // { title: "Descobrir", href: "/descobrir", icon: Users },
-          { title: "Feed", href: "/feed", icon: Activity },
           { title: "Eventos", href: "/eventos", icon: Calendar },
         ],
       },

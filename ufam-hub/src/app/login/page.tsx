@@ -334,6 +334,14 @@ export default function LoginPage() {
             setLoading(false);
             return;
           }
+          if (serverRes.status === 503) {
+            setError(
+              serverJson.error ||
+                "Não foi possível contactar o Supabase. Verifica .env.local e se o projeto está ativo.",
+            );
+            setLoading(false);
+            return;
+          }
           if (serverRes.status === 429) {
             setError(
               serverJson.error ||
@@ -377,13 +385,15 @@ export default function LoginPage() {
 
           if (
             errorMessage.includes("Failed to fetch") ||
+            errorMessage.includes("fetch failed") ||
             errorMessage.includes("ERR_NAME_NOT_RESOLVED") ||
+            errorMessage.includes("ENOTFOUND") ||
             errorMessage.includes("ERR_INTERNET_DISCONNECTED") ||
             errorMessage.includes("NetworkError") ||
             networkError?.name === "TypeError"
           ) {
             setError(
-              "Erro de conexão. Verifique sua internet e tente novamente. Se o problema persistir, pode ser necessário limpar os cookies do navegador.",
+              "Não foi possível contactar o Supabase. Verifica NEXT_PUBLIC_SUPABASE_URL no .env.local (projeto ativo no painel) e a tua ligação à internet.",
             );
             setLoading(false);
             return;
@@ -528,8 +538,7 @@ export default function LoginPage() {
           ) {
             errorMessage = "A senha deve ter pelo menos 6 caracteres.";
           } else if (signUpError.message.includes("Invalid email")) {
-            errorMessage =
-              "E-mail inválido. Verifique o formato do endereço.";
+            errorMessage = "E-mail inválido. Verifique o formato do endereço.";
           } else if (
             signUpError.message.includes("Email rate limit exceeded")
           ) {
@@ -745,11 +754,10 @@ export default function LoginPage() {
                 </span>
               </>
             ),
-            description:
-              "Preencha seus dados para começar a usar a plataforma — é rápido e gratuito.",
+            description: "Preencha seus dados para começar a usar a plataforma",
             features: SIGNUP_MARKETING_FEATURES,
             speechBubble: {
-              default: "Vamos criar sua conta? É rápido e gratuito! 🚀",
+              default: "Vamos criar sua conta? ",
               password: "Prometo não olhar! 🙈",
             },
             mascotMode: signupMascotMode,
@@ -759,16 +767,7 @@ export default function LoginPage() {
               <div
                 className="flex items-start gap-2.5 text-[11px] leading-relaxed sm:text-xs"
                 style={{ color: "rgba(250,250,250,0.5)" }}
-              >
-                <Shield
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                  style={{ color: LOGIN_GREEN }}
-                  aria-hidden
-                />
-                <span>
-                  Seus dados estão protegidos com segurança avançada.
-                </span>
-              </div>
+              ></div>
             ),
           }
         : {})}
@@ -1451,9 +1450,7 @@ export default function LoginPage() {
               {showMfaInput && (
                 <div className="space-y-4 p-5 rounded-lg bg-primary/5 border-2 border-primary/20">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Shield className="h-5 w-5 text-primary" />
-                    </div>
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"></div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground mb-1">
                         Verificação de Segurança (2FA)
