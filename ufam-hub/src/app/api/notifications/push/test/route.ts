@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         const payload = JSON.stringify({
           title: "UFAM Hub - Notificação de Teste",
           body: "Esta é uma notificação de teste! Se você recebeu isso, as notificações push estão funcionando.",
-          icon: "/favicon.ico",
+          icon: "/favicon.png",
           tag: "test",
           data: {
             url: "/dashboard",

@@ -103,7 +103,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const sendNotification = useCallback((msg: string) => {
     if (!settings.enableNotifications) return;
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Pomodoro", { body: msg, icon: "/favicon.ico" });
+      new Notification("Pomodoro", { body: msg, icon: "/favicon.png" });
     } else if (Notification.permission !== "denied") {
       Notification.requestPermission();
     }

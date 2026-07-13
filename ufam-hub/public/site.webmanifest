@@ -2,7 +2,7 @@
   "name": "UFAM Hub",
   "short_name": "UFAM Hub",
   "description": "Organizador acadêmico pessoal com IA",
-  "icons": [{"src": "/next.svg", "sizes": "any", "type": "image/svg+xml"}],
+  "icons": [{"src": "/favicon.png", "sizes": "512x512", "type": "image/png"}],
   "theme_color": "#ffffff",
   "background_color": "#ffffff",
   "display": "standalone"
