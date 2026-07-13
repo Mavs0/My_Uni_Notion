@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const ASPECT = 1;
 
 /** Bump após regenerar logos (fundo transparente) para evitar cache antigo. */
-const LOGO_CACHE = "v2";
+const LOGO_CACHE = "v3";
 
 export type AppLogoSize = "sm" | "md" | "lg" | "xl";
 
