@@ -1,6 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 export interface Avaliacao {
   id: string;
@@ -29,7 +30,7 @@ async function fetchAvaliacoes(filters?: {
   if (filters?.tipo) {
     params.append("tipo", filters.tipo);
   }
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `/api/avaliacoes${params.toString() ? `?${params.toString()}` : ""}`
   );
   if (!response.ok) {
@@ -67,6 +68,7 @@ export function useAvaliacoes(filters?: {
     queryKey: ["avaliacoes", filters],
     queryFn: () => fetchAvaliacoes(filters),
     staleTime: 1000 * 60 * 5, // 5 minutos
+    retry: 0, // falhar rápido: não bloquear a tela se o backend estiver fora
   });
 
   const createMutation = useMutation({

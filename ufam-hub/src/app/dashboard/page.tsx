@@ -1828,23 +1828,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-  if (errorDisc || errorAv) {
-    return (
-      <main
-        className="mx-auto max-w-6xl space-y-6 p-6"
-        role="main"
-        aria-label="Dashboard principal"
-      >
-        <div
-          className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-red-500"
-          role="alert"
-          aria-live="assertive"
-        >
-          {errorDisc || errorAv || "Erro ao carregar dados"}
-        </div>
-      </main>
-    );
-  }
   return (
     <main
       className="min-h-screen"
@@ -1852,6 +1835,29 @@ export default function DashboardPage() {
       role="main"
       aria-label="Dashboard principal"
     >
+      {(errorDisc || errorAv) && (
+        <div className="mx-auto max-w-6xl px-6 pt-6">
+          <div
+            className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300"
+            role="alert"
+            aria-live="polite"
+          >
+            <AlertCircle
+              className="mt-0.5 h-5 w-5 shrink-0"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-medium">
+                Não foi possível carregar seus dados agora.
+              </p>
+              <p className="mt-0.5 opacity-90">
+                O serviço pode estar temporariamente indisponível. As telas
+                aparecem abaixo; tente recarregar em instantes.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <DashboardLayoutNew
         greeting={greeting}
         nomeUsuario={nomeUsuario}

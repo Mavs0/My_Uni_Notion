@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 export interface Disciplina {
   id: string;
@@ -25,7 +26,7 @@ export interface Disciplina {
 }
 
 async function fetchDisciplinas(): Promise<Disciplina[]> {
-  const response = await fetch("/api/disciplinas");
+  const response = await fetchWithTimeout("/api/disciplinas");
   if (!response.ok) {
     let errorMessage = "Erro ao buscar disciplinas";
     try {
@@ -70,6 +71,7 @@ export function useDisciplinas() {
     queryKey: ["disciplinas"],
     queryFn: fetchDisciplinas,
     staleTime: 1000 * 60 * 5, // 5 minutos
+    retry: 0, // falhar rápido: não bloquear a tela se o backend estiver fora
   });
 
   const createMutation = useMutation({
