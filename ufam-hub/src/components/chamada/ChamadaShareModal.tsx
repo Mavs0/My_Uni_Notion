@@ -196,7 +196,7 @@ export function ChamadaShareModal({
           "max-h-[min(90vh,720px)] w-full max-w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-lg",
           showLinkOnly &&
             isPublico &&
-            "border border-slate-600/80 bg-[#1e1e1e] text-slate-100 shadow-2xl [&_[data-slot=dialog-close]]:text-slate-400 [&_[data-slot=dialog-close]]:hover:bg-white/10 [&_[data-slot=dialog-close]]:hover:text-white",
+            "border border-neutral-600/80 bg-[#1e1e1e] text-neutral-100 shadow-2xl [&_[data-slot=dialog-close]]:text-neutral-400 [&_[data-slot=dialog-close]]:hover:bg-white/10 [&_[data-slot=dialog-close]]:hover:text-white",
           showRestricted && "border-border bg-background p-0 text-foreground",
         )}
       >
@@ -213,7 +213,7 @@ export function ChamadaShareModal({
 
             <div className="space-y-5 px-6 pb-6 pt-2">
               <div>
-                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-slate-400">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-neutral-400">
                   Pessoas com acesso
                 </p>
                 <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
@@ -224,25 +224,25 @@ export function ChamadaShareModal({
                     <p className="truncate text-sm font-medium text-white">
                       {userLabel} (você)
                     </p>
-                    <p className="text-xs text-slate-400">Proprietário</p>
+                    <p className="text-xs text-neutral-400">Proprietário</p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-slate-400">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-neutral-400">
                   Acesso geral
                 </p>
                 <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-800/80 px-3 py-2.5">
-                  <Lock className="h-4 w-4 shrink-0 text-slate-400" />
+                  <Lock className="h-4 w-4 shrink-0 text-neutral-400" />
                   <Select
                     value={acessoGeral}
                     onValueChange={(v) => setAcessoGeral(v as AcessoGeral)}
                   >
-                    <SelectTrigger className="h-auto min-h-0 flex-1 border-0 bg-transparent px-0 py-0 text-sm text-white shadow-none focus:ring-0 [&>svg]:text-slate-400">
+                    <SelectTrigger className="h-auto min-h-0 flex-1 border-0 bg-transparent px-0 py-0 text-sm text-white shadow-none focus:ring-0 [&>svg]:text-neutral-400">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="border-slate-700 bg-zinc-900 text-slate-100">
+                    <SelectContent className="border-neutral-700 bg-zinc-900 text-neutral-100">
                       <SelectItem value="qualquer_com_link">
                         Qualquer pessoa com link
                       </SelectItem>
@@ -250,7 +250,7 @@ export function ChamadaShareModal({
                     </SelectContent>
                   </Select>
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                <p className="mt-2 text-xs leading-relaxed text-neutral-400">
                   Qualquer pessoa na Internet com o link pode abrir a página da
                   chamada (conta UFAM Hub necessária para entrar na sala).
                 </p>
@@ -270,7 +270,7 @@ export function ChamadaShareModal({
                 <Button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="rounded-xl bg-slate-200 px-8 font-medium text-zinc-900 hover:bg-white"
+                  className="rounded-xl bg-neutral-200 px-8 font-medium text-zinc-900 hover:bg-white"
                 >
                   Concluído
                 </Button>
@@ -281,7 +281,7 @@ export function ChamadaShareModal({
           <>
             <DialogHeader className="space-y-1 border-b border-border px-6 pt-6 pb-4 text-left">
               <div className="mb-2 flex justify-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-muted shadow-sm dark:bg-slate-800">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-muted shadow-sm dark:bg-neutral-800">
                   <Link2 className="h-7 w-7 text-muted-foreground" />
                 </div>
               </div>
@@ -325,7 +325,7 @@ export function ChamadaShareModal({
                 <p className="mb-2 text-sm font-semibold text-foreground">
                   Seu link
                 </p>
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 pr-1 dark:bg-slate-800/80">
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 pr-1 dark:bg-neutral-800/80">
                   <p className="min-w-0 flex-1 truncate text-xs text-foreground sm:text-sm">
                     {callLink || "…"}
                   </p>
@@ -372,7 +372,7 @@ export function ChamadaShareModal({
                             "relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-2 text-center transition-colors",
                             selected
                               ? "border-blue-500 bg-blue-500/10 dark:border-blue-400 dark:bg-blue-950/40"
-                              : "border-transparent bg-muted/30 hover:bg-muted/50 dark:bg-slate-800/50",
+                              : "border-transparent bg-muted/30 hover:bg-muted/50 dark:bg-neutral-800/50",
                           )}
                         >
                           <span
@@ -406,7 +406,7 @@ export function ChamadaShareModal({
               )}
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-border bg-muted/20 px-6 py-4 dark:bg-slate-900/50">
+            <div className="flex flex-col gap-2 border-t border-border bg-muted/20 px-6 py-4 dark:bg-neutral-900/50">
               <Button
                 type="button"
                 className="h-12 w-full rounded-2xl font-semibold"

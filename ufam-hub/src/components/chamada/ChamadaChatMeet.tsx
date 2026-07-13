@@ -24,8 +24,8 @@ export function ChamadaChatMeet() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-slate-900">
-      <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-neutral-900">
+      <div className="flex shrink-0 items-center gap-3 border-b border-neutral-100 px-4 py-3 dark:border-neutral-700">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 dark:bg-emerald-500/20">
           <svg
             className="h-4 w-4 text-emerald-600 dark:text-emerald-400"
@@ -42,10 +42,10 @@ export function ChamadaChatMeet() {
           </svg>
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
             Chat do grupo
           </h2>
-          <p className="text-xs text-slate-600 dark:text-slate-400">
+          <p className="text-xs text-neutral-600 dark:text-neutral-400">
             Mensagens visíveis para todos na chamada
           </p>
         </div>
@@ -57,9 +57,9 @@ export function ChamadaChatMeet() {
       >
         {chatMessages.length === 0 ? (
           <div className="flex h-full min-h-[120px] flex-col items-center justify-center px-4 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
               <svg
-                className="h-6 w-6 text-slate-500 dark:text-slate-400"
+                className="h-6 w-6 text-neutral-500 dark:text-neutral-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -72,10 +72,10 @@ export function ChamadaChatMeet() {
                 />
               </svg>
             </div>
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
               Nenhuma mensagem ainda
             </p>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+            <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
               Seja o primeiro a enviar uma mensagem
             </p>
           </div>
@@ -102,12 +102,12 @@ export function ChamadaChatMeet() {
                     <span
                       className={cn(
                         "text-xs font-medium",
-                        isLocal ? "text-emerald-700 dark:text-emerald-400" : "text-slate-700 dark:text-slate-300",
+                        isLocal ? "text-emerald-700 dark:text-emerald-400" : "text-neutral-700 dark:text-neutral-300",
                       )}
                     >
                       {isLocal ? "Você" : name}
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
                       {time}
                     </span>
                   </div>
@@ -117,7 +117,7 @@ export function ChamadaChatMeet() {
                     "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm",
                     isLocal
                       ? "rounded-br-md bg-emerald-600 text-white dark:bg-emerald-600"
-                      : "rounded-bl-md bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
+                      : "rounded-bl-md bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100",
                   )}
                 >
                   <p className="break-words whitespace-pre-wrap">{msg.message}</p>
@@ -131,13 +131,13 @@ export function ChamadaChatMeet() {
       {/* Input: "Digite algo..." com anexo e enviar (estilo anexos) */}
       <form
         onSubmit={handleSubmit}
-        className="flex shrink-0 items-center gap-2 border-t border-slate-100 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/80"
+        className="flex shrink-0 items-center gap-2 border-t border-neutral-100 bg-neutral-50/80 p-3 dark:border-neutral-700 dark:bg-neutral-800/80"
       >
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-9 w-9 shrink-0 rounded-xl text-slate-500 hover:bg-white hover:text-slate-800"
+          className="h-9 w-9 shrink-0 rounded-xl text-neutral-500 hover:bg-white hover:text-neutral-800"
           title="Anexar"
         >
           <Paperclip className="h-4 w-4" />
@@ -148,7 +148,7 @@ export function ChamadaChatMeet() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Escreva uma mensagem…"
           disabled={isSending}
-          className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+          className="h-10 min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 placeholder:text-neutral-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500"
         />
         <Button
           type="submit"

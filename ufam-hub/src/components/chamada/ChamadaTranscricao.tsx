@@ -218,8 +218,8 @@ export function ChamadaTranscricao() {
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-700">
           <MicOff className="h-6 w-6" />
         </div>
-        <p className="text-sm font-medium text-slate-900">Momentos indisponíveis</p>
-        <p className="text-xs text-slate-500">
+        <p className="text-sm font-medium text-neutral-900">Momentos indisponíveis</p>
+        <p className="text-xs text-neutral-500">
           Use Chrome, Edge ou Safari para transcrição automática em português.
         </p>
       </div>
@@ -227,9 +227,9 @@ export function ChamadaTranscricao() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-slate-900">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
-        <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+    <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-neutral-900">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-100 px-4 py-3 dark:border-neutral-700">
+        <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
           Notas ao vivo (a sua fala)
         </p>
         <div className="flex items-center gap-1">
@@ -258,7 +258,7 @@ export function ChamadaTranscricao() {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 rounded-lg text-slate-500"
+              className="h-8 rounded-lg text-neutral-500"
               onClick={clearTranscript}
             >
               Limpar
@@ -292,8 +292,8 @@ export function ChamadaTranscricao() {
       >
         {lines.length === 0 && !interim && !isListening && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Mic className="mb-2 h-10 w-10 text-slate-300" />
-            <p className="text-sm text-slate-500">
+            <Mic className="mb-2 h-10 w-10 text-neutral-300" />
+            <p className="text-sm text-neutral-500">
               Clique em &quot;Iniciar&quot; para transcrever sua fala em tempo real.
             </p>
           </div>
@@ -305,11 +305,11 @@ export function ChamadaTranscricao() {
             className={cn(
               "rounded-xl px-3 py-2 text-sm",
               line.isInterim
-                ? "bg-slate-100 italic text-slate-500"
-                : "bg-slate-50 text-slate-900",
+                ? "bg-neutral-100 italic text-neutral-500"
+                : "bg-neutral-50 text-neutral-900",
             )}
           >
-            <span className="mr-2 text-[10px] tabular-nums text-slate-400">
+            <span className="mr-2 text-[10px] tabular-nums text-neutral-400">
               {line.time}
             </span>
             {line.text}
@@ -317,7 +317,7 @@ export function ChamadaTranscricao() {
         ))}
 
         {interim.trim() && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm italic text-slate-800">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm italic text-neutral-800">
             {interim}
           </div>
         )}

@@ -172,11 +172,11 @@ function ChamadaRoomInner() {
 
   return (
     <LayoutContextProvider value={layoutContext}>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-100 text-slate-900 chamada-meet-layout chamada-meeting-surface dark:bg-slate-950 dark:text-slate-100">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground chamada-meet-layout chamada-meeting-surface dark:bg-[#0a0a0a]">
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {/* Área principal de vídeo */}
           <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 md:p-5">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/5 dark:border-slate-700/90 dark:bg-slate-900 dark:ring-slate-800/80">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-sm ring-1 ring-neutral-900/5 dark:border-neutral-700/90 dark:bg-[#0a0a0a] dark:ring-neutral-800/80">
             {!focusTrack ? (
               <GridLayout tracks={tracks} className="h-full min-h-0 flex-1 chamada-grid-v2">
                 <ParticipantTile />
@@ -184,7 +184,7 @@ function ChamadaRoomInner() {
             ) : (
               <FocusLayoutContainer className="lk-focus-layout chamada-focus-layout flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:p-4">
-                  <div className="chamada-focus-main flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-100 bg-slate-50 shadow-inner dark:border-slate-700 dark:bg-slate-800/50">
+                  <div className="chamada-focus-main flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-neutral-100 bg-neutral-50 shadow-inner dark:border-neutral-700 dark:bg-neutral-800/50">
                     {focusTrack && <FocusLayout trackRef={focusTrack} />}
                   </div>
                   <div className="shrink-0 flex flex-row gap-2 overflow-x-auto overflow-y-hidden py-1 px-0 min-h-[112px] max-h-[168px] md:min-h-[128px] md:max-h-[176px]">
@@ -203,17 +203,17 @@ function ChamadaRoomInner() {
           </div>
 
           {/* Sidebar: cartões empilhados */}
-          <aside className="chamada-sidebar pointer-events-auto relative z-[40] flex w-full max-w-sm shrink-0 flex-col gap-4 overflow-y-auto bg-slate-100 p-3 md:max-w-none md:p-4 lg:w-[400px] dark:bg-slate-950">
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-md shadow-slate-900/5 ring-1 ring-slate-900/[0.04] dark:border-slate-700/90 dark:bg-slate-900 dark:shadow-slate-950/50 dark:ring-slate-800/60">
+          <aside className="chamada-sidebar pointer-events-auto relative z-[40] flex w-full max-w-sm shrink-0 flex-col gap-4 overflow-y-auto bg-background p-3 md:max-w-none md:p-4 lg:w-[400px] dark:bg-[#0a0a0a]">
+            <div className="rounded-2xl border border-neutral-200/90 bg-white p-4 shadow-md shadow-neutral-900/5 ring-1 ring-neutral-900/[0.04] dark:border-neutral-700/90 dark:bg-neutral-900 dark:shadow-neutral-950/50 dark:ring-neutral-800/60">
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-600 dark:text-neutral-400">
                   Participantes
                 </h2>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 gap-1 rounded-full border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                  className="h-8 gap-1 rounded-full border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
                   onClick={() => setShareModalOpen(true)}
                 >
                   <UserPlus className="h-3.5 w-3.5" />
@@ -224,16 +224,16 @@ function ChamadaRoomInner() {
                 {participants.map((p) => (
                   <li
                     key={p.identity}
-                    className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/80"
+                    className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/80"
                   >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-300">
                       {(p.name || p.identity || "?").charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
                         {p.isLocal ? "Você" : p.name || p.identity}
                       </p>
-                      <p className="text-[10px] text-slate-600 dark:text-slate-400">
+                      <p className="text-[10px] text-neutral-600 dark:text-neutral-400">
                         Participante
                       </p>
                     </div>
@@ -241,12 +241,12 @@ function ChamadaRoomInner() {
                       {p.isMicrophoneEnabled ? (
                         <Mic className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       ) : (
-                        <MicOff className="h-4 w-4 text-slate-500 dark:text-slate-500" />
+                        <MicOff className="h-4 w-4 text-neutral-500 dark:text-neutral-500" />
                       )}
                       {p.isCameraEnabled ? (
                         <Video className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       ) : (
-                        <VideoOff className="h-4 w-4 text-slate-500 dark:text-slate-500" />
+                        <VideoOff className="h-4 w-4 text-neutral-500 dark:text-neutral-500" />
                       )}
                     </div>
                   </li>
@@ -254,8 +254,8 @@ function ChamadaRoomInner() {
               </ul>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md shadow-slate-900/5 ring-1 ring-slate-900/[0.04] dark:border-slate-700/90 dark:bg-slate-900 dark:shadow-slate-950/50 dark:ring-slate-800/60">
-              <div className="flex shrink-0 gap-1 border-b border-slate-100 p-2 dark:border-slate-700">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-md shadow-neutral-900/5 ring-1 ring-neutral-900/[0.04] dark:border-neutral-700/90 dark:bg-neutral-900 dark:shadow-neutral-950/50 dark:ring-neutral-800/60">
+              <div className="flex shrink-0 gap-1 border-b border-neutral-100 p-2 dark:border-neutral-700">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -265,7 +265,7 @@ function ChamadaRoomInner() {
                       "flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-colors",
                       sidebarTab === tab.id
                         ? "bg-emerald-500/15 text-emerald-800 shadow-sm dark:bg-emerald-500/20 dark:text-emerald-300"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100",
+                        : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100",
                     )}
                   >
                     {tab.icon}
@@ -274,7 +274,7 @@ function ChamadaRoomInner() {
                 ))}
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-slate-900">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-neutral-900">
                 {sidebarTab === "chat" && (
                   <div className="flex h-full min-h-0 flex-col">
                     <ChamadaChatMeet />
@@ -288,10 +288,10 @@ function ChamadaRoomInner() {
         </div>
 
         {/* Barra de controles: volume (áudio remoto) · ações · sair */}
-        <div className="chamada-control-bar relative z-[35] flex w-full flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-white px-4 py-4 shadow-[0_-8px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 md:px-8">
+        <div className="chamada-control-bar relative z-[35] flex w-full flex-wrap items-center justify-between gap-4 border-t border-neutral-200 bg-white px-4 py-4 shadow-[0_-8px_30px_rgba(15,23,42,0.06)] dark:border-neutral-700 dark:bg-neutral-900 md:px-8">
           <div className="flex min-w-0 max-w-[220px] flex-1 items-center gap-3 sm:min-w-[160px] sm:max-w-none sm:flex-initial">
             <Volume2
-              className="h-5 w-5 shrink-0 text-slate-600 dark:text-slate-300"
+              className="h-5 w-5 shrink-0 text-neutral-600 dark:text-neutral-300"
               aria-hidden
             />
             <label className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[140px]">
@@ -305,15 +305,15 @@ function ChamadaRoomInner() {
                 onChange={(e) =>
                   setPlaybackVolume(Number(e.target.value) / 100)
                 }
-                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-emerald-600 dark:bg-slate-600 dark:accent-emerald-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-600 dark:[&::-webkit-slider-thumb]:bg-emerald-400"
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-emerald-600 dark:bg-neutral-600 dark:accent-emerald-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-600 dark:[&::-webkit-slider-thumb]:bg-emerald-400"
                 title="Volume do áudio dos outros (não é o volume do sistema)"
               />
             </label>
             <div className="flex items-center gap-2 sm:hidden">
-              <span className="rounded-full bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-800 dark:bg-slate-700 dark:text-slate-100">
+              <span className="rounded-full bg-neutral-200 px-2 py-1 text-[10px] font-semibold text-neutral-800 dark:bg-neutral-700 dark:text-neutral-100">
                 N
               </span>
-              <span className="text-xs font-medium tabular-nums text-slate-800 dark:text-slate-200">
+              <span className="text-xs font-medium tabular-nums text-neutral-800 dark:text-neutral-200">
                 {formatElapsed(callElapsedMs)}
               </span>
             </div>
@@ -324,8 +324,8 @@ function ChamadaRoomInner() {
               source={Track.Source.Microphone}
               title="Microfone"
               className={cn(
-                "h-12 w-12 shrink-0 rounded-full border-2 border-slate-200 bg-slate-50 shadow-sm dark:border-slate-600 dark:bg-slate-800",
-                "text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700",
+                "h-12 w-12 shrink-0 rounded-full border-2 border-neutral-200 bg-neutral-50 shadow-sm dark:border-neutral-600 dark:bg-neutral-800",
+                "text-neutral-800 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-700",
                 "aria-[pressed=true]:border-emerald-500 aria-[pressed=true]:bg-emerald-50 dark:aria-[pressed=true]:bg-emerald-950/40",
               )}
             />
@@ -333,8 +333,8 @@ function ChamadaRoomInner() {
               source={Track.Source.Camera}
               title="Câmera"
               className={cn(
-                "h-12 w-12 shrink-0 rounded-full border-2 border-slate-200 bg-slate-50 shadow-sm dark:border-slate-600 dark:bg-slate-800",
-                "text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700",
+                "h-12 w-12 shrink-0 rounded-full border-2 border-neutral-200 bg-neutral-50 shadow-sm dark:border-neutral-600 dark:bg-neutral-800",
+                "text-neutral-800 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-700",
                 "aria-[pressed=true]:border-emerald-500 aria-[pressed=true]:bg-emerald-50 dark:aria-[pressed=true]:bg-emerald-950/40",
               )}
             />
@@ -342,8 +342,8 @@ function ChamadaRoomInner() {
               source={Track.Source.ScreenShare}
               title="Compartilhar tela"
               className={cn(
-                "h-12 w-12 shrink-0 rounded-full border-2 border-slate-200 bg-slate-50 shadow-sm dark:border-slate-600 dark:bg-slate-800",
-                "text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700",
+                "h-12 w-12 shrink-0 rounded-full border-2 border-neutral-200 bg-neutral-50 shadow-sm dark:border-neutral-600 dark:bg-neutral-800",
+                "text-neutral-800 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-700",
                 "aria-[pressed=true]:border-emerald-500 aria-[pressed=true]:bg-emerald-50 dark:aria-[pressed=true]:bg-emerald-950/40",
               )}
             />
@@ -352,7 +352,7 @@ function ChamadaRoomInner() {
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-12 w-12 shrink-0 rounded-full border-slate-200 bg-slate-50 text-slate-800 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                className="h-12 w-12 shrink-0 rounded-full border-neutral-200 bg-neutral-50 text-neutral-800 shadow-sm hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
                 title="Voltar à grelha de participantes"
                 onClick={() => layoutContext.pin.dispatch?.({ msg: "clear_pin" })}
               >
@@ -363,7 +363,7 @@ function ChamadaRoomInner() {
               type="button"
               variant="outline"
               size="icon"
-              className="h-12 w-12 shrink-0 rounded-full border-slate-200 bg-slate-50 text-slate-800 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+              className="h-12 w-12 shrink-0 rounded-full border-neutral-200 bg-neutral-50 text-neutral-800 shadow-sm hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
               title="Convidar e participantes"
               onClick={() => setShareModalOpen(true)}
             >
@@ -397,7 +397,7 @@ function ChamadaRoomInner() {
 
 export function ChamadaRoomUI() {
   return (
-    <div className="chamada-room chamada-meeting-surface flex h-full w-full flex-col bg-slate-100 dark:bg-slate-950">
+    <div className="chamada-room chamada-meeting-surface flex h-full w-full flex-col bg-background dark:bg-[#0a0a0a]">
       <ChamadaRoomInner />
     </div>
   );

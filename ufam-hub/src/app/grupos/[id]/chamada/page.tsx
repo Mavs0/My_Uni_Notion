@@ -132,7 +132,7 @@ export default function GrupoChamadaPage() {
   return (
     <ChamadaSidebarProvider>
       <ChamadaGroupInfoLoader grupoId={grupoId} />
-      <main className="chamada-v2 flex h-screen flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <main className="chamada-v2 flex h-screen flex-col bg-background text-foreground dark:bg-[#0a0a0a]">
         <ChamadaHeader grupoId={grupoId} />
         <div className="flex min-h-0 flex-1 flex-col">
           <LiveKitRoom
@@ -167,13 +167,13 @@ function formatHeaderElapsed(ms: number): string {
 function ChamadaHeader({ grupoId }: { grupoId: string }) {
   const { setSidebarTab, groupInfo, callElapsedMs } = useChamadaSidebar();
   return (
-    <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200/90 bg-white px-4 py-3.5 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 md:px-6">
+    <header className="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-200/90 bg-white px-4 py-3.5 shadow-sm shadow-neutral-900/5 dark:border-neutral-800 dark:bg-neutral-900 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
           asChild
-          className="h-10 w-10 shrink-0 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          className="h-10 w-10 shrink-0 rounded-xl text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
         >
           <Link href={`/grupos/${grupoId}`}>
             <ArrowLeft className="h-5 w-5" />
@@ -184,15 +184,15 @@ function ChamadaHeader({ grupoId }: { grupoId: string }) {
           <Video className="h-5 w-5" strokeWidth={2} />
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+          <h1 className="truncate text-base font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
             {groupInfo?.nome ?? "Chamada"}
           </h1>
-          <p className="text-xs text-slate-600 dark:text-slate-400">{formatSchedule()}</p>
+          <p className="text-xs text-neutral-600 dark:text-neutral-400">{formatSchedule()}</p>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 md:gap-3">
         <div
-          className="flex items-center gap-2 rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-sm font-semibold tabular-nums text-slate-800 shadow-inner dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          className="flex items-center gap-2 rounded-full border border-neutral-200/90 bg-neutral-50 px-3 py-1.5 text-sm font-semibold tabular-nums text-neutral-800 shadow-inner dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
           title="Duração da chamada"
         >
           <span className="relative flex h-2 w-2">
@@ -205,7 +205,7 @@ function ChamadaHeader({ grupoId }: { grupoId: string }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+          className="h-10 w-10 rounded-xl text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
           title="Notificações"
           type="button"
           onClick={() => toast.info("Notificações da chamada em breve.")}
@@ -215,7 +215,7 @@ function ChamadaHeader({ grupoId }: { grupoId: string }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+          className="h-10 w-10 rounded-xl text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
           title="Abrir chat"
           type="button"
           onClick={() => setSidebarTab("chat")}
@@ -225,7 +225,7 @@ function ChamadaHeader({ grupoId }: { grupoId: string }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+          className="h-10 w-10 rounded-xl text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
           title="Participantes no painel direito"
           type="button"
           onClick={() =>

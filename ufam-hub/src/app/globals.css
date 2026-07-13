@@ -732,17 +732,17 @@ body[data-focus-font-size="extra-large"] .focus-mode-content-wrapper h3 {
 
 .dark .chamada-v2.chamada-room,
 .dark .chamada-v2 .chamada-room {
-  --lk-bg: #0f172a;
-  --lk-bg2: #1e293b;
-  --lk-bg3: #064e3b;
-  --lk-fg: #f1f5f9;
-  --lk-border-color: #334155;
+  --lk-bg: #0a0a0a;
+  --lk-bg2: #171717;
+  --lk-bg3: #262626;
+  --lk-fg: #fafafa;
+  --lk-border-color: #404040;
   --lk-danger: #f87171;
-  --lk-danger-fg: #0f172a;
+  --lk-danger-fg: #0a0a0a;
   --lk-accent-bg: #34d399;
   --lk-accent-fg: #022c22;
-  --lk-control-bg: #1e293b;
-  --lk-control-hover-bg: #334155;
+  --lk-control-bg: #171717;
+  --lk-control-hover-bg: #262626;
 }
 .dark .chamada-v2 .lk-participant-tile,
 .dark .chamada-meeting-surface .lk-participant-tile {

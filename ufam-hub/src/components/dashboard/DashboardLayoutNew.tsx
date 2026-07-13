@@ -34,8 +34,6 @@ import type { Disciplina } from "@/hooks/useDisciplinasOptimized";
 import type { Avaliacao } from "@/hooks/useAvaliacoesOptimized";
 import { LOGIN_GREEN, LOGIN_GLOW } from "@/components/auth/login-modern/theme";
 
-const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
-
 type PrioridadeItem = {
   type: "tarefa" | "avaliacao";
   id: string;
